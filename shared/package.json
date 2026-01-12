@@ -1,0 +1,9 @@
+{
+  "name": "shared",
+  "version": "1.0.0",
+  "description": "Shared types and utilities",
+  "main": "types.ts",
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

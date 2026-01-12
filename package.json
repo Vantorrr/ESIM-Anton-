@@ -1,0 +1,30 @@
+{
+  "name": "esim-service",
+  "version": "1.0.0",
+  "description": "Программный комплекс для продажи eSIM",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "admin",
+    "bot",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter backend dev\" \"pnpm --filter admin dev\" \"pnpm --filter bot dev\"",
+    "build": "pnpm --filter backend build && pnpm --filter admin build && pnpm --filter bot build",
+    "start": "concurrently \"pnpm --filter backend start\" \"pnpm --filter admin start\" \"pnpm --filter bot start\"",
+    "lint": "pnpm --parallel lint",
+    "test": "pnpm --parallel test",
+    "db:migrate": "pnpm --filter backend prisma migrate dev",
+    "db:studio": "pnpm --filter backend prisma studio"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

@@ -1,0 +1,379 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Save, Plus, Edit2, Trash2 } from 'lucide-react'
+import { systemSettingsApi, loyaltyApi } from '@/lib/api'
+
+export default function Settings() {
+  const [activeTab, setActiveTab] = useState<'referrals' | 'loyalty'>('referrals')
+  const [loading, setLoading] = useState(true)
+
+  // Реферальная программа
+  const [referralSettings, setReferralSettings] = useState({
+    bonusPercent: 5,
+    minPayout: 500,
+    enabled: true,
+  })
+
+  // Уровни лояльности
+  const [loyaltyLevels, setLoyaltyLevels] = useState<any[]>([])
+  const [editingLevel, setEditingLevel] = useState<any>(null)
+
+  useEffect(() => {
+    loadData()
+  }, [activeTab])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      
+      if (activeTab === 'referrals') {
+        const response = await systemSettingsApi.getReferralSettings()
+        if (response.data) {
+          setReferralSettings(response.data)
+        }
+      } else {
+        const response = await loyaltyApi.getLevels()
+        if (response.data) {
+          setLoyaltyLevels(response.data)
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки настроек:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSaveReferralSettings = async () => {
+    try {
+      await systemSettingsApi.updateReferralSettings(referralSettings)
+      alert('✅ Настройки реферальной программы сохранены!')
+    } catch (error) {
+      console.error('Ошибка сохранения:', error)
+      alert('❌ Ошибка сохранения настроек')
+    }
+  }
+
+  const handleSaveLoyaltyLevel = async () => {
+    try {
+      if (editingLevel.id) {
+        // Обновление
+        await loyaltyApi.updateLevel(editingLevel.id, editingLevel)
+        alert('✅ Уровень лояльности обновлен!')
+      } else {
+        // Создание
+        await loyaltyApi.createLevel(editingLevel)
+        alert('✅ Уровень лояльности создан!')
+      }
+      
+      setEditingLevel(null)
+      loadData()
+    } catch (error) {
+      console.error('Ошибка сохранения:', error)
+      alert('❌ Ошибка сохранения уровня')
+    }
+  }
+
+  const handleDeleteLevel = async (id: string) => {
+    if (!confirm('Удалить этот уровень?')) return
+    
+    try {
+      await loyaltyApi.deleteLevel(id)
+      alert('✅ Уровень удален!')
+      loadData()
+    } catch (error) {
+      console.error('Ошибка удаления:', error)
+      alert('❌ Ошибка удаления уровня')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="glass-card p-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Tabs */}
+      <div className="glass-card p-2">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('referrals')}
+            className={`
+              flex items-center gap-2 px-6 py-3 rounded-xl font-medium
+              transition-all duration-200
+              ${
+                activeTab === 'referrals'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                  : 'hover:bg-white/50 text-slate-700'
+              }
+            `}
+          >
+            🎁 Реферальная программа
+          </button>
+          <button
+            onClick={() => setActiveTab('loyalty')}
+            className={`
+              flex items-center gap-2 px-6 py-3 rounded-xl font-medium
+              transition-all duration-200
+              ${
+                activeTab === 'loyalty'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                  : 'hover:bg-white/50 text-slate-700'
+              }
+            `}
+          >
+            🏆 Система лояльности
+          </button>
+        </div>
+      </div>
+
+      {/* Реферальная программа */}
+      {activeTab === 'referrals' && (
+        <div className="glass-card p-8">
+          <h2 className="text-2xl font-bold mb-6">Настройки реферальной программы</h2>
+          
+          <div className="space-y-6 max-w-2xl">
+            {/* Включить/выключить */}
+            <div>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={referralSettings.enabled}
+                  onChange={(e) => setReferralSettings({ ...referralSettings, enabled: e.target.checked })}
+                  className="w-5 h-5 rounded"
+                />
+                <span className="font-medium text-lg">Включить реферальную программу</span>
+              </label>
+            </div>
+
+            {/* Процент бонуса */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Процент бонуса рефереру (от покупки реферала)
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  type="number"
+                  value={referralSettings.bonusPercent}
+                  onChange={(e) => setReferralSettings({ ...referralSettings, bonusPercent: +e.target.value })}
+                  className="w-32 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                  min="0"
+                  max="100"
+                  disabled={!referralSettings.enabled}
+                />
+                <span className="text-lg font-bold text-slate-700">%</span>
+                <div className="text-sm text-slate-500">
+                  Пример: реферал купил eSIM за ₽1,000 → реферер получит ₽{(1000 * referralSettings.bonusPercent / 100).toFixed(0)}
+                </div>
+              </div>
+            </div>
+
+            {/* Минимальная сумма вывода */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Минимальная сумма для использования бонусов
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  type="number"
+                  value={referralSettings.minPayout}
+                  onChange={(e) => setReferralSettings({ ...referralSettings, minPayout: +e.target.value })}
+                  className="w-32 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                  min="0"
+                  step="100"
+                  disabled={!referralSettings.enabled}
+                />
+                <span className="text-lg font-bold text-slate-700">₽</span>
+                <div className="text-sm text-slate-500">
+                  Пользователь сможет использовать бонусы после накопления этой суммы
+                </div>
+              </div>
+            </div>
+
+            {/* Кнопка сохранить */}
+            <div className="pt-4">
+              <button
+                onClick={handleSaveReferralSettings}
+                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+              >
+                <Save className="w-5 h-5" />
+                Сохранить настройки
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Система лояльности */}
+      {activeTab === 'loyalty' && (
+        <div className="space-y-6">
+          {/* Кнопка добавить */}
+          <div className="glass-card p-6">
+            <button
+              onClick={() => setEditingLevel({ name: '', minSpent: 0, cashbackPercent: 0, discount: 0 })}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+            >
+              <Plus className="w-5 h-5" />
+              Добавить уровень
+            </button>
+          </div>
+
+          {/* Таблица уровней */}
+          <div className="glass-card p-6">
+            <h2 className="text-2xl font-bold mb-6">Уровни лояльности</h2>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left py-3 px-4 font-semibold text-slate-700">Название</th>
+                    <th className="text-left py-3 px-4 font-semibold text-slate-700">Минимальная сумма</th>
+                    <th className="text-left py-3 px-4 font-semibold text-slate-700">Кэшбэк (%)</th>
+                    <th className="text-left py-3 px-4 font-semibold text-slate-700">Скидка (%)</th>
+                    <th className="text-left py-3 px-4 font-semibold text-slate-700">Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loyaltyLevels.map((level) => (
+                    <tr
+                      key={level.id}
+                      className="border-b border-slate-100 hover:bg-white/50 transition-colors"
+                    >
+                      <td className="py-4 px-4 font-medium">{level.name}</td>
+                      <td className="py-4 px-4">₽{Number(level.minSpent).toLocaleString()}</td>
+                      <td className="py-4 px-4">{Number(level.cashbackPercent)}%</td>
+                      <td className="py-4 px-4">{Number(level.discount)}%</td>
+                      <td className="py-4 px-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingLevel(level)}
+                            className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
+                          >
+                            <Edit2 className="w-4 h-4 text-blue-600" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLevel(level.id)}
+                            className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Форма редактирования */}
+          {editingLevel && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+              <div className="glass-card p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <h3 className="text-2xl font-bold mb-6">
+                  {editingLevel.id ? 'Редактировать уровень' : 'Создать уровень'}
+                </h3>
+
+                <div className="space-y-4">
+                  {/* Название */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Название уровня
+                    </label>
+                    <input
+                      type="text"
+                      value={editingLevel.name}
+                      onChange={(e) => setEditingLevel({ ...editingLevel, name: e.target.value })}
+                      placeholder="Например: Золото"
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                    />
+                  </div>
+
+                  {/* Минимальная сумма */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Минимальная сумма покупок (₽)
+                    </label>
+                    <input
+                      type="number"
+                      value={editingLevel.minSpent}
+                      onChange={(e) => setEditingLevel({ ...editingLevel, minSpent: +e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      min="0"
+                      step="1000"
+                    />
+                    <p className="text-sm text-slate-500 mt-1">
+                      Пользователь получит этот уровень после покупок на эту сумму
+                    </p>
+                  </div>
+
+                  {/* Кэшбэк */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Процент кэшбэка (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={editingLevel.cashbackPercent}
+                      onChange={(e) => setEditingLevel({ ...editingLevel, cashbackPercent: +e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                    />
+                    <p className="text-sm text-slate-500 mt-1">
+                      Например: 5% → при покупке на ₽1,000 вернется ₽50 бонусов
+                    </p>
+                  </div>
+
+                  {/* Скидка */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Скидка на покупки (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={editingLevel.discount}
+                      onChange={(e) => setEditingLevel({ ...editingLevel, discount: +e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      min="0"
+                      max="100"
+                      step="1"
+                    />
+                    <p className="text-sm text-slate-500 mt-1">
+                      Например: 10% → товар за ₽1,000 будет стоить ₽900
+                    </p>
+                  </div>
+
+                  {/* Кнопки */}
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={handleSaveLoyaltyLevel}
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+                    >
+                      <Save className="w-5 h-5" />
+                      Сохранить
+                    </button>
+                    <button
+                      onClick={() => setEditingLevel(null)}
+                      className="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 transition-all"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

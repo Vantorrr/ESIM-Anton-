@@ -1,0 +1,42 @@
+import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { SystemSettingsService } from './system-settings.service';
+
+@ApiTags('system-settings')
+@ApiBearerAuth()
+@Controller('system-settings')
+export class SystemSettingsController {
+  constructor(private readonly systemSettingsService: SystemSettingsService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Получить все настройки' })
+  async getAll() {
+    return this.systemSettingsService.getAll();
+  }
+
+  @Get('referral')
+  @ApiOperation({ summary: 'Получить настройки реферальной программы' })
+  async getReferralSettings() {
+    return this.systemSettingsService.getReferralSettings();
+  }
+
+  @Post('referral')
+  @ApiOperation({ summary: 'Обновить настройки реферальной программы' })
+  async updateReferralSettings(
+    @Body() data: { bonusPercent: number; minPayout: number; enabled: boolean }
+  ) {
+    return this.systemSettingsService.updateReferralSettings(data);
+  }
+
+  @Get(':key')
+  @ApiOperation({ summary: 'Получить настройку по ключу' })
+  async getByKey(@Param('key') key: string) {
+    return this.systemSettingsService.getByKey(key);
+  }
+
+  @Post(':key')
+  @ApiOperation({ summary: 'Обновить настройку' })
+  async upsert(@Param('key') key: string, @Body() data: { value: string; description?: string }) {
+    return this.systemSettingsService.upsert(key, data.value, data.description);
+  }
+}
