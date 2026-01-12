@@ -36,9 +36,10 @@ export class UsersController {
     firstName?: string;
     lastName?: string;
   }) {
+    const { telegramId, ...userData } = dto;
     return this.usersService.findOrCreate(
-      BigInt(dto.telegramId),
-      dto
+      BigInt(telegramId),
+      userData
     );
   }
 }

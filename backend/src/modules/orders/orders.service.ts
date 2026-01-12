@@ -76,7 +76,11 @@ export class OrdersService {
       where: { id },
       include: {
         product: true,
-        user: true,
+        user: {
+          include: {
+            loyaltyLevel: true,
+          },
+        },
         transactions: true,
       },
     });
