@@ -53,4 +53,7 @@ async function bootstrap() {
   `);
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error('❌ Ошибка запуска:', error);
+  process.exit(1);
+});
