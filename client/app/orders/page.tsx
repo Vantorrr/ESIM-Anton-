@@ -2,80 +2,80 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Package, Calendar, CheckCircle, Clock, XCircle, QrCode } from 'lucide-react'
+import { Package, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, ShoppingBag } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
-import { ordersApi, Order, userApi } from '@/lib/api'
 
-function useTelegramUser() {
-  const [tgUser, setTgUser] = useState<any>(null)
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const user = window.Telegram.WebApp.initDataUnsafe?.user
-      setTgUser(user)
-    }
-  }, [])
-
-  return tgUser
-}
-
-function getStatusBadge(status: Order['status']) {
-  const badges = {
-    PENDING: { label: 'Ожидает оплаты', class: 'badge-warning' },
-    PAID: { label: 'Оплачен', class: 'badge-info' },
-    PROCESSING: { label: 'Обработка', class: 'badge-info' },
-    COMPLETED: { label: 'Выполнен', class: 'badge-success' },
-    FAILED: { label: 'Ошибка', class: 'badge-error' },
-    REFUNDED: { label: 'Возврат', class: 'badge-warning' },
-    CANCELLED: { label: 'Отменён', class: 'badge-error' },
+interface Order {
+  id: string
+  product: {
+    country: string
+    name: string
+    dataAmount: string
   }
-  
-  return badges[status] || { label: status, class: 'badge-info' }
+  status: 'PENDING' | 'PAID' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'REFUNDED' | 'CANCELLED'
+  totalAmount: number
+  createdAt: string
 }
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
-  const [userId, setUserId] = useState<string | null>(null)
-  const tgUser = useTelegramUser()
 
   useEffect(() => {
-    if (tgUser?.id) {
-      initUser()
-    }
-  }, [tgUser])
+    loadOrders()
+  }, [])
 
-  const initUser = async () => {
-    try {
-      const user = await userApi.getMe(tgUser.id.toString())
-      setUserId(user.id)
-      await loadOrders(user.id)
-    } catch (error) {
-      console.error('Ошибка инициализации:', error)
-      setLoading(false)
-    }
+  const loadOrders = async () => {
+    // Демо-заказы для отображения
+    // TODO: Подключить реальный API
+    setOrders([])
+    setLoading(false)
   }
 
-  const loadOrders = async (uid: string) => {
-    try {
-      const data = await ordersApi.getMy(uid)
-      setOrders(data.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ))
-      setLoading(false)
-    } catch (error) {
-      console.error('Ошибка загрузки заказов:', error)
-      setLoading(false)
+  const getStatusConfig = (status: Order['status']) => {
+    const configs = {
+      PENDING: { label: 'Ожидает оплаты', icon: Clock, color: 'text-yellow-500', bg: 'bg-yellow-50' },
+      PAID: { label: 'Оплачен', icon: CheckCircle, color: 'text-blue-500', bg: 'bg-blue-50' },
+      PROCESSING: { label: 'Обработка', icon: Clock, color: 'text-blue-500', bg: 'bg-blue-50' },
+      COMPLETED: { label: 'Выполнен', icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' },
+      FAILED: { label: 'Ошибка', icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
+      REFUNDED: { label: 'Возврат', icon: AlertCircle, color: 'text-orange-500', bg: 'bg-orange-50' },
+      CANCELLED: { label: 'Отменён', icon: XCircle, color: 'text-gray-500', bg: 'bg-gray-50' },
     }
+    return configs[status]
+  }
+
+  const getCountryEmoji = (country: string): string => {
+    const flags: Record<string, string> = {
+      'США': '🇺🇸',
+      'Европа': '🇪🇺',
+      'Турция': '🇹🇷',
+      'ОАЭ': '🇦🇪',
+      'Таиланд': '🇹🇭',
+      'Япония': '🇯🇵',
+    }
+    return flags[country] || '🌍'
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   }
 
   if (loading) {
     return (
       <div className="container">
-        <h1 className="text-2xl font-bold mb-6 mt-6">Мои заказы</h1>
-        <div className="space-y-3">
+        <header className="mb-6">
+          <h1 className="text-2xl font-bold text-primary">Мои заказы</h1>
+        </header>
+        <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="tg-card">
+            <div key={i} className="glass-card">
               <div className="skeleton h-6 w-32 mb-2" />
               <div className="skeleton h-4 w-full mb-2" />
               <div className="skeleton h-4 w-24" />
@@ -90,70 +90,65 @@ export default function OrdersPage() {
   return (
     <div className="container">
       {/* Header */}
-      <header className="mb-6 mt-6 animate-fade-in">
-        <h1 className="text-2xl font-bold">Мои заказы</h1>
-        <p className="tg-hint">История покупок eSIM</p>
+      <header className="mb-6 animate-fade-in">
+        <h1 className="text-2xl font-bold text-primary">Мои заказы</h1>
+        <p className="text-secondary text-sm mt-1">История ваших покупок</p>
       </header>
 
-      {/* Orders List */}
       {orders.length === 0 ? (
-        <div className="tg-card text-center py-12">
-          <Package className="mx-auto mb-4 tg-hint" size={48} />
-          <p className="tg-hint text-lg mb-2">У вас пока нет заказов</p>
-          <p className="tg-hint text-sm mb-6">Перейдите в каталог, чтобы выбрать eSIM</p>
+        <div className="glass-card text-center py-16 animate-slide-up">
+          <div className="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
+            <ShoppingBag className="text-muted" size={40} />
+          </div>
+          <h3 className="text-lg font-semibold text-primary mb-2">Нет заказов</h3>
+          <p className="text-muted text-sm mb-6">
+            Вы ещё не совершали покупок
+          </p>
           <Link href="/">
-            <button className="tg-button max-w-xs mx-auto">
+            <button className="glass-button" style={{ width: 'auto', padding: '12px 32px' }}>
               Перейти в каталог
             </button>
           </Link>
         </div>
       ) : (
-        <div className="space-y-3 animate-slide-up pb-20">
-          {orders.map((order) => {
-            const badge = getStatusBadge(order.status)
-            const isCompleted = order.status === 'COMPLETED'
+        <div className="space-y-3">
+          {orders.map((order, index) => {
+            const statusConfig = getStatusConfig(order.status)
+            const StatusIcon = statusConfig.icon
             
             return (
               <Link key={order.id} href={`/order/${order.id}`}>
-                <div className="tg-card hover:opacity-90 transition-opacity cursor-pointer">
-                  {/* Status Badge */}
-                  <div className="flex justify-between items-start mb-3">
-                    <span className={`badge ${badge.class}`}>{badge.label}</span>
-                    <span className="tg-hint text-xs">
-                      <Calendar size={14} className="inline mr-1" />
-                      {new Date(order.createdAt).toLocaleDateString('ru-RU', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                      })}
-                    </span>
-                  </div>
-
-                  {/* Product Info */}
-                  <h3 className="font-bold text-lg mb-1">{order.product.country}</h3>
-                  <p className="text-sm mb-2">{order.product.name}</p>
-                  
-                  <div className="flex gap-3 text-sm tg-hint mb-3">
-                    <span>📊 {order.product.dataAmount}</span>
-                    <span>📅 {order.product.validityDays} дней</span>
-                    {order.quantity > 1 && <span>× {order.quantity}</span>}
-                  </div>
-
-                  {/* Price */}
-                  <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                    <span className="tg-hint">Сумма</span>
-                    <span className="font-bold text-lg" style={{ color: 'var(--tg-theme-button-color)' }}>
-                      ₽{Number(order.totalAmount).toFixed(2)}
-                    </span>
-                  </div>
-
-                  {/* QR Code indicator */}
-                  {isCompleted && order.qrCode && (
-                    <div className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--tg-theme-button-color)' }}>
-                      <QrCode size={16} />
-                      <span className="font-medium">QR-код доступен</span>
+                <div 
+                  className="glass-card animate-slide-up cursor-pointer"
+                  style={{ animationDelay: `${0.05 * (index + 1)}s` }}
+                >
+                  <div className="flex items-center gap-4">
+                    {/* Country Flag */}
+                    <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-2xl shrink-0">
+                      {getCountryEmoji(order.product.country)}
                     </div>
-                  )}
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <h3 className="font-semibold text-primary truncate">
+                          {order.product.country}
+                        </h3>
+                        <p className="font-bold text-accent shrink-0">₽{order.totalAmount}</p>
+                      </div>
+                      <p className="text-sm text-secondary">{order.product.name}</p>
+                      
+                      <div className="flex items-center justify-between mt-2">
+                        <div className={`flex items-center gap-1 text-xs ${statusConfig.color}`}>
+                          <StatusIcon size={14} />
+                          <span>{statusConfig.label}</span>
+                        </div>
+                        <p className="text-xs text-muted">{formatDate(order.createdAt)}</p>
+                      </div>
+                    </div>
+
+                    <ChevronRight className="text-muted shrink-0" size={18} />
+                  </div>
                 </div>
               </Link>
             )

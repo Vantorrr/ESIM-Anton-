@@ -1,45 +1,20 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, MapPin, Zap, Calendar, Shield, Award, Minus, Plus, ShoppingCart } from 'lucide-react'
-import { productsApi, ordersApi, userApi, Product, User, paymentsApi } from '@/lib/api'
-
-function useTelegramUser() {
-  const [tgUser, setTgUser] = useState<any>(null)
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const user = window.Telegram.WebApp.initDataUnsafe?.user
-      setTgUser(user)
-    }
-  }, [])
-
-  return tgUser
-}
+import { useParams, useRouter } from 'next/navigation'
+import { ArrowLeft, Wifi, Clock, CheckCircle2, Zap, Shield, Globe } from 'lucide-react'
+import { productsApi, Product } from '@/lib/api'
 
 export default function ProductPage() {
   const params = useParams()
   const router = useRouter()
   const [product, setProduct] = useState<Product | null>(null)
-  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [quantity, setQuantity] = useState(1)
-  const [useBonuses, setUseBonuses] = useState(false)
   const [purchasing, setPurchasing] = useState(false)
-  const tgUser = useTelegramUser()
 
   useEffect(() => {
-    if (params.id) {
-      loadProduct()
-    }
+    loadProduct()
   }, [params.id])
-
-  useEffect(() => {
-    if (tgUser?.id) {
-      loadUser()
-    }
-  }, [tgUser])
 
   const loadProduct = async () => {
     try {
@@ -47,78 +22,53 @@ export default function ProductPage() {
       setProduct(data)
       setLoading(false)
     } catch (error) {
-      console.error('Ошибка загрузки продукта:', error)
+      console.error('Ошибка загрузки:', error)
       setLoading(false)
     }
   }
 
-  const loadUser = async () => {
-    try {
-      const data = await userApi.getMe(tgUser.id.toString())
-      setUser(data)
-    } catch (error) {
-      console.error('Ошибка загрузки пользователя:', error)
+  const getCountryEmoji = (country: string): string => {
+    const flags: Record<string, string> = {
+      'США': '🇺🇸',
+      'Европа': '🇪🇺',
+      'Турция': '🇹🇷',
+      'ОАЭ': '🇦🇪',
+      'Таиланд': '🇹🇭',
+      'Япония': '🇯🇵',
+      'Китай': '🇨🇳',
+      'Корея': '🇰🇷',
+      'Сингапур': '🇸🇬',
+      'Индонезия': '🇮🇩',
     }
+    return flags[country] || '🌍'
   }
 
   const handlePurchase = async () => {
-    if (!product || !user) return
-
-    try {
-      setPurchasing(true)
-
-      // Создаём заказ
-      const order = await ordersApi.create({
-        productId: product.id,
-        quantity,
-        bonusToUse: useBonuses ? Number(user.bonusBalance) : 0,
-      })
-
-      // Создаём платёж
-      const payment = await paymentsApi.createPayment(order.id)
-
-      // Открываем ссылку на оплату в Telegram
-      if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.openLink(payment.paymentUrl)
-      } else {
-        window.location.href = payment.paymentUrl
-      }
-
+    if (!product) return
+    
+    setPurchasing(true)
+    
+    // TODO: Интеграция с платежной системой
+    // Пока показываем сообщение
+    setTimeout(() => {
       setPurchasing(false)
-    } catch (error) {
-      console.error('Ошибка создания заказа:', error)
-      setPurchasing(false)
-      alert('Ошибка при создании заказа. Попробуйте еще раз.')
-    }
-  }
-
-  const calculateTotal = () => {
-    if (!product) return 0
-    
-    let total = Number(product.ourPrice) * quantity
-    
-    // Применяем скидку по уровню лояльности
-    if (user?.loyaltyLevel) {
-      const discount = (total * Number(user.loyaltyLevel.discount)) / 100
-      total -= discount
-    }
-    
-    // Применяем бонусы
-    if (useBonuses && user) {
-      const bonusToUse = Math.min(Number(user.bonusBalance), total)
-      total -= bonusToUse
-    }
-    
-    return total
+      alert('Функция оплаты будет доступна после интеграции с платёжной системой')
+    }, 1000)
   }
 
   if (loading) {
     return (
       <div className="container">
-        <div className="mt-6 space-y-4">
-          <div className="skeleton h-8 w-full" />
-          <div className="skeleton h-64 w-full" />
-          <div className="skeleton h-32 w-full" />
+        <div className="glass-card mb-6">
+          <div className="skeleton w-20 h-20 rounded-2xl mx-auto mb-4" />
+          <div className="skeleton h-6 w-32 mx-auto mb-2" />
+          <div className="skeleton h-4 w-48 mx-auto" />
+        </div>
+        <div className="glass-card">
+          <div className="skeleton h-8 w-24 mb-4" />
+          <div className="skeleton h-4 w-full mb-2" />
+          <div className="skeleton h-4 w-full mb-2" />
+          <div className="skeleton h-4 w-3/4" />
         </div>
       </div>
     )
@@ -127,10 +77,10 @@ export default function ProductPage() {
   if (!product) {
     return (
       <div className="container">
-        <div className="tg-card text-center py-12 mt-6">
-          <p className="tg-hint">Продукт не найден</p>
-          <button onClick={() => router.back()} className="tg-button mt-4 max-w-xs mx-auto">
-            Назад
+        <div className="glass-card text-center py-12">
+          <p className="text-secondary text-lg">Продукт не найден</p>
+          <button onClick={() => router.back()} className="glass-button mt-4">
+            Вернуться
           </button>
         </div>
       </div>
@@ -138,155 +88,129 @@ export default function ProductPage() {
   }
 
   return (
-    <div className="container pb-32">
-      {/* Header */}
-      <header className="mb-6 mt-6 animate-fade-in">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 mb-4 tg-hint hover:opacity-70 transition-opacity"
-        >
-          <ArrowLeft size={20} />
-          <span>Назад</span>
-        </button>
-      </header>
-
-      {/* Product Card */}
-      <div className="tg-card mb-4 animate-slide-up">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h1 className="text-2xl font-bold mb-2">{product.country}</h1>
-            <p className="text-lg mb-1">{product.name}</p>
-            {product.region && (
-              <p className="tg-hint flex items-center gap-1">
-                <MapPin size={16} />
-                {product.region}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {product.description && (
-          <p className="tg-hint mb-4">{product.description}</p>
-        )}
-
-        {/* Features */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
-            <Zap size={20} style={{ color: 'var(--tg-theme-button-color)' }} />
-            <div>
-              <p className="tg-hint text-xs">Данные</p>
-              <p className="font-semibold">{product.dataAmount}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
-            <Calendar size={20} style={{ color: 'var(--tg-theme-button-color)' }} />
-            <div>
-              <p className="tg-hint text-xs">Срок</p>
-              <p className="font-semibold">{product.validityDays} дней</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Price */}
-        <div className="pt-4 border-t border-gray-200">
-          <div className="flex justify-between items-center">
-            <span className="text-lg">Цена за 1 eSIM</span>
-            <span className="text-2xl font-bold" style={{ color: 'var(--tg-theme-button-color)' }}>
-              ₽{Number(product.ourPrice).toFixed(2)}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Quantity Selector */}
-      <div className="tg-card mb-4">
-        <h3 className="font-bold mb-3">Количество</h3>
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setQuantity(Math.max(1, quantity - 1))}
-            disabled={quantity <= 1}
-            className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
-            style={{
-              background: quantity > 1 ? 'var(--tg-theme-button-color)' : 'var(--tg-theme-secondary-bg-color)',
-              color: quantity > 1 ? 'var(--tg-theme-button-text-color)' : 'var(--tg-theme-hint-color)',
-            }}
-          >
-            <Minus size={20} />
-          </button>
-          <span className="text-2xl font-bold">{quantity}</span>
-          <button
-            onClick={() => setQuantity(Math.min(10, quantity + 1))}
-            disabled={quantity >= 10}
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{
-              background: 'var(--tg-theme-button-color)',
-              color: 'var(--tg-theme-button-text-color)',
-            }}
-          >
-            <Plus size={20} />
-          </button>
-        </div>
-      </div>
-
-      {/* Bonuses */}
-      {user && Number(user.bonusBalance) > 0 && (
-        <div className="tg-card mb-4">
-          <label className="flex items-center justify-between cursor-pointer">
-            <div>
-              <p className="font-semibold mb-1">Использовать бонусы</p>
-              <p className="tg-hint text-sm">Доступно: ₽{Number(user.bonusBalance).toFixed(2)}</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={useBonuses}
-              onChange={(e) => setUseBonuses(e.target.checked)}
-              className="w-6 h-6"
-            />
-          </label>
-        </div>
-      )}
-
-      {/* Loyalty Discount */}
-      {user?.loyaltyLevel && Number(user.loyaltyLevel.discount) > 0 && (
-        <div className="tg-card mb-4" style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}>
-          <div className="flex items-center gap-2">
-            <Award size={20} />
-            <div>
-              <p className="font-semibold">Ваша скидка: {Number(user.loyaltyLevel.discount)}%</p>
-              <p className="text-sm opacity-90">{user.loyaltyLevel.name}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Fixed Bottom Purchase */}
-      <div
-        className="fixed bottom-0 left-0 right-0 p-4"
-        style={{ background: 'var(--tg-theme-bg-color)', borderTop: '1px solid var(--tg-theme-secondary-bg-color)' }}
+    <div className="container">
+      {/* Back Button */}
+      <button 
+        onClick={() => router.back()}
+        className="flex items-center gap-2 text-accent font-medium mb-6 animate-fade-in"
       >
-        <div className="max-w-[600px] mx-auto">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-lg font-semibold">Итого:</span>
-            <span className="text-2xl font-bold" style={{ color: 'var(--tg-theme-button-color)' }}>
-              ₽{calculateTotal().toFixed(2)}
-            </span>
-          </div>
-          <button
-            onClick={handlePurchase}
-            disabled={purchasing}
-            className="tg-button flex items-center justify-center gap-2"
-          >
-            {purchasing ? (
-              <span>Создание заказа...</span>
-            ) : (
-              <>
-                <ShoppingCart size={20} />
-                <span>Купить</span>
-              </>
-            )}
-          </button>
+        <ArrowLeft size={20} />
+        <span>Назад</span>
+      </button>
+
+      {/* Product Header */}
+      <div className="glass-card text-center mb-6 animate-slide-up">
+        <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-5xl mx-auto mb-4 shadow-sm">
+          {getCountryEmoji(product.country)}
+        </div>
+        <h1 className="text-2xl font-bold text-primary mb-1">{product.country}</h1>
+        <p className="text-secondary">{product.name}</p>
+        {product.region && (
+          <p className="text-muted text-sm mt-1">{product.region}</p>
+        )}
+      </div>
+
+      {/* Features */}
+      <div className="grid grid-cols-2 gap-3 mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <div className="glass-card-flat text-center">
+          <Wifi className="mx-auto mb-2 text-accent" size={28} />
+          <p className="text-lg font-bold text-primary">{product.dataAmount}</p>
+          <p className="text-xs text-muted">Трафик</p>
+        </div>
+        <div className="glass-card-flat text-center">
+          <Clock className="mx-auto mb-2 text-accent" size={28} />
+          <p className="text-lg font-bold text-primary">{product.validityDays} дней</p>
+          <p className="text-xs text-muted">Срок действия</p>
         </div>
       </div>
+
+      {/* Benefits */}
+      <div className="glass-card mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+        <h3 className="font-semibold text-primary mb-4">Преимущества</h3>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+              <Zap className="text-green-500" size={20} />
+            </div>
+            <div>
+              <p className="font-medium text-primary">Мгновенная активация</p>
+              <p className="text-xs text-muted">Получите eSIM за 2 минуты</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+              <Globe className="text-blue-500" size={20} />
+            </div>
+            <div>
+              <p className="font-medium text-primary">Работает везде</p>
+              <p className="text-xs text-muted">Стабильное покрытие</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+              <Shield className="text-purple-500" size={20} />
+            </div>
+            <div>
+              <p className="font-medium text-primary">Безопасно</p>
+              <p className="text-xs text-muted">Защищённое соединение</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* How it works */}
+      <div className="glass-card mb-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+        <h3 className="font-semibold text-primary mb-4">Как это работает</h3>
+        <div className="space-y-3">
+          {[
+            'Оплатите eSIM',
+            'Получите QR-код',
+            'Отсканируйте в настройках',
+            'Пользуйтесь интернетом',
+          ].map((step, index) => (
+            <div key={index} className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-sm font-bold shrink-0">
+                {index + 1}
+              </div>
+              <p className="text-secondary">{step}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Purchase Section */}
+      <div className="glass-card animate-slide-up" style={{ animationDelay: '0.25s' }}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-muted text-sm">Стоимость</p>
+            <p className="price-tag text-3xl">₽{product.ourPrice}</p>
+          </div>
+          <div className="badge badge-success">
+            <CheckCircle2 size={14} className="mr-1" />
+            В наличии
+          </div>
+        </div>
+        
+        <button
+          onClick={handlePurchase}
+          disabled={purchasing}
+          className="glass-button flex items-center justify-center gap-2"
+        >
+          {purchasing ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span>Обработка...</span>
+            </>
+          ) : (
+            <>
+              <span>Купить eSIM</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Bottom padding for safe area */}
+      <div className="h-8" />
     </div>
   )
 }

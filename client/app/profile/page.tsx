@@ -1,70 +1,90 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User as UserIcon, Wallet, Award, TrendingUp, LogOut } from 'lucide-react'
+import { User, Award, TrendingUp, Gift, ChevronRight, LogOut } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
-import { userApi, User } from '@/lib/api'
 
-// Хук для получения Telegram данных
-function useTelegramUser() {
-  const [tgUser, setTgUser] = useState<any>(null)
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const user = window.Telegram.WebApp.initDataUnsafe?.user
-      setTgUser(user)
-    }
-  }, [])
-
-  return tgUser
+interface UserProfile {
+  id: string
+  firstName: string
+  lastName?: string
+  username?: string
+  balance: number
+  bonusBalance: number
+  totalSpent: number
+  ordersCount: number
+  loyaltyLevel: {
+    name: string
+    cashbackPercent: number
+    discount: number
+  }
 }
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
-  const tgUser = useTelegramUser()
 
   useEffect(() => {
-    if (tgUser?.id) {
-      loadUser()
-    }
-  }, [tgUser])
+    // Загрузка данных из Telegram WebApp
+    loadUserData()
+  }, [])
 
-  const loadUser = async () => {
-    try {
-      const data = await userApi.getMe(tgUser.id.toString())
-      setUser(data)
-      setLoading(false)
-    } catch (error) {
-      console.error('Ошибка загрузки профиля:', error)
-      setLoading(false)
+  const loadUserData = async () => {
+    // Получаем данные из Telegram
+    const tg = (window as any).Telegram?.WebApp
+    
+    if (tg?.initDataUnsafe?.user) {
+      const tgUser = tg.initDataUnsafe.user
+      
+      // Демо-данные для профиля
+      setUser({
+        id: String(tgUser.id),
+        firstName: tgUser.first_name || 'Пользователь',
+        lastName: tgUser.last_name,
+        username: tgUser.username,
+        balance: 0,
+        bonusBalance: 150,
+        totalSpent: 2500,
+        ordersCount: 3,
+        loyaltyLevel: {
+          name: 'Стартовый',
+          cashbackPercent: 3,
+          discount: 0,
+        },
+      })
+    } else {
+      // Демо-профиль для тестирования
+      setUser({
+        id: '123456',
+        firstName: 'Гость',
+        balance: 0,
+        bonusBalance: 0,
+        totalSpent: 0,
+        ordersCount: 0,
+        loyaltyLevel: {
+          name: 'Новичок',
+          cashbackPercent: 0,
+          discount: 0,
+        },
+      })
     }
+    
+    setLoading(false)
   }
+
+  const menuItems = [
+    { icon: Gift, label: 'Мои бонусы', value: `₽${user?.bonusBalance || 0}`, href: '#' },
+    { icon: TrendingUp, label: 'Уровень лояльности', value: user?.loyaltyLevel.name || '', href: '#' },
+    { icon: Award, label: 'Кэшбэк', value: `${user?.loyaltyLevel.cashbackPercent || 0}%`, href: '#' },
+  ]
 
   if (loading) {
     return (
       <div className="container">
-        <div className="space-y-4 mt-6">
-          <div className="tg-card">
-            <div className="skeleton h-20 w-20 rounded-full mb-4" />
-            <div className="skeleton h-6 w-48 mb-2" />
-            <div className="skeleton h-4 w-32" />
-          </div>
-          <div className="tg-card">
-            <div className="skeleton h-24" />
-          </div>
-        </div>
-        <BottomNav />
-      </div>
-    )
-  }
-
-  if (!user) {
-    return (
-      <div className="container">
-        <div className="tg-card text-center py-12 mt-6">
-          <UserIcon className="mx-auto mb-4 tg-hint" size={48} />
-          <p className="tg-hint">Не удалось загрузить профиль</p>
+        <div className="glass-card text-center mb-6">
+          <div className="skeleton w-24 h-24 rounded-full mx-auto mb-4" />
+          <div className="skeleton h-6 w-32 mx-auto mb-2" />
+          <div className="skeleton h-4 w-24 mx-auto" />
         </div>
         <BottomNav />
       </div>
@@ -74,106 +94,100 @@ export default function ProfilePage() {
   return (
     <div className="container">
       {/* Header */}
-      <header className="mb-6 mt-6 animate-fade-in">
-        <h1 className="text-2xl font-bold">Профиль</h1>
+      <header className="mb-6 animate-fade-in">
+        <h1 className="text-2xl font-bold text-primary">Профиль</h1>
       </header>
 
-      {/* User Info */}
-      <div className="tg-card mb-4 animate-slide-up text-center">
-        <div
-          className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl font-bold"
-          style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
-        >
-          {user.firstName?.[0] || user.username?.[0] || '?'}
+      {/* User Card */}
+      <div className="glass-card text-center mb-6 animate-slide-up">
+        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <User className="text-white" size={40} />
         </div>
-        <h2 className="text-xl font-bold mb-1">
-          {user.firstName} {user.lastName}
+        <h2 className="text-xl font-bold text-primary">
+          {user?.firstName} {user?.lastName}
         </h2>
-        {user.username && (
-          <p className="tg-hint">@{user.username}</p>
+        {user?.username && (
+          <p className="text-secondary">@{user.username}</p>
         )}
         
-        {user.loyaltyLevel && (
-          <div className="mt-4 inline-block">
-            <div className="badge badge-info flex items-center gap-1">
-              <Award size={14} />
-              {user.loyaltyLevel.name}
-            </div>
+        {/* Stats */}
+        <div className="flex justify-around mt-6 pt-6 border-t border-gray-100">
+          <div>
+            <p className="text-xl font-bold text-primary">{user?.ordersCount}</p>
+            <p className="text-xs text-muted">Заказов</p>
           </div>
-        )}
-      </div>
-
-      {/* Balances */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="tg-card text-center">
-          <Wallet className="mx-auto mb-2" size={24} style={{ color: 'var(--tg-theme-button-color)' }} />
-          <p className="tg-hint text-xs mb-1">Баланс</p>
-          <p className="text-xl font-bold">₽{Number(user.balance).toFixed(2)}</p>
-        </div>
-        <div className="tg-card text-center">
-          <Award className="mx-auto mb-2" size={24} style={{ color: 'var(--tg-theme-button-color)' }} />
-          <p className="tg-hint text-xs mb-1">Бонусы</p>
-          <p className="text-xl font-bold">₽{Number(user.bonusBalance).toFixed(2)}</p>
+          <div className="w-px bg-gray-200" />
+          <div>
+            <p className="text-xl font-bold text-accent">₽{user?.bonusBalance}</p>
+            <p className="text-xs text-muted">Бонусов</p>
+          </div>
+          <div className="w-px bg-gray-200" />
+          <div>
+            <p className="text-xl font-bold text-primary">₽{user?.totalSpent}</p>
+            <p className="text-xs text-muted">Потрачено</p>
+          </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="tg-card mb-4">
-        <h3 className="font-bold mb-3 flex items-center gap-2">
-          <TrendingUp size={20} />
-          Статистика
-        </h3>
-        <div className="space-y-3">
-          <div className="flex justify-between">
-            <span className="tg-hint">Всего потрачено</span>
-            <span className="font-semibold">₽{Number(user.totalSpent).toFixed(2)}</span>
+      {/* Loyalty Level Card */}
+      <div className="glass-card mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
+            <Award className="text-white" size={28} />
           </div>
-          {user.loyaltyLevel && (
-            <>
-              <div className="flex justify-between">
-                <span className="tg-hint">Кэшбэк</span>
-                <span className="font-semibold">{Number(user.loyaltyLevel.cashbackPercent)}%</span>
+          <div className="flex-1">
+            <p className="text-sm text-muted">Ваш уровень</p>
+            <p className="text-lg font-bold text-primary">{user?.loyaltyLevel.name}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-lg font-bold text-accent">{user?.loyaltyLevel.cashbackPercent}%</p>
+            <p className="text-xs text-muted">кэшбэк</p>
+          </div>
+        </div>
+        
+        {/* Progress to next level */}
+        <div className="mt-4">
+          <div className="flex justify-between text-xs text-muted mb-2">
+            <span>До следующего уровня</span>
+            <span>₽{5000 - (user?.totalSpent || 0)}</span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all"
+              style={{ width: `${Math.min(((user?.totalSpent || 0) / 5000) * 100, 100)}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Menu Items */}
+      <div className="glass-card mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+        {menuItems.map((item, index) => {
+          const Icon = item.icon
+          return (
+            <div key={index}>
+              <div className="flex items-center gap-4 py-3 cursor-pointer">
+                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center">
+                  <Icon className="text-accent" size={20} />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-primary">{item.label}</p>
+                </div>
+                <p className="font-semibold text-accent">{item.value}</p>
+                <ChevronRight className="text-muted" size={18} />
               </div>
-              <div className="flex justify-between">
-                <span className="tg-hint">Скидка</span>
-                <span className="font-semibold">{Number(user.loyaltyLevel.discount)}%</span>
-              </div>
-            </>
-          )}
-        </div>
+              {index < menuItems.length - 1 && <div className="h-px bg-gray-100" />}
+            </div>
+          )
+        })}
       </div>
 
-      {/* Loyalty Progress */}
-      {user.loyaltyLevel && (
-        <div className="tg-card mb-4">
-          <h3 className="font-bold mb-3">Уровень лояльности</h3>
-          <div className="mb-2">
-            <div className="flex justify-between text-sm mb-1">
-              <span>{user.loyaltyLevel.name}</span>
-              <span className="tg-hint">₽{Number(user.totalSpent).toFixed(0)} / ₽{Number(user.loyaltyLevel.minSpent).toFixed(0)}</span>
-            </div>
-            <div className="h-2 rounded-full" style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
-              <div
-                className="h-2 rounded-full transition-all"
-                style={{
-                  width: `${Math.min(100, (Number(user.totalSpent) / Number(user.loyaltyLevel.minSpent)) * 100)}%`,
-                  background: 'var(--tg-theme-button-color)',
-                }}
-              />
-            </div>
-          </div>
-          <p className="text-xs tg-hint mt-2">
-            Продолжайте покупать, чтобы повысить уровень и получить больше преимуществ!
-          </p>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="space-y-2 mb-20">
-        <button className="tg-button flex items-center justify-center gap-2">
-          <UserIcon size={20} />
-          Редактировать профиль
-        </button>
+      {/* Support */}
+      <div className="text-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
+        <p className="text-muted text-sm">Нужна помощь?</p>
+        <a href="https://t.me/support" className="text-accent font-medium">
+          Написать в поддержку
+        </a>
       </div>
 
       <BottomNav />

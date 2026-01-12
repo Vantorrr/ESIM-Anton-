@@ -1,69 +1,56 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Gift, Users, TrendingUp, Copy, CheckCircle, Share2 } from 'lucide-react'
+import { Users, Copy, Share2, Gift, TrendingUp, CheckCircle } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
-import { referralsApi, userApi, ReferralStats, User } from '@/lib/api'
 
-function useTelegramUser() {
-  const [tgUser, setTgUser] = useState<any>(null)
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const user = window.Telegram.WebApp.initDataUnsafe?.user
-      setTgUser(user)
-    }
-  }, [])
-
-  return tgUser
+interface ReferralStats {
+  referralCode: string
+  referralLink: string
+  referralsCount: number
+  totalEarned: number
+  pendingEarnings: number
+  referralPercent: number
 }
 
 export default function ReferralsPage() {
-  const [user, setUser] = useState<User | null>(null)
   const [stats, setStats] = useState<ReferralStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
-  const tgUser = useTelegramUser()
 
   useEffect(() => {
-    if (tgUser?.id) {
-      initUser()
-    }
-  }, [tgUser])
+    loadStats()
+  }, [])
 
-  const initUser = async () => {
-    try {
-      const userData = await userApi.getMe(tgUser.id.toString())
-      setUser(userData)
-      await loadStats(userData.id)
-    } catch (error) {
-      console.error('Ошибка инициализации:', error)
-      setLoading(false)
-    }
-  }
-
-  const loadStats = async (uid: string) => {
-    try {
-      const data = await referralsApi.getStats(uid)
-      setStats(data)
-      setLoading(false)
-    } catch (error) {
-      console.error('Ошибка загрузки статистики:', error)
-      setLoading(false)
-    }
-  }
-
-  const getReferralLink = () => {
-    if (!user) return ''
-    // Получаем bot username из Telegram WebApp
-    const botUsername = window.Telegram?.WebApp?.initDataUnsafe?.user ? 'your_bot_username' : 'your_bot_username'
-    return `https://t.me/${botUsername}?start=ref_${user.referralCode}`
+  const loadStats = async () => {
+    // Получаем данные из Telegram
+    const tg = (window as any).Telegram?.WebApp
+    const botUsername = 'esim_testt_bot'
+    const refCode = tg?.initDataUnsafe?.user?.id || '123456'
+    
+    setStats({
+      referralCode: `REF${refCode}`,
+      referralLink: `https://t.me/${botUsername}?start=ref_${refCode}`,
+      referralsCount: 0,
+      totalEarned: 0,
+      pendingEarnings: 0,
+      referralPercent: 5,
+    })
+    
+    setLoading(false)
   }
 
   const copyLink = async () => {
+    if (!stats) return
+    
     try {
-      await navigator.clipboard.writeText(getReferralLink())
+      await navigator.clipboard.writeText(stats.referralLink)
       setCopied(true)
+      
+      // Haptic feedback
+      const tg = (window as any).Telegram?.WebApp
+      tg?.HapticFeedback?.notificationOccurred('success')
+      
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
       console.error('Ошибка копирования:', error)
@@ -71,24 +58,27 @@ export default function ReferralsPage() {
   }
 
   const shareLink = () => {
-    const link = getReferralLink()
-    const text = `🎁 Получите eSIM для путешествий!\n\nИспользуйте мою реферальную ссылку и получите бонусы при первой покупке!`
+    if (!stats) return
     
-    if (window.Telegram?.WebApp) {
-      window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`)
+    const tg = (window as any).Telegram?.WebApp
+    
+    if (tg?.openTelegramLink) {
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(stats.referralLink)}&text=${encodeURIComponent('Покупай eSIM со скидкой! 🌍')}`
+      tg.openTelegramLink(shareUrl)
+    } else {
+      window.open(`https://t.me/share/url?url=${encodeURIComponent(stats.referralLink)}`, '_blank')
     }
   }
 
   if (loading) {
     return (
       <div className="container">
-        <h1 className="text-2xl font-bold mb-6 mt-6">Реферальная программа</h1>
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="tg-card">
-              <div className="skeleton h-24" />
-            </div>
-          ))}
+        <header className="mb-6">
+          <h1 className="text-2xl font-bold text-primary">Реферальная программа</h1>
+        </header>
+        <div className="glass-card">
+          <div className="skeleton h-20 w-full mb-4" />
+          <div className="skeleton h-12 w-full" />
         </div>
         <BottomNav />
       </div>
@@ -98,128 +88,106 @@ export default function ReferralsPage() {
   return (
     <div className="container">
       {/* Header */}
-      <header className="mb-6 mt-6 animate-fade-in">
-        <h1 className="text-2xl font-bold mb-2">🎁 Реферальная программа</h1>
-        <p className="tg-hint">Приглашайте друзей и зарабатывайте!</p>
+      <header className="mb-6 animate-fade-in">
+        <h1 className="text-2xl font-bold text-primary">Пригласи друзей</h1>
+        <p className="text-secondary text-sm mt-1">Получай бонусы за каждого друга</p>
       </header>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-3 mb-4 animate-slide-up">
-        <div className="tg-card text-center">
-          <Users className="mx-auto mb-2" size={24} style={{ color: 'var(--tg-theme-button-color)' }} />
-          <p className="tg-hint text-xs mb-1">Рефералов</p>
-          <p className="text-2xl font-bold">{stats?.referralCount || 0}</p>
-        </div>
-        <div className="tg-card text-center">
-          <TrendingUp className="mx-auto mb-2" size={24} style={{ color: 'var(--tg-theme-button-color)' }} />
-          <p className="tg-hint text-xs mb-1">Заработано</p>
-          <p className="text-2xl font-bold">₽{Number(stats?.totalEarned || 0).toFixed(2)}</p>
-        </div>
-      </div>
-
-      {/* How it works */}
-      <div className="tg-card mb-4">
-        <h3 className="font-bold mb-3">Как это работает?</h3>
-        <div className="space-y-3">
-          <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}>
-              1
+      {/* Hero Card */}
+      <div className="glass-card mb-6 animate-slide-up overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-2xl" />
+        
+        <div className="relative">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+              <Gift className="text-white" size={32} />
             </div>
             <div>
-              <p className="font-semibold mb-1">Поделитесь ссылкой</p>
-              <p className="tg-hint text-sm">Отправьте реферальную ссылку друзьям</p>
+              <p className="text-3xl font-bold text-accent">{stats?.referralPercent}%</p>
+              <p className="text-sm text-muted">с каждой покупки друга</p>
             </div>
           </div>
-          <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}>
-              2
-            </div>
-            <div>
-              <p className="font-semibold mb-1">Друг регистрируется</p>
-              <p className="tg-hint text-sm">Ваш друг переходит по ссылке и регистрируется</p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}>
-              3
-            </div>
-            <div>
-              <p className="font-semibold mb-1">Получайте бонусы</p>
-              <p className="tg-hint text-sm">Вы получаете 5% с каждой покупки друга</p>
-            </div>
-          </div>
+          
+          <p className="text-secondary mb-4">
+            Приглашай друзей и получай <span className="font-semibold text-accent">{stats?.referralPercent}%</span> от суммы их покупок на свой бонусный счёт!
+          </p>
         </div>
       </div>
 
       {/* Referral Link */}
-      <div className="tg-card mb-4">
-        <h3 className="font-bold mb-3">Ваша реферальная ссылка</h3>
-        <div className="p-3 rounded-lg mb-3" style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
-          <p className="text-sm break-all">{getReferralLink()}</p>
+      <div className="glass-card mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <p className="text-sm text-muted mb-3">Ваша реферальная ссылка</p>
+        
+        <div className="glass-card-flat flex items-center gap-3 mb-4">
+          <p className="flex-1 text-sm text-primary truncate font-mono">
+            {stats?.referralLink}
+          </p>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <button
+        
+        <div className="grid grid-cols-2 gap-3">
+          <button 
             onClick={copyLink}
-            className="tg-button-outline flex items-center justify-center gap-2"
+            className={`glass-button-secondary flex items-center justify-center gap-2 py-3 rounded-xl ${copied ? 'bg-green-50 text-green-600 border-green-200' : ''}`}
+            style={{ background: copied ? 'rgba(34, 197, 94, 0.1)' : undefined }}
           >
             {copied ? (
               <>
-                <CheckCircle size={16} />
-                Скопировано
+                <CheckCircle size={18} />
+                <span>Скопировано</span>
               </>
             ) : (
               <>
-                <Copy size={16} />
-                Копировать
+                <Copy size={18} />
+                <span>Копировать</span>
               </>
             )}
           </button>
-          <button
+          
+          <button 
             onClick={shareLink}
-            className="tg-button flex items-center justify-center gap-2"
+            className="glass-button flex items-center justify-center gap-2 py-3"
           >
-            <Share2 size={16} />
-            Поделиться
+            <Share2 size={18} />
+            <span>Поделиться</span>
           </button>
         </div>
       </div>
 
-      {/* Referrals List */}
-      {stats && stats.referrals.length > 0 && (
-        <div className="tg-card mb-20">
-          <h3 className="font-bold mb-3">Ваши рефералы</h3>
-          <div className="space-y-2">
-            {stats.referrals.map((referral) => (
-              <div
-                key={referral.id}
-                className="flex justify-between items-center p-2 rounded"
-                style={{ background: 'var(--tg-theme-secondary-bg-color)' }}
-              >
-                <div>
-                  <p className="font-semibold">{referral.firstName || 'Пользователь'}</p>
-                  <p className="tg-hint text-xs">
-                    {new Date(referral.createdAt).toLocaleDateString('ru-RU')}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold" style={{ color: 'var(--tg-theme-button-color)' }}>
-                    ₽{Number(referral.totalSpent).toFixed(2)}
-                  </p>
-                  <p className="tg-hint text-xs">потрачено</p>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3 mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+        <div className="glass-card text-center">
+          <Users className="mx-auto mb-2 text-accent" size={28} />
+          <p className="text-2xl font-bold text-primary">{stats?.referralsCount}</p>
+          <p className="text-xs text-muted">Приглашено</p>
         </div>
-      )}
+        <div className="glass-card text-center">
+          <TrendingUp className="mx-auto mb-2 text-accent" size={28} />
+          <p className="text-2xl font-bold text-primary">₽{stats?.totalEarned}</p>
+          <p className="text-xs text-muted">Заработано</p>
+        </div>
+      </div>
 
-      {stats && stats.referrals.length === 0 && (
-        <div className="tg-card text-center py-8 mb-20">
-          <Gift className="mx-auto mb-3 tg-hint" size={48} />
-          <p className="tg-hint mb-2">У вас пока нет рефералов</p>
-          <p className="tg-hint text-sm">Поделитесь ссылкой с друзьями!</p>
+      {/* How it works */}
+      <div className="glass-card animate-slide-up" style={{ animationDelay: '0.2s' }}>
+        <h3 className="font-semibold text-primary mb-4">Как это работает</h3>
+        <div className="space-y-4">
+          {[
+            { step: 1, title: 'Поделитесь ссылкой', desc: 'Отправьте ссылку друзьям' },
+            { step: 2, title: 'Друг регистрируется', desc: 'И совершает покупку' },
+            { step: 3, title: 'Получите бонус', desc: `${stats?.referralPercent}% на ваш счёт` },
+          ].map((item) => (
+            <div key={item.step} className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-sm font-bold shrink-0">
+                {item.step}
+              </div>
+              <div>
+                <p className="font-medium text-primary">{item.title}</p>
+                <p className="text-sm text-muted">{item.desc}</p>
+              </div>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
       <BottomNav />
     </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Search, MapPin, Zap, Shield, Award } from 'lucide-react'
+import { Search, Wifi, Clock, ChevronRight, Sparkles } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
 
@@ -27,13 +27,12 @@ export default function Home() {
       const data = await productsApi.getAll({ isActive: true })
       setProducts(data)
       
-      // Извлекаем уникальные страны
       const uniqueCountries = Array.from(new Set(data.map(p => p.country)))
       setCountries(uniqueCountries.sort())
       
       setLoading(false)
     } catch (error) {
-      console.error('Ошибка загрузки продуктов:', error)
+      console.error('Ошибка загрузки:', error)
       setLoading(false)
     }
   }
@@ -41,12 +40,10 @@ export default function Home() {
   const filterProducts = () => {
     let filtered = products
 
-    // Фильтр по стране
     if (selectedCountry !== 'all') {
       filtered = filtered.filter(p => p.country === selectedCountry)
     }
 
-    // Поиск
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(p =>
@@ -59,38 +56,45 @@ export default function Home() {
     setFilteredProducts(filtered)
   }
 
+  const getCountryEmoji = (country: string): string => {
+    const flags: Record<string, string> = {
+      'США': '🇺🇸',
+      'Европа': '🇪🇺',
+      'Турция': '🇹🇷',
+      'ОАЭ': '🇦🇪',
+      'Таиланд': '🇹🇭',
+      'Япония': '🇯🇵',
+      'Китай': '🇨🇳',
+      'Корея': '🇰🇷',
+      'Сингапур': '🇸🇬',
+      'Индонезия': '🇮🇩',
+    }
+    return flags[country] || '🌍'
+  }
+
   return (
     <div className="container">
       {/* Header */}
-      <header className="mb-6 animate-fade-in">
-        <h1 className="text-2xl font-bold mb-2">🌍 eSIM Service</h1>
-        <p className="tg-hint">Мобильный интернет по всему миру</p>
+      <header className="mb-8 animate-fade-in">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <Sparkles className="text-white" size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-primary">eSIM</h1>
+            <p className="text-secondary text-sm">Интернет по всему миру</p>
+          </div>
+        </div>
       </header>
 
-      {/* Features */}
-      <div className="grid grid-cols-3 gap-3 mb-6 animate-slide-up">
-        <div className="tg-card text-center py-4">
-          <Zap className="mx-auto mb-2" size={24} style={{ color: 'var(--tg-theme-button-color)' }} />
-          <p className="text-xs font-medium">Моментальная активация</p>
-        </div>
-        <div className="tg-card text-center py-4">
-          <Shield className="mx-auto mb-2" size={24} style={{ color: 'var(--tg-theme-button-color)' }} />
-          <p className="text-xs font-medium">Надёжная связь</p>
-        </div>
-        <div className="tg-card text-center py-4">
-          <Award className="mx-auto mb-2" size={24} style={{ color: 'var(--tg-theme-button-color)' }} />
-          <p className="text-xs font-medium">Выгодные цены</p>
-        </div>
-      </div>
-
       {/* Search */}
-      <div className="mb-4">
+      <div className="mb-6 animate-slide-up">
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 tg-hint" size={20} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={20} />
           <input
             type="text"
-            className="tg-input pl-12"
-            placeholder="Поиск по стране или региону..."
+            className="glass-input pl-12"
+            placeholder="Поиск страны..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -98,88 +102,127 @@ export default function Home() {
       </div>
 
       {/* Country Filter */}
-      <div className="mb-6 overflow-x-auto">
+      <div className="mb-6 -mx-5 px-5 overflow-x-auto animate-slide-up" style={{ animationDelay: '0.1s' }}>
         <div className="flex gap-2 pb-2">
           <button
             onClick={() => setSelectedCountry('all')}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
               selectedCountry === 'all'
-                ? 'tg-button'
-                : 'tg-button-outline'
+                ? 'glass-button'
+                : 'glass-button-secondary'
             }`}
-            style={{
-              background: selectedCountry === 'all' ? 'var(--tg-theme-button-color)' : 'transparent',
-              color: selectedCountry === 'all' ? 'var(--tg-theme-button-text-color)' : 'var(--tg-theme-button-color)',
-            }}
+            style={{ width: 'auto' }}
           >
-            Все страны
+            Все
           </button>
           {countries.map((country) => (
             <button
               key={country}
               onClick={() => setSelectedCountry(country)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+              className={`px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${
                 selectedCountry === country
-                  ? 'tg-button'
-                  : 'tg-button-outline'
+                  ? 'glass-button'
+                  : 'glass-button-secondary'
               }`}
-              style={{
-                background: selectedCountry === country ? 'var(--tg-theme-button-color)' : 'transparent',
-                color: selectedCountry === country ? 'var(--tg-theme-button-text-color)' : 'var(--tg-theme-button-color)',
-              }}
+              style={{ width: 'auto' }}
             >
-              {country}
+              <span>{getCountryEmoji(country)}</span>
+              <span>{country}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Products Grid */}
+      {/* Stats Banner */}
+      <div className="glass-card mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+        <div className="flex justify-around text-center">
+          <div>
+            <p className="text-2xl font-bold text-accent">100+</p>
+            <p className="text-xs text-muted">Стран</p>
+          </div>
+          <div className="w-px bg-gray-200" />
+          <div>
+            <p className="text-2xl font-bold text-accent">5 мин</p>
+            <p className="text-xs text-muted">Активация</p>
+          </div>
+          <div className="w-px bg-gray-200" />
+          <div>
+            <p className="text-2xl font-bold text-accent">24/7</p>
+            <p className="text-xs text-muted">Поддержка</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Products */}
+      <div className="mb-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+        <h2 className="text-lg font-semibold mb-4">
+          {selectedCountry === 'all' ? 'Все тарифы' : selectedCountry}
+        </h2>
+      </div>
+
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="tg-card">
-              <div className="skeleton h-6 w-32 mb-2" />
-              <div className="skeleton h-4 w-full mb-2" />
-              <div className="skeleton h-4 w-24" />
+            <div key={i} className="glass-card">
+              <div className="flex gap-4">
+                <div className="skeleton w-14 h-14 rounded-xl" />
+                <div className="flex-1">
+                  <div className="skeleton h-5 w-24 mb-2" />
+                  <div className="skeleton h-4 w-full mb-2" />
+                  <div className="skeleton h-4 w-16" />
+                </div>
+              </div>
             </div>
           ))}
         </div>
       ) : filteredProducts.length === 0 ? (
-        <div className="tg-card text-center py-12">
-          <MapPin className="mx-auto mb-4 tg-hint" size={48} />
-          <p className="tg-hint text-lg">Продукты не найдены</p>
-          <p className="tg-hint text-sm mt-2">Попробуйте изменить фильтры</p>
+        <div className="glass-card text-center py-12">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+            <Search className="text-muted" size={32} />
+          </div>
+          <p className="text-secondary text-lg font-medium">Ничего не найдено</p>
+          <p className="text-muted text-sm mt-2">Попробуйте изменить фильтры</p>
         </div>
       ) : (
-        <div className="space-y-3 animate-slide-up">
-          {filteredProducts.map((product) => (
+        <div className="space-y-3">
+          {filteredProducts.map((product, index) => (
             <Link key={product.id} href={`/product/${product.id}`}>
-              <div className="tg-card hover:opacity-90 transition-opacity cursor-pointer">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="font-bold text-lg">{product.country}</h3>
-                    <p className="text-sm">{product.name}</p>
-                    {product.region && (
-                      <p className="tg-hint text-xs mt-1">{product.region}</p>
-                    )}
+              <div 
+                className="glass-card flex items-center gap-4 animate-slide-up cursor-pointer"
+                style={{ animationDelay: `${0.05 * (index + 1)}s` }}
+              >
+                {/* Country Flag */}
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-3xl shrink-0">
+                  {getCountryEmoji(product.country)}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="font-semibold text-primary truncate">{product.country}</h3>
+                      <p className="text-sm text-secondary">{product.name}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="price-tag">₽{product.ourPrice}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-xl" style={{ color: 'var(--tg-theme-button-color)' }}>
-                      ₽{product.ourPrice}
-                    </p>
+                  
+                  {/* Features */}
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className="flex items-center gap-1 text-xs text-muted">
+                      <Wifi size={14} />
+                      <span>{product.dataAmount}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted">
+                      <Clock size={14} />
+                      <span>{product.validityDays} дн.</span>
+                    </div>
                   </div>
                 </div>
-                
-                <div className="flex gap-4 mt-3 text-sm">
-                  <div className="flex items-center gap-1 tg-hint">
-                    <Zap size={16} />
-                    <span>{product.dataAmount}</span>
-                  </div>
-                  <div className="flex items-center gap-1 tg-hint">
-                    <span>📅 {product.validityDays} дней</span>
-                  </div>
-                </div>
+
+                {/* Arrow */}
+                <ChevronRight className="text-muted shrink-0" size={20} />
               </div>
             </Link>
           ))}

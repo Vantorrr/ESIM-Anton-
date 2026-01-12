@@ -2,23 +2,23 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Package, User, Gift } from 'lucide-react'
+import { Home, ShoppingBag, Users, User } from 'lucide-react'
 
 export default function BottomNav() {
   const pathname = usePathname()
 
   const navItems = [
-    { href: '/', icon: Home, label: 'Главная' },
-    { href: '/orders', icon: Package, label: 'Заказы' },
-    { href: '/referrals', icon: Gift, label: 'Рефералы' },
+    { href: '/', icon: Home, label: 'Каталог' },
+    { href: '/orders', icon: ShoppingBag, label: 'Заказы' },
+    { href: '/referrals', icon: Users, label: 'Друзья' },
     { href: '/profile', icon: User, label: 'Профиль' },
   ]
 
   return (
     <nav className="bottom-nav">
       {navItems.map((item) => {
-        const Icon = item.icon
         const isActive = pathname === item.href
+        const Icon = item.icon
         
         return (
           <Link
@@ -26,7 +26,7 @@ export default function BottomNav() {
             href={item.href}
             className={`bottom-nav-item ${isActive ? 'active' : ''}`}
           >
-            <Icon size={24} />
+            <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
             <span>{item.label}</span>
           </Link>
         )
