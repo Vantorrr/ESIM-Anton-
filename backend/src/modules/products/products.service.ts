@@ -1,10 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { EsimProviderService } from '../esim-provider/esim-provider.service';
 
 @Injectable()
 export class ProductsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(ProductsService.name);
+  
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => EsimProviderService))
+    private esimProviderService: EsimProviderService,
+  ) {}
 
   /**
    * Получить все активные продукты
@@ -92,10 +99,73 @@ export class ProductsService {
   }
 
   /**
-   * Импорт продуктов от провайдера (заглушка, потом реализуем)
+   * Импорт продуктов от провайдера eSIM Access
    */
   async syncWithProvider() {
-    // TODO: Интеграция с API провайдера
-    return { message: 'Синхронизация будет реализована после получения API' };
+    try {
+      this.logger.log('🔄 Начало синхронизации с eSIM Access API...');
+      
+      const packages = await this.esimProviderService.getPackages();
+      
+      let synced = 0;
+      let errors = 0;
+      
+      for (const pkg of packages) {
+        try {
+          // Ищем существующий продукт по providerId
+          const existing = await this.prisma.esimProduct.findFirst({
+            where: { providerId: pkg.packageCode },
+          });
+          
+          const productData = {
+            country: pkg.destination || 'Unknown',
+            name: pkg.title,
+            description: `${pkg.data} на ${pkg.validity} дней`,
+            dataAmount: pkg.data,
+            validityDays: pkg.validity,
+            providerPrice: pkg.price,
+            ourPrice: Math.round(pkg.price * 1.4 * 100) / 100, // Наценка 40%
+            providerId: pkg.packageCode,
+            providerName: 'esimaccess',
+            isActive: true,
+          };
+          
+          if (existing) {
+            // Обновляем
+            await this.prisma.esimProduct.update({
+              where: { id: existing.id },
+              data: productData,
+            });
+          } else {
+            // Создаём новый
+            await this.prisma.esimProduct.create({
+              data: productData,
+            });
+          }
+          
+          synced++;
+        } catch (error) {
+          this.logger.error(`Ошибка синхронизации пакета ${pkg.packageCode}:`, error.message);
+          errors++;
+        }
+      }
+      
+      this.logger.log(`✅ Синхронизация завершена: ${synced} обновлено, ${errors} ошибок`);
+      
+      return { 
+        success: true,
+        synced, 
+        errors,
+        message: `Синхронизировано ${synced} продуктов`,
+      };
+    } catch (error) {
+      this.logger.error('❌ Ошибка синхронизации:', error.message);
+      return {
+        success: false,
+        synced: 0,
+        errors: 1,
+        message: error.message,
+      };
+    }
   }
 }

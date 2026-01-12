@@ -68,8 +68,8 @@ export class EsimProviderService {
 
   constructor(private configService: ConfigService) {
     // eSIM Access (основной провайдер)
-    this.esimAccessCode = this.configService.get<string>('ESIM_ACCESS_CODE');
-    this.esimSecretKey = this.configService.get<string>('ESIM_SECRET_KEY');
+    this.esimAccessCode = this.configService.get<string>('ESIMACCESS_ACCESS_CODE');
+    this.esimSecretKey = this.configService.get<string>('ESIMACCESS_SECRET_KEY');
     
     // Инициализируем eSIM Access провайдер
     if (this.esimAccessCode && this.esimSecretKey) {
