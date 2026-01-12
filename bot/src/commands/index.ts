@@ -1,7 +1,8 @@
 import { Bot } from 'grammy';
 import { InlineKeyboard } from 'grammy';
+import { MyContext } from '../types';
 
-export function setupCommands(bot: Bot) {
+export function setupCommands(bot: Bot<MyContext>) {
   // /start
   bot.command('start', async (ctx) => {
     const keyboard = new InlineKeyboard()

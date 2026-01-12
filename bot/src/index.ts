@@ -4,6 +4,7 @@ import { config } from './config';
 import { setupCommands } from './commands';
 import { setupScenes } from './scenes';
 import { api } from './api';
+import { MyContext } from './types';
 
 console.log(`
 ╔═══════════════════════════════════════╗
@@ -13,11 +14,11 @@ console.log(`
 `);
 
 // Создаем бота
-const bot = new Bot(config.botToken);
+const bot = new Bot<MyContext>(config.botToken);
 
 // Middleware
 bot.use(session({
-  initial: () => ({
+  initial: (): any => ({
     userId: null,
     currentScene: null,
   }),
