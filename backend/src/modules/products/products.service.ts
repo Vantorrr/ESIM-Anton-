@@ -132,9 +132,9 @@ export class ProductsService implements OnModuleInit {
             where: { providerId: pkg.packageCode },
           });
           
-          // DEBUG: Логируем первый пакет
+          // DEBUG: Логируем первый пакет (v1.0.1 FIX)
           if (synced === 0) {
-            this.logger.warn(`🔍 DEBUG первого пакета:`);
+            this.logger.warn(`🔍 DEBUG первого пакета (v1.0.1):`);
             this.logger.warn(`  volume: ${pkg.volume} (тип: ${typeof pkg.volume})`);
             this.logger.warn(`  price: ${pkg.price} (тип: ${typeof pkg.price})`);
             this.logger.warn(`  name: ${pkg.name}`);
