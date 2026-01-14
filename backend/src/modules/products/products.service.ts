@@ -193,6 +193,7 @@ export class ProductsService implements OnModuleInit {
         synced, 
         errors,
         message: `Синхронизировано ${synced} продуктов`,
+        version: 'V5-FIXED-PRICES',
       };
     } catch (error) {
       this.logger.error('❌ [SYNC V3] Ошибка:', error.message);
