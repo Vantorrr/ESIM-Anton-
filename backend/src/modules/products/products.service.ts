@@ -132,21 +132,12 @@ export class ProductsService implements OnModuleInit {
             where: { providerId: pkg.packageCode },
           });
           
-          // Volume из API в KB!
-          const volumeKB = pkg.volume;
-          const volumeMB = volumeKB / 1024;
-          const volumeGB = volumeMB / 1024;
+          // Volume из API УЖЕ В MB, price УЖЕ В USD
+          const volumeMB = pkg.volume;
+          const dataAmount = volumeMB >= 1024 
+            ? `${Math.round(volumeMB / 1024)} GB`
+            : `${volumeMB} MB`;
           
-          let dataAmount: string;
-          if (volumeGB >= 1) {
-            dataAmount = `${Math.round(volumeGB)} GB`;
-          } else if (volumeMB >= 1) {
-            dataAmount = `${Math.round(volumeMB)} MB`;
-          } else {
-            dataAmount = `${volumeKB} KB`;
-          }
-          
-          // Цена из API в USD, добавляем наценку 40%
           const productData = {
             country: pkg.location || pkg.locationCode || 'Unknown',
             name: pkg.name || pkg.slug,
@@ -154,7 +145,7 @@ export class ProductsService implements OnModuleInit {
             dataAmount: dataAmount,
             validityDays: pkg.duration,
             providerPrice: pkg.price,
-            ourPrice: Math.round(pkg.price * 1.4 * 100) / 100, // USD + наценка 40%
+            ourPrice: Math.round(pkg.price * 1.4 * 100) / 100,
             providerId: pkg.packageCode,
             providerName: 'esimaccess',
             isActive: true,
