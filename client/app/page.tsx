@@ -2,14 +2,78 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Search, Wifi, Clock, ChevronRight, Sparkles } from 'lucide-react'
+import { Search, Wifi, Clock, ChevronRight, Sparkles, Globe, Signal } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
+
+// Liquid Glass Splash Screen
+function SplashScreen({ progress }: { progress: number }) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden">
+      {/* Animated gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900">
+        {/* Floating orbs */}
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/30 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0.5s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      </div>
+
+      {/* Glass container */}
+      <div className="relative z-10 flex flex-col items-center">
+        {/* Logo */}
+        <div className="relative mb-8">
+          <div className="w-28 h-28 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center shadow-2xl">
+            <Globe className="w-14 h-14 text-white animate-spin" style={{ animationDuration: '3s' }} />
+          </div>
+          {/* Glow effect */}
+          <div className="absolute inset-0 w-28 h-28 rounded-3xl bg-blue-500/50 blur-2xl -z-10 animate-pulse" />
+        </div>
+
+        {/* Title */}
+        <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
+          eSIM
+        </h1>
+        <p className="text-white/60 text-lg mb-10">
+          Интернет по всему миру
+        </p>
+
+        {/* Progress bar */}
+        <div className="w-64 h-1.5 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm">
+          <div 
+            className="h-full bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 rounded-full transition-all duration-300 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        {/* Loading text */}
+        <div className="mt-4 flex items-center gap-2 text-white/50 text-sm">
+          <Signal className="w-4 h-4 animate-pulse" />
+          <span>Загрузка тарифов...</span>
+        </div>
+
+        {/* Features preview */}
+        <div className="mt-12 flex gap-6">
+          {['100+ стран', 'Мгновенно', '24/7'].map((text, i) => (
+            <div 
+              key={text}
+              className="px-4 py-2 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 text-white/70 text-xs"
+              style={{ animationDelay: `${i * 0.2}s` }}
+            >
+              {text}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [showSplash, setShowSplash] = useState(true)
+  const [loadProgress, setLoadProgress] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCountry, setSelectedCountry] = useState<string>('all')
   const [countries, setCountries] = useState<string[]>([])
@@ -24,15 +88,29 @@ export default function Home() {
 
   const loadProducts = async () => {
     try {
-      const data = await productsApi.getAll({ isActive: true })
-      setProducts(data)
+      // Анимация прогресса
+      setLoadProgress(10)
+      await new Promise(r => setTimeout(r, 200))
+      setLoadProgress(30)
       
+      const data = await productsApi.getAll({ isActive: true })
+      setLoadProgress(70)
+      
+      setProducts(data)
       const uniqueCountries = Array.from(new Set(data.map(p => p.country)))
       setCountries(uniqueCountries.sort())
       
+      setLoadProgress(100)
+      
+      // Плавное скрытие splash screen
+      await new Promise(r => setTimeout(r, 500))
+      setShowSplash(false)
       setLoading(false)
     } catch (error) {
       console.error('Ошибка загрузки:', error)
+      setLoadProgress(100)
+      await new Promise(r => setTimeout(r, 300))
+      setShowSplash(false)
       setLoading(false)
     }
   }
@@ -92,10 +170,15 @@ export default function Home() {
     return flags[countryLower] || '🌍'
   }
 
+  // Показываем splash screen
+  if (showSplash) {
+    return <SplashScreen progress={loadProgress} />
+  }
+
   return (
-    <div className="container">
+    <div className="container animate-fade-in">
       {/* Header */}
-      <header className="mb-8 animate-fade-in">
+      <header className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
             <Sparkles className="text-white" size={24} />
