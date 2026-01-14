@@ -134,20 +134,22 @@ export class ProductsService implements OnModuleInit {
           // ============================================
           // КОНВЕРТАЦИЯ ЦЕНЫ (центы USD -> рубли)
           // ============================================
-          // API возвращает price в центах USD
-          // Наценка 40%, курс ~100 руб/USD
+          // API eSIM Access возвращает price в центах USD
+          // Документация: https://docs.esimaccess.com/
+          // Пример: 600 центов = $6.00
           
           const priceInCents = Number(pkg.price) || 0;
-          const priceInUSD = priceInCents / 100;
+          const priceInUSD = priceInCents / 100;  // центы -> доллары
           const priceWithMarkup = priceInUSD * 1.4; // +40% наценка
-          const priceInRUB = Math.round(priceWithMarkup * 100); // Курс ~100 руб/$
+          const exchangeRate = 95; // Курс USD/RUB
+          const priceInRUB = Math.round(priceWithMarkup * exchangeRate);
           
           // DEBUG: первый пакет
           if (synced === 0) {
-            this.logger.warn(`🔍 [SYNC V3] Первый пакет:`);
+            this.logger.warn(`🔍 [SYNC V4] Первый пакет:`);
             this.logger.warn(`   name: ${pkg.name}`);
-            this.logger.warn(`   volume: ${volumeInKB} KB -> ${volumeInMB} MB -> ${volumeInGB} GB -> "${dataAmount}"`);
-            this.logger.warn(`   price: ${priceInCents} cents -> $${priceInUSD} -> ₽${priceInRUB}`);
+            this.logger.warn(`   volume: ${volumeInKB} KB -> ${volumeInMB.toFixed(1)} MB -> ${volumeInGB.toFixed(2)} GB -> "${dataAmount}"`);
+            this.logger.warn(`   price: ${priceInCents} cents -> $${priceInUSD.toFixed(2)} -> +40% -> $${priceWithMarkup.toFixed(2)} -> ₽${priceInRUB}`);
           }
           
           const productData = {
