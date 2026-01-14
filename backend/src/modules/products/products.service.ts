@@ -132,12 +132,11 @@ export class ProductsService implements OnModuleInit {
             where: { providerId: pkg.packageCode },
           });
           
-          // Форматируем объем данных (volume в KB из API)
-          const volumeKB = pkg.volume;
-          const volumeMB = volumeKB / 1024;
+          // Форматируем объем данных (volume в MB из API)
+          const volumeMB = pkg.volume;
           const dataAmount = volumeMB >= 1024 
-            ? `${(volumeMB / 1024).toFixed(0)} GB`
-            : `${Math.round(volumeMB)} MB`;
+            ? `${(volumeMB / 1024).toFixed(1)} GB`
+            : `${volumeMB} MB`;
           
           const productData = {
             country: pkg.location || pkg.locationCode || 'Unknown',
