@@ -49,7 +49,7 @@ function SplashScreen({ progress }: { progress: number }) {
         {/* Loading text */}
         <div className="mt-4 flex items-center gap-2 text-white/50 text-sm">
           <Signal className="w-4 h-4 animate-pulse" />
-          <span>Загрузка тарифов...</span>
+          <span>Загрузка тарифов (обновлено)...</span>
         </div>
 
         {/* Features preview */}
