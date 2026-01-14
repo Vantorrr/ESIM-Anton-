@@ -188,13 +188,16 @@ export class EsimProviderService {
       try {
         const result = await this.esimAccessProvider.purchaseEsim(packageId, 1);
         
+        // Берём первый eSIM из списка
+        const esim = result.esimList?.[0];
+        
         return {
           success: true,
-          order_id: result.orderReference,
-          iccid: result.iccid,
-          qr_code: result.qrCodeUrl,
-          activation_code: result.activationCode,
-          smdp_address: result.smdpAddress,
+          order_id: result.orderNo,
+          iccid: esim?.iccid || '',
+          qr_code: esim?.qrCodeUrl || '',
+          activation_code: esim?.lpaCode || esim?.matchingCode || '',
+          smdp_address: esim?.smdpAddress || '',
           status: 'active',
         };
       } catch (error) {
