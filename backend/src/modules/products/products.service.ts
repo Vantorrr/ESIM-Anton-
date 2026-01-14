@@ -13,11 +13,7 @@ export class ProductsService implements OnModuleInit {
     private esimProviderService: EsimProviderService,
   ) {}
 
-  /**
-   * Автоматическая синхронизация при запуске
-   */
   async onModuleInit() {
-    // Синхронизируем в фоне чтобы не блокировать запуск
     setTimeout(async () => {
       try {
         this.logger.log('🚀 Автоматическая синхронизация тарифов...');
@@ -25,12 +21,9 @@ export class ProductsService implements OnModuleInit {
       } catch (error) {
         this.logger.error('❌ Ошибка автосинхронизации:', error.message);
       }
-    }, 5000); // Через 5 секунд после запуска
+    }, 5000);
   }
 
-  /**
-   * Получить все активные продукты
-   */
   async findAll(filters?: { country?: string; isActive?: boolean }) {
     const where: Prisma.EsimProductWhereInput = {
       isActive: filters?.isActive ?? true,
@@ -43,9 +36,6 @@ export class ProductsService implements OnModuleInit {
     });
   }
 
-  /**
-   * Получить список стран
-   */
   async getCountries() {
     const products = await this.prisma.esimProduct.findMany({
       where: { isActive: true },
@@ -57,9 +47,6 @@ export class ProductsService implements OnModuleInit {
     return products.map((p) => p.country);
   }
 
-  /**
-   * Получить продукты по стране
-   */
   async findByCountry(country: string) {
     return this.prisma.esimProduct.findMany({
       where: {
@@ -70,9 +57,6 @@ export class ProductsService implements OnModuleInit {
     });
   }
 
-  /**
-   * Получить продукт по ID
-   */
   async findById(id: string) {
     const product = await this.prisma.esimProduct.findUnique({
       where: { id },
@@ -85,18 +69,12 @@ export class ProductsService implements OnModuleInit {
     return product;
   }
 
-  /**
-   * Создать продукт
-   */
   async create(data: Prisma.EsimProductCreateInput) {
     return this.prisma.esimProduct.create({
       data,
     });
   }
 
-  /**
-   * Обновить продукт
-   */
   async update(id: string, data: Prisma.EsimProductUpdateInput) {
     const product = await this.findById(id);
 
@@ -106,81 +84,95 @@ export class ProductsService implements OnModuleInit {
     });
   }
 
-  /**
-   * Удалить продукт (мягкое удаление - делаем неактивным)
-   */
   async remove(id: string) {
     return this.update(id, { isActive: false });
   }
 
   /**
-   * Импорт продуктов от провайдера eSIM Access
+   * СИНХРОНИЗАЦИЯ V3 - ИСПРАВЛЕННАЯ ЛОГИКА
+   * Volume приходит в KB из eSIM Access API
+   * Price приходит в центах USD
    */
   async syncWithProvider() {
+    this.logger.log('🔄 [SYNC V3] Начало синхронизации...');
+    
     try {
-      this.logger.log('🔄 Начало синхронизации с eSIM Access API...');
-      
       const packages = await this.esimProviderService.getPackages();
+      
+      if (!packages || packages.length === 0) {
+        return { success: false, synced: 0, errors: 1, message: 'Не удалось получить список пакетов' };
+      }
+
+      this.logger.log(`📦 Получено ${packages.length} пакетов от API`);
       
       let synced = 0;
       let errors = 0;
       
       for (const pkg of packages) {
         try {
-          // Ищем существующий продукт по providerId
-          const existing = await this.prisma.esimProduct.findFirst({
-            where: { providerId: pkg.packageCode },
-          });
+          // ============================================
+          // КОНВЕРТАЦИЯ ОБЪЁМА (volume в KB -> GB/MB)
+          // ============================================
+          // API возвращает volume в КИЛОБАЙТАХ!
+          // 512000 KB = 500 MB
+          // 1048576 KB = 1024 MB = 1 GB
+          // 20971520 KB = 20480 MB = 20 GB
           
-          // DEBUG: Логируем первый пакет (v1.0.1 FIX)
-          if (synced === 0) {
-            this.logger.warn(`🔍 DEBUG первого пакета (v1.0.1):`);
-            this.logger.warn(`  volume: ${pkg.volume} (тип: ${typeof pkg.volume})`);
-            this.logger.warn(`  price: ${pkg.price} (тип: ${typeof pkg.price})`);
-            this.logger.warn(`  name: ${pkg.name}`);
-          }
-          
-          // Volume из API в KB!!! (512000 KB = 500 MB, 20971520 KB = 20 GB)
-          const volumeKB = Number(pkg.volume);
-          const volumeMB = volumeKB / 1024;
-          const volumeGB = volumeMB / 1024;
+          const volumeInKB = Number(pkg.volume) || 0;
+          const volumeInMB = volumeInKB / 1024;
+          const volumeInGB = volumeInMB / 1024;
           
           let dataAmount: string;
-          if (volumeGB >= 1) {
-            dataAmount = `${Math.round(volumeGB)} GB`;
+          if (volumeInGB >= 1) {
+            // 1 GB и больше - показываем в GB
+            dataAmount = `${Math.round(volumeInGB)} GB`;
           } else {
-            dataAmount = `${Math.round(volumeMB)} MB`;
+            // Меньше 1 GB - показываем в MB
+            dataAmount = `${Math.round(volumeInMB)} MB`;
           }
           
-          // DEBUG первого
+          // ============================================
+          // КОНВЕРТАЦИЯ ЦЕНЫ (центы USD -> рубли)
+          // ============================================
+          // API возвращает price в центах USD
+          // Наценка 40%, курс ~100 руб/USD
+          
+          const priceInCents = Number(pkg.price) || 0;
+          const priceInUSD = priceInCents / 100;
+          const priceWithMarkup = priceInUSD * 1.4; // +40% наценка
+          const priceInRUB = Math.round(priceWithMarkup * 100); // Курс ~100 руб/$
+          
+          // DEBUG: первый пакет
           if (synced === 0) {
-            this.logger.warn(`  volumeKB: ${volumeKB}`);
-            this.logger.warn(`  volumeMB: ${volumeMB}`);
-            this.logger.warn(`  volumeGB: ${volumeGB}`);
-            this.logger.warn(`  dataAmount: ${dataAmount}`);
+            this.logger.warn(`🔍 [SYNC V3] Первый пакет:`);
+            this.logger.warn(`   name: ${pkg.name}`);
+            this.logger.warn(`   volume: ${volumeInKB} KB -> ${volumeInMB} MB -> ${volumeInGB} GB -> "${dataAmount}"`);
+            this.logger.warn(`   price: ${priceInCents} cents -> $${priceInUSD} -> ₽${priceInRUB}`);
           }
           
           const productData = {
-            country: pkg.location || pkg.locationCode || 'Unknown',
+            country: pkg.locationCode || pkg.location || 'Unknown',
             name: pkg.name || pkg.slug,
-            description: `${dataAmount} на ${pkg.duration} ${pkg.durationUnit === 'DAY' ? 'дней' : pkg.durationUnit}`,
+            description: `${dataAmount} на ${pkg.duration} дней`,
             dataAmount: dataAmount,
             validityDays: pkg.duration,
-            providerPrice: pkg.price,
-            ourPrice: Math.round(pkg.price * 1.4 * 100) / 100,
+            providerPrice: priceInCents,
+            ourPrice: priceInRUB,
             providerId: pkg.packageCode,
             providerName: 'esimaccess',
             isActive: true,
           };
           
+          const existing = await this.prisma.esimProduct.findFirst({
+            where: { providerId: pkg.packageCode },
+          });
+          
           if (existing) {
-            // Обновляем
             await this.prisma.esimProduct.update({
               where: { id: existing.id },
               data: productData,
             });
           } else {
-            // Создаём новый
             await this.prisma.esimProduct.create({
               data: productData,
             });
@@ -188,12 +180,12 @@ export class ProductsService implements OnModuleInit {
           
           synced++;
         } catch (error) {
-          this.logger.error(`Ошибка синхронизации пакета ${pkg.packageCode}:`, error.message);
+          this.logger.error(`Ошибка пакета ${pkg.packageCode}:`, error.message);
           errors++;
         }
       }
       
-      this.logger.log(`✅ Синхронизация завершена: ${synced} обновлено, ${errors} ошибок`);
+      this.logger.log(`✅ [SYNC V3] Готово: ${synced} синхронизировано, ${errors} ошибок`);
       
       return { 
         success: true,
@@ -202,7 +194,7 @@ export class ProductsService implements OnModuleInit {
         message: `Синхронизировано ${synced} продуктов`,
       };
     } catch (error) {
-      this.logger.error('❌ Ошибка синхронизации:', error.message);
+      this.logger.error('❌ [SYNC V3] Ошибка:', error.message);
       return {
         success: false,
         synced: 0,

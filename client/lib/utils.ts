@@ -1,78 +1,104 @@
-export const formatPrice = (price: number): string => {
-  if (price === undefined || price === null) return '0';
-  // Heuristic: prices > 5000 are likely in cents (e.g. 16800 -> 168)
-  if (price > 5000) {
-    return Math.round(price / 100).toString();
-  }
-  return price.toString();
+/**
+ * Форматирование цены
+ * Бэкенд возвращает цену в рублях (целое число)
+ */
+export const formatPrice = (price: number | string): string => {
+  const num = Number(price) || 0;
+  return num.toLocaleString('ru-RU');
 };
 
+/**
+ * Форматирование объёма данных
+ * Бэкенд должен возвращать правильный формат ("500 MB", "20 GB")
+ * Но на случай багов - исправляем на клиенте
+ */
 export const formatDataAmount = (amount: string): string => {
   if (!amount) return '';
   
-  // Fix for backend bug displaying KB/MB as GB
-  if (amount.includes('GB')) {
-    const val = parseFloat(amount);
-    
-    // Case 1: 20971520 GB (raw KB) -> 20 GB (20971520 KB / 1024 / 1024)
-    if (val > 1000000) {
-       const gb = Math.round(val / 1024 / 1024);
-       return `${gb} GB`;
+  // Если уже правильный формат - возвращаем как есть
+  const match = amount.match(/^(\d+)\s*(MB|GB)$/i);
+  if (!match) return amount;
+  
+  const value = parseInt(match[1], 10);
+  const unit = match[2].toUpperCase();
+  
+  // Проверяем на баги бэкенда:
+  // Если "500 GB" но значение < 100 - это норм (500 GB = 500 гигабайт)
+  // Если "1024 GB" - это скорее всего баг, должно быть "1 GB"
+  // Если "20480 GB" - это баг, должно быть "20 GB"
+  
+  if (unit === 'GB') {
+    if (value >= 1000) {
+      // Баг: значение в MB показано как GB
+      // 1024 GB -> 1 GB, 20480 GB -> 20 GB
+      const correctGB = Math.round(value / 1024);
+      return `${correctGB} GB`;
     }
-    
-    // Case 2: 500 GB (500 MB displayed as GB) -> 500 MB
-    if (val >= 100 && val < 1000) {
-       return `${val} MB`; 
+    if (value >= 100 && value < 1000) {
+      // Баг: значение в MB показано как GB  
+      // 500 GB -> 500 MB
+      return `${value} MB`;
     }
   }
+  
   return amount;
 };
 
+/**
+ * Флаг страны по ISO коду или названию
+ */
 export const getCountryEmoji = (country: string): string => {
   if (!country) return '🌍';
   
-  // ISO code (2 letters)
+  // ISO код (2 буквы) -> флаг
   if (/^[A-Za-z]{2}$/.test(country)) {
     const code = country.toUpperCase();
     const offset = 127397;
-    return String.fromCodePoint(
-      code.charCodeAt(0) + offset,
-      code.charCodeAt(1) + offset
-    );
+    try {
+      return String.fromCodePoint(
+        code.charCodeAt(0) + offset,
+        code.charCodeAt(1) + offset
+      );
+    } catch {
+      return '🌍';
+    }
   }
 
-  // Multi-country
+  // Мультистрана
   if (country.includes(',')) {
     return '🌍';
   }
 
-  const countryLower = country.toLowerCase();
+  // Словарь названий
   const flags: Record<string, string> = {
-    'andorra': '🇦🇩', 'united arab emirates': '🇦🇪', 'afghanistan': '🇦🇫', 
-    'antigua and barbuda': '🇦🇬', 'anguilla': '🇦🇮', 'albania': '🇦🇱', 
-    'armenia': '🇦🇲', 'austria': '🇦🇹', 'australia': '🇦🇺', 
-    'azerbaijan': '🇦🇿', 'bosnia and herzegovina': '🇧🇦', 'barbados': '🇧🇧', 
-    'bangladesh': '🇧🇩', 'belgium': '🇧🇪', 'bulgaria': '🇧🇬', 'bahrain': '🇧🇭', 
-    'brazil': '🇧🇷', 'belarus': '🇧🇾', 'canada': '🇨🇦', 'switzerland': '🇨🇭', 
-    'china': '🇨🇳', 'colombia': '🇨🇴', 'cyprus': '🇨🇾', 'czech republic': '🇨🇿', 
-    'germany': '🇩🇪', 'denmark': '🇩🇰', 'estonia': '🇪🇪', 'egypt': '🇪🇬', 
-    'spain': '🇪🇸', 'finland': '🇫🇮', 'france': '🇫🇷', 'united kingdom': '🇬🇧', 
-    'georgia': '🇬🇪', 'greece': '🇬🇷', 'hong kong': '🇭🇰', 'croatia': '🇭🇷', 
-    'hungary': '🇭🇺', 'indonesia': '🇮🇩', 'ireland': '🇮🇪', 'israel': '🇮🇱', 
-    'india': '🇮🇳', 'iraq': '🇮🇶', 'iran': '🇮🇷', 'iceland': '🇮🇸', 'italy': '🇮🇹', 
-    'japan': '🇯🇵', 'kenya': '🇰🇪', 'kyrgyzstan': '🇰🇬', 'south korea': '🇰🇷', 
-    'kazakhstan': '🇰🇿', 'sri lanka': '🇱🇰', 'lithuania': '🇱🇹', 'luxembourg': '🇱🇺', 
-    'latvia': '🇱🇻', 'morocco': '🇲🇦', 'moldova': '🇲🇩', 'montenegro': '🇲🇪', 
-    'malta': '🇲🇹', 'maldives': '🇲🇻', 'mexico': '🇲🇽', 'malaysia': '🇲🇾', 
-    'netherlands': '🇳🇱', 'norway': '🇳🇴', 'new zealand': '🇳🇿', 'philippines': '🇵🇭', 
-    'pakistan': '🇵🇰', 'poland': '🇵🇱', 'portugal': '🇵🇹', 'qatar': '🇶🇦', 
-    'romania': '🇷🇴', 'serbia': '🇷🇸', 'russia': '🇷🇺', 'russian federation': '🇷🇺', 
-    'saudi arabia': '🇸🇦', 'sweden': '🇸🇪', 'singapore': '🇸🇬', 'slovenia': '🇸🇮', 
-    'slovakia': '🇸🇰', 'thailand': '🇹🇭', 'tajikistan': '🇹🇯', 'tunisia': '🇹🇳', 
-    'turkey': '🇹🇷', 'taiwan': '🇹🇼', 'ukraine': '🇺🇦', 'united states': '🇺🇸', 
-    'usa': '🇺🇸', 'uzbekistan': '🇺🇿', 'vietnam': '🇻🇳', 'viet nam': '🇻🇳', 
-    'south africa': '🇿🇦'
+    'andorra': '🇦🇩', 'united arab emirates': '🇦🇪', 'uae': '🇦🇪',
+    'afghanistan': '🇦🇫', 'albania': '🇦🇱', 'armenia': '🇦🇲',
+    'austria': '🇦🇹', 'australia': '🇦🇺', 'azerbaijan': '🇦🇿',
+    'belgium': '🇧🇪', 'bulgaria': '🇧🇬', 'brazil': '🇧🇷',
+    'canada': '🇨🇦', 'switzerland': '🇨🇭', 'china': '🇨🇳',
+    'cyprus': '🇨🇾', 'czech republic': '🇨🇿', 'germany': '🇩🇪',
+    'denmark': '🇩🇰', 'estonia': '🇪🇪', 'egypt': '🇪🇬',
+    'spain': '🇪🇸', 'finland': '🇫🇮', 'france': '🇫🇷',
+    'united kingdom': '🇬🇧', 'uk': '🇬🇧', 'georgia': '🇬🇪',
+    'greece': '🇬🇷', 'hong kong': '🇭🇰', 'croatia': '🇭🇷',
+    'hungary': '🇭🇺', 'indonesia': '🇮🇩', 'ireland': '🇮🇪',
+    'israel': '🇮🇱', 'india': '🇮🇳', 'italy': '🇮🇹',
+    'japan': '🇯🇵', 'south korea': '🇰🇷', 'korea': '🇰🇷',
+    'kazakhstan': '🇰🇿', 'sri lanka': '🇱🇰', 'lithuania': '🇱🇹',
+    'luxembourg': '🇱🇺', 'latvia': '🇱🇻', 'morocco': '🇲🇦',
+    'moldova': '🇲🇩', 'montenegro': '🇲🇪', 'mexico': '🇲🇽',
+    'malaysia': '🇲🇾', 'netherlands': '🇳🇱', 'norway': '🇳🇴',
+    'new zealand': '🇳🇿', 'philippines': '🇵🇭', 'pakistan': '🇵🇰',
+    'poland': '🇵🇱', 'portugal': '🇵🇹', 'qatar': '🇶🇦',
+    'romania': '🇷🇴', 'serbia': '🇷🇸', 'russia': '🇷🇺',
+    'saudi arabia': '🇸🇦', 'sweden': '🇸🇪', 'singapore': '🇸🇬',
+    'slovenia': '🇸🇮', 'slovakia': '🇸🇰', 'thailand': '🇹🇭',
+    'turkey': '🇹🇷', 'taiwan': '🇹🇼', 'ukraine': '🇺🇦',
+    'united states': '🇺🇸', 'usa': '🇺🇸', 'vietnam': '🇻🇳',
+    'south africa': '🇿🇦', 'europe': '🇪🇺', 'global': '🌍',
+    'сша': '🇺🇸', 'турция': '🇹🇷', 'оаэ': '🇦🇪', 'таиланд': '🇹🇭',
+    'япония': '🇯🇵', 'китай': '🇨🇳', 'россия': '🇷🇺', 'европа': '🇪🇺',
   };
   
-  return flags[countryLower] || '🌍';
+  return flags[country.toLowerCase()] || '🌍';
 };
