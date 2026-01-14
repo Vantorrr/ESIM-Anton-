@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Search, Wifi, Clock, ChevronRight, Sparkles, Globe, Signal } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
+import { formatPrice, formatDataAmount, getCountryEmoji } from '@/lib/utils'
 
 // Liquid Glass Splash Screen
 function SplashScreen({ progress }: { progress: number }) {
@@ -132,42 +133,6 @@ export default function Home() {
     }
 
     setFilteredProducts(filtered)
-  }
-
-  // Конвертирует ISO код страны (2 буквы) в эмодзи флага
-  const isoToFlag = (isoCode: string): string => {
-    if (isoCode.length !== 2) return '🌍'
-    const code = isoCode.toUpperCase()
-    const offset = 127397 // Разница между ASCII и Regional Indicator
-    return String.fromCodePoint(
-      code.charCodeAt(0) + offset,
-      code.charCodeAt(1) + offset
-    )
-  }
-
-  const getCountryEmoji = (country: string): string => {
-    // Если это ISO код (2 буквы) - конвертируем в флаг
-    if (/^[A-Za-z]{2}$/.test(country)) {
-      return isoToFlag(country)
-    }
-    
-    // Если это комбинация кодов (US,CA,MX) - показываем глобус
-    if (country.includes(',')) {
-      return '🌍'
-    }
-
-    const countryLower = country.toLowerCase()
-    const flags: Record<string, string> = {
-      'сша': '🇺🇸', 'европа': '🇪🇺', 'турция': '🇹🇷', 'оаэ': '🇦🇪',
-      'таиланд': '🇹🇭', 'япония': '🇯🇵', 'китай': '🇨🇳', 'корея': '🇰🇷',
-      'сингапур': '🇸🇬', 'индонезия': '🇮🇩', 'россия': '🇷🇺', 'германия': '🇩🇪',
-      'франция': '🇫🇷', 'италия': '🇮🇹', 'испания': '🇪🇸', 'великобритания': '🇬🇧',
-      'united states': '🇺🇸', 'usa': '🇺🇸', 'europe': '🇪🇺', 'turkey': '🇹🇷',
-      'united arab emirates': '🇦🇪', 'thailand': '🇹🇭', 'japan': '🇯🇵',
-      'china': '🇨🇳', 'south korea': '🇰🇷', 'singapore': '🇸🇬',
-      'global': '🌍', 'worldwide': '🌍', 'asia': '🌏', 'americas': '🌎',
-    }
-    return flags[countryLower] || '🌍'
   }
 
   // Показываем splash screen
@@ -307,7 +272,7 @@ export default function Home() {
                       <p className="text-sm text-secondary">{product.name}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="price-tag">₽{product.ourPrice}</p>
+                      <p className="price-tag">₽{formatPrice(product.ourPrice)}</p>
                     </div>
                   </div>
                   
@@ -315,7 +280,7 @@ export default function Home() {
                   <div className="flex items-center gap-3 mt-2">
                     <div className="flex items-center gap-1 text-xs text-muted">
                       <Wifi size={14} />
-                      <span>{product.dataAmount}</span>
+                      <span>{formatDataAmount(product.dataAmount)}</span>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-muted">
                       <Clock size={14} />

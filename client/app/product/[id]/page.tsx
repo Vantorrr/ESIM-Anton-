@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Wifi, Clock, CheckCircle2, Zap, Shield, Globe } from 'lucide-react'
 import { productsApi, Product } from '@/lib/api'
+import { formatPrice, formatDataAmount, getCountryEmoji } from '@/lib/utils'
 
 export default function ProductPage() {
   const params = useParams()
@@ -25,29 +26,6 @@ export default function ProductPage() {
       console.error('Ошибка загрузки:', error)
       setLoading(false)
     }
-  }
-
-  // Конвертирует ISO код страны в эмодзи флага
-  const isoToFlag = (isoCode: string): string => {
-    if (isoCode.length !== 2) return '🌍'
-    const code = isoCode.toUpperCase()
-    const offset = 127397
-    return String.fromCodePoint(
-      code.charCodeAt(0) + offset,
-      code.charCodeAt(1) + offset
-    )
-  }
-
-  const getCountryEmoji = (country: string): string => {
-    if (/^[A-Za-z]{2}$/.test(country)) return isoToFlag(country)
-    if (country.includes(',')) return '🌍'
-    
-    const flags: Record<string, string> = {
-      'сша': '🇺🇸', 'турция': '🇹🇷', 'оаэ': '🇦🇪', 'таиланд': '🇹🇭',
-      'япония': '🇯🇵', 'китай': '🇨🇳', 'корея': '🇰🇷', 'сингапур': '🇸🇬',
-      'united states': '🇺🇸', 'turkey': '🇹🇷', 'japan': '🇯🇵',
-    }
-    return flags[country.toLowerCase()] || '🌍'
   }
 
   const handlePurchase = async () => {
@@ -121,7 +99,7 @@ export default function ProductPage() {
       <div className="grid grid-cols-2 gap-3 mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
         <div className="glass-card-flat text-center">
           <Wifi className="mx-auto mb-2 text-accent" size={28} />
-          <p className="text-lg font-bold text-primary">{product.dataAmount}</p>
+          <p className="text-lg font-bold text-primary">{formatDataAmount(product.dataAmount)}</p>
           <p className="text-xs text-muted">Трафик</p>
         </div>
         <div className="glass-card-flat text-center">
@@ -190,7 +168,7 @@ export default function ProductPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <p className="text-muted text-sm">Стоимость</p>
-            <p className="price-tag text-3xl">₽{product.ourPrice}</p>
+            <p className="price-tag text-3xl">₽{formatPrice(product.ourPrice)}</p>
           </div>
           <div className="badge badge-success">
             <CheckCircle2 size={14} className="mr-1" />
