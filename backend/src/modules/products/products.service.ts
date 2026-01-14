@@ -132,11 +132,18 @@ export class ProductsService implements OnModuleInit {
             where: { providerId: pkg.packageCode },
           });
           
+          // Логируем первый пакет для проверки
+          if (synced === 0) {
+            this.logger.log(`📊 Первый пакет из API: ${JSON.stringify(pkg)}`);
+          }
+          
           // Volume из API УЖЕ В MB, price УЖЕ В USD
           const volumeMB = pkg.volume;
           const dataAmount = volumeMB >= 1024 
             ? `${Math.round(volumeMB / 1024)} GB`
             : `${volumeMB} MB`;
+          
+          this.logger.debug(`Пакет ${pkg.packageCode}: volume=${pkg.volume} → dataAmount=${dataAmount}`);
           
           const productData = {
             country: pkg.location || pkg.locationCode || 'Unknown',
