@@ -132,10 +132,15 @@ export class ProductsService implements OnModuleInit {
             where: { providerId: pkg.packageCode },
           });
           
-          // Форматируем объем данных
-          const dataAmount = pkg.volume >= 1024 
-            ? `${(pkg.volume / 1024).toFixed(0)} GB`
-            : `${pkg.volume} MB`;
+          // Форматируем объем данных (volume в KB из API)
+          const volumeKB = pkg.volume;
+          const volumeMB = volumeKB / 1024;
+          const dataAmount = volumeMB >= 1024 
+            ? `${(volumeMB / 1024).toFixed(0)} GB`
+            : `${Math.round(volumeMB)} MB`;
+          
+          // Цена в USD, конвертируем в RUB (курс ~100)
+          const priceRub = Math.round(pkg.price * 100);
           
           const productData = {
             country: pkg.location || pkg.locationCode || 'Unknown',
@@ -143,8 +148,8 @@ export class ProductsService implements OnModuleInit {
             description: `${dataAmount} на ${pkg.duration} ${pkg.durationUnit === 'DAY' ? 'дней' : pkg.durationUnit}`,
             dataAmount: dataAmount,
             validityDays: pkg.duration,
-            providerPrice: pkg.price,
-            ourPrice: Math.round(pkg.price * 1.4 * 100) / 100, // Наценка 40%
+            providerPrice: pkg.price, // в USD
+            ourPrice: Math.round(priceRub * 1.4), // в RUB с наценкой 40%
             providerId: pkg.packageCode,
             providerName: 'esimaccess',
             isActive: true,
