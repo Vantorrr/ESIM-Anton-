@@ -132,8 +132,16 @@ export class ProductsService implements OnModuleInit {
             where: { providerId: pkg.packageCode },
           });
           
+          // DEBUG: Логируем первый пакет
+          if (synced === 0) {
+            this.logger.warn(`🔍 DEBUG первого пакета:`);
+            this.logger.warn(`  volume: ${pkg.volume} (тип: ${typeof pkg.volume})`);
+            this.logger.warn(`  price: ${pkg.price} (тип: ${typeof pkg.price})`);
+            this.logger.warn(`  name: ${pkg.name}`);
+          }
+          
           // Volume из API в KB!!! (512000 KB = 500 MB, 20971520 KB = 20 GB)
-          const volumeKB = pkg.volume;
+          const volumeKB = Number(pkg.volume);
           const volumeMB = volumeKB / 1024;
           const volumeGB = volumeMB / 1024;
           
@@ -142,6 +150,14 @@ export class ProductsService implements OnModuleInit {
             dataAmount = `${Math.round(volumeGB)} GB`;
           } else {
             dataAmount = `${Math.round(volumeMB)} MB`;
+          }
+          
+          // DEBUG первого
+          if (synced === 0) {
+            this.logger.warn(`  volumeKB: ${volumeKB}`);
+            this.logger.warn(`  volumeMB: ${volumeMB}`);
+            this.logger.warn(`  volumeGB: ${volumeGB}`);
+            this.logger.warn(`  dataAmount: ${dataAmount}`);
           }
           
           const productData = {
