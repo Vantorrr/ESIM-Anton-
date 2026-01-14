@@ -5,10 +5,20 @@ import { config } from '../config';
 
 // URL Mini App
 const MINI_APP_URL = process.env.MINI_APP_URL || 'https://esim-anton-production.up.railway.app';
+const ADMIN_PANEL_URL = process.env.ADMIN_PANEL_URL || 'https://admin-production-1234.up.railway.app';
+
+// Список Telegram ID админов
+const ADMIN_IDS = [316662303, 8141463258];
+
+function isAdmin(userId: number | undefined): boolean {
+  return userId !== undefined && ADMIN_IDS.includes(userId);
+}
 
 export function setupCommands(bot: Bot<MyContext>) {
   // /start
   bot.command('start', async (ctx) => {
+    const userId = ctx.from?.id;
+    
     const keyboard = new InlineKeyboard()
       .webApp('🌍 Открыть каталог eSIM', MINI_APP_URL)
       .row()
@@ -17,6 +27,11 @@ export function setupCommands(bot: Bot<MyContext>) {
       .row()
       .webApp('🎁 Рефералы', `${MINI_APP_URL}/referrals`)
       .text('❓ Помощь', 'help');
+    
+    // Добавляем кнопку админпанели для админов
+    if (isAdmin(userId)) {
+      keyboard.row().url('⚙️ Админпанель', ADMIN_PANEL_URL);
+    }
 
     await ctx.reply(
       `👋 Привет, ${ctx.from?.first_name}!\n\n` +
@@ -120,15 +135,38 @@ export function setupCommands(bot: Bot<MyContext>) {
 
   // /help
   bot.command('help', async (ctx) => {
-    await ctx.reply(
-      `❓ **Помощь**\n\n` +
+    let helpText = `❓ **Помощь**\n\n` +
       `Доступные команды:\n` +
       `/start - Главное меню\n` +
       `/help - Помощь\n` +
       `/catalog - Каталог eSIM\n` +
       `/profile - Мой профиль\n` +
-      `/orders - Мои заказы`,
-      { parse_mode: 'Markdown' }
+      `/orders - Мои заказы`;
+    
+    if (isAdmin(ctx.from?.id)) {
+      helpText += `\n/admin - Админпанель`;
+    }
+    
+    await ctx.reply(helpText, { parse_mode: 'Markdown' });
+  });
+
+  // /admin - только для админов
+  bot.command('admin', async (ctx) => {
+    if (!isAdmin(ctx.from?.id)) {
+      await ctx.reply('⛔ У вас нет доступа к админпанели.');
+      return;
+    }
+
+    const keyboard = new InlineKeyboard()
+      .url('⚙️ Открыть админпанель', ADMIN_PANEL_URL);
+
+    await ctx.reply(
+      `🔐 **Админпанель**\n\n` +
+      `Привет, админ! Нажми кнопку чтобы открыть панель управления:`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard,
+      }
     );
   });
 }
