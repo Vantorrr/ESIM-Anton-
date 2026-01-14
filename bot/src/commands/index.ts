@@ -30,7 +30,7 @@ export function setupCommands(bot: Bot<MyContext>) {
     
     // Добавляем кнопку админпанели для админов
     if (isAdmin(userId)) {
-      keyboard.row().url('⚙️ Админпанель', ADMIN_PANEL_URL);
+      keyboard.row().webApp('⚙️ Админпанель', ADMIN_PANEL_URL);
     }
 
     await ctx.reply(
@@ -158,7 +158,7 @@ export function setupCommands(bot: Bot<MyContext>) {
     }
 
     const keyboard = new InlineKeyboard()
-      .url('⚙️ Открыть админпанель', ADMIN_PANEL_URL);
+      .webApp('⚙️ Открыть админпанель', ADMIN_PANEL_URL);
 
     await ctx.reply(
       `🔐 **Админпанель**\n\n` +
