@@ -6,7 +6,7 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 export const config = {
   botToken: process.env.TELEGRAM_BOT_TOKEN || '',
-  apiUrl: process.env.API_URL || process.env.BACKEND_URL || 'http://localhost:3000',
+  apiUrl: process.env.API_URL || process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
   useWebhook: process.env.TELEGRAM_USE_WEBHOOK === 'true',
   webhookUrl: process.env.TELEGRAM_WEBHOOK_URL || '',
 };
