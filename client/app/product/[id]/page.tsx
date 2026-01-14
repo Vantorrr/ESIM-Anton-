@@ -27,20 +27,27 @@ export default function ProductPage() {
     }
   }
 
+  // Конвертирует ISO код страны в эмодзи флага
+  const isoToFlag = (isoCode: string): string => {
+    if (isoCode.length !== 2) return '🌍'
+    const code = isoCode.toUpperCase()
+    const offset = 127397
+    return String.fromCodePoint(
+      code.charCodeAt(0) + offset,
+      code.charCodeAt(1) + offset
+    )
+  }
+
   const getCountryEmoji = (country: string): string => {
+    if (/^[A-Za-z]{2}$/.test(country)) return isoToFlag(country)
+    if (country.includes(',')) return '🌍'
+    
     const flags: Record<string, string> = {
-      'США': '🇺🇸',
-      'Европа': '🇪🇺',
-      'Турция': '🇹🇷',
-      'ОАЭ': '🇦🇪',
-      'Таиланд': '🇹🇭',
-      'Япония': '🇯🇵',
-      'Китай': '🇨🇳',
-      'Корея': '🇰🇷',
-      'Сингапур': '🇸🇬',
-      'Индонезия': '🇮🇩',
+      'сша': '🇺🇸', 'турция': '🇹🇷', 'оаэ': '🇦🇪', 'таиланд': '🇹🇭',
+      'япония': '🇯🇵', 'китай': '🇨🇳', 'корея': '🇰🇷', 'сингапур': '🇸🇬',
+      'united states': '🇺🇸', 'turkey': '🇹🇷', 'japan': '🇯🇵',
     }
-    return flags[country] || '🌍'
+    return flags[country.toLowerCase()] || '🌍'
   }
 
   const handlePurchase = async () => {
