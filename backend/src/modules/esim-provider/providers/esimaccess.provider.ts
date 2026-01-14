@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
+import * as crypto from 'crypto';
 
 /**
  * Интерфейсы для eSIM Access API
@@ -8,22 +9,30 @@ import axios, { AxiosInstance } from 'axios';
 
 export interface EsimAccessPackage {
   packageCode: string;
-  title: string;
-  destination: string;
-  data: string;
-  validity: number;
+  name: string;
+  slug: string;
+  location: string;
+  locationCode: string;
   price: number;
-  currency: string;
-  type: string;
+  currencyCode: string;
+  volume: number;
+  smsVolume: number;
+  duration: number;
+  durationUnit: string;
+  speed: string;
+  supportTopup: boolean;
 }
 
 export interface EsimAccessPurchaseResponse {
   success: boolean;
-  iccid: string;
-  qrCodeUrl: string;
-  smdpAddress: string;
-  activationCode: string;
-  orderReference: string;
+  orderNo: string;
+  esimList: {
+    iccid: string;
+    lpaCode: string;
+    smdpAddress: string;
+    matchingCode: string;
+    qrCodeUrl: string;
+  }[];
 }
 
 export interface EsimAccessBalance {
@@ -33,6 +42,7 @@ export interface EsimAccessBalance {
 
 /**
  * Провайдер для работы с eSIM Access API
+ * Документация: https://docs.esimaccess.com/
  */
 @Injectable()
 export class EsimAccessProvider {
@@ -46,16 +56,35 @@ export class EsimAccessProvider {
     this.secretKey = secretKey;
 
     this.client = axios.create({
-      baseURL: 'https://api.esimaccess.com/api/v1',
+      baseURL: 'https://api.esimaccess.com/api/v1/open',
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
-        'AccessCode': this.accessCode,
-        'SecretKey': this.secretKey,
+        'RT-AccessCode': this.accessCode,
       },
     });
 
     this.logger.log('✅ eSIM Access provider инициализирован');
+  }
+
+  /**
+   * Генерация подписи для API
+   */
+  private generateSignature(timestamp: number): string {
+    const signStr = `${this.accessCode}${this.secretKey}${timestamp}`;
+    return crypto.createHash('md5').update(signStr).digest('hex');
+  }
+
+  /**
+   * Добавление заголовков авторизации
+   */
+  private getAuthHeaders() {
+    const timestamp = Date.now();
+    return {
+      'RT-AccessCode': this.accessCode,
+      'RT-Timestamp': String(timestamp),
+      'RT-Signature': this.generateSignature(timestamp),
+    };
   }
 
   /**
@@ -65,14 +94,19 @@ export class EsimAccessProvider {
     try {
       this.logger.log('💰 Запрос баланса...');
       
-      const response = await this.client.get('/balance');
+      const response = await this.client.post('/account/query', {}, {
+        headers: this.getAuthHeaders(),
+      });
       
-      this.logger.log(`✅ Баланс: ${response.data.balance} ${response.data.currency}`);
+      if (response.data?.success && response.data?.obj) {
+        this.logger.log(`✅ Баланс: ${response.data.obj.balance} ${response.data.obj.currencyCode}`);
+        return {
+          balance: response.data.obj.balance,
+          currency: response.data.obj.currencyCode,
+        };
+      }
       
-      return {
-        balance: response.data.balance,
-        currency: response.data.currency,
-      };
+      throw new Error(response.data?.errorMsg || 'Ошибка получения баланса');
     } catch (error) {
       this.logger.error('❌ Ошибка получения баланса:', error.message);
       throw error;
@@ -82,27 +116,44 @@ export class EsimAccessProvider {
   /**
    * Получить список доступных пакетов
    */
-  async getPackages(destination?: string): Promise<EsimAccessPackage[]> {
+  async getPackages(locationCode?: string): Promise<EsimAccessPackage[]> {
     try {
       this.logger.log('📦 Запрос списка пакетов...');
       
-      const response = await this.client.get('/packages', {
-        params: destination ? { destination } : {},
+      const payload: any = {
+        pager: { pageNum: 1, pageSize: 500 }
+      };
+      
+      if (locationCode) {
+        payload.locationCode = locationCode;
+      }
+
+      const response = await this.client.post('/package/list', payload, {
+        headers: this.getAuthHeaders(),
       });
 
-      const packages = response.data.packages || [];
+      if (!response.data?.success) {
+        throw new Error(response.data?.errorMsg || 'Ошибка получения пакетов');
+      }
+
+      const packages = response.data?.obj?.packageList || [];
       
       this.logger.log(`✅ Получено ${packages.length} пакетов`);
       
       return packages.map((pkg: any) => ({
         packageCode: pkg.packageCode,
-        title: pkg.title,
-        destination: pkg.destination,
-        data: pkg.data,
-        validity: pkg.validity,
+        name: pkg.name,
+        slug: pkg.slug,
+        location: pkg.location,
+        locationCode: pkg.locationCode,
         price: pkg.price,
-        currency: pkg.currency,
-        type: pkg.type,
+        currencyCode: pkg.currencyCode,
+        volume: pkg.volume,
+        smsVolume: pkg.smsVolume || 0,
+        duration: pkg.duration,
+        durationUnit: pkg.durationUnit,
+        speed: pkg.speed,
+        supportTopup: pkg.supportTopup,
       }));
     } catch (error) {
       this.logger.error('❌ Ошибка получения пакетов:', error.message);
@@ -113,29 +164,36 @@ export class EsimAccessProvider {
   /**
    * Купить eSIM
    */
-  async purchaseEsim(packageCode: string, quantity = 1): Promise<EsimAccessPurchaseResponse> {
+  async purchaseEsim(packageCode: string, quantity = 1, transactionId?: string): Promise<EsimAccessPurchaseResponse> {
     try {
       this.logger.log(`💳 Покупка eSIM (package: ${packageCode}, quantity: ${quantity})...`);
 
-      const response = await this.client.post('/orders', {
+      const response = await this.client.post('/esim/order', {
         packageCode,
-        quantity,
+        count: quantity,
+        transactionId: transactionId || `order_${Date.now()}`,
+      }, {
+        headers: this.getAuthHeaders(),
       });
 
-      if (response.data && response.data.success) {
-        this.logger.log(`✅ eSIM куплен успешно (order: ${response.data.orderReference})`);
+      if (response.data?.success && response.data?.obj) {
+        const order = response.data.obj;
+        this.logger.log(`✅ eSIM куплен успешно (order: ${order.orderNo})`);
         
         return {
           success: true,
-          iccid: response.data.iccid,
-          qrCodeUrl: response.data.qrCodeUrl,
-          smdpAddress: response.data.smdpAddress,
-          activationCode: response.data.activationCode,
-          orderReference: response.data.orderReference,
+          orderNo: order.orderNo,
+          esimList: order.esimList?.map((esim: any) => ({
+            iccid: esim.iccid,
+            lpaCode: esim.lpa || esim.ac,
+            smdpAddress: esim.smdpAddress,
+            matchingCode: esim.confirmationCode || esim.matchingId,
+            qrCodeUrl: esim.qrCodeUrl,
+          })) || [],
         };
       }
 
-      throw new Error('Некорректный ответ от API');
+      throw new Error(response.data?.errorMsg || 'Некорректный ответ от API');
     } catch (error) {
       this.logger.error('❌ Ошибка покупки eSIM:', error.message);
       throw error;
@@ -145,15 +203,23 @@ export class EsimAccessProvider {
   /**
    * Получить информацию о заказе
    */
-  async getOrderInfo(orderReference: string): Promise<any> {
+  async getOrderInfo(orderNo: string): Promise<any> {
     try {
-      this.logger.log(`🔍 Запрос информации о заказе ${orderReference}...`);
+      this.logger.log(`🔍 Запрос информации о заказе ${orderNo}...`);
 
-      const response = await this.client.get(`/orders/${orderReference}`);
+      const response = await this.client.post('/esim/query', {
+        orderNo,
+      }, {
+        headers: this.getAuthHeaders(),
+      });
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.errorMsg || 'Ошибка получения заказа');
+      }
 
       this.logger.log(`✅ Информация о заказе получена`);
       
-      return response.data;
+      return response.data.obj;
     } catch (error) {
       this.logger.error('❌ Ошибка получения информации о заказе:', error.message);
       throw error;
@@ -163,15 +229,21 @@ export class EsimAccessProvider {
   /**
    * Получить историю заказов
    */
-  async getOrderHistory(limit = 100): Promise<any[]> {
+  async getOrderHistory(pageNum = 1, pageSize = 100): Promise<any[]> {
     try {
-      this.logger.log(`📜 Запрос истории заказов (limit: ${limit})...`);
+      this.logger.log(`📜 Запрос истории заказов (page: ${pageNum}, size: ${pageSize})...`);
 
-      const response = await this.client.get('/orders', {
-        params: { limit },
+      const response = await this.client.post('/esim/list', {
+        pager: { pageNum, pageSize },
+      }, {
+        headers: this.getAuthHeaders(),
       });
 
-      const orders = response.data.orders || [];
+      if (!response.data?.success) {
+        throw new Error(response.data?.errorMsg || 'Ошибка получения заказов');
+      }
+
+      const orders = response.data?.obj?.esimList || [];
       
       this.logger.log(`✅ Получено ${orders.length} заказов`);
       
@@ -190,6 +262,7 @@ export class EsimAccessProvider {
       await this.getBalance();
       return true;
     } catch (error) {
+      this.logger.warn('⚠️ Health check failed:', error.message);
       return false;
     }
   }

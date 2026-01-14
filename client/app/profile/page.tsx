@@ -9,6 +9,7 @@ interface UserProfile {
   firstName: string
   lastName?: string
   username?: string
+  photoUrl?: string
   balance: number
   bonusBalance: number
   totalSpent: number
@@ -36,12 +37,13 @@ export default function ProfilePage() {
     if (tg?.initDataUnsafe?.user) {
       const tgUser = tg.initDataUnsafe.user
       
-      // Демо-данные для профиля
+      // Данные из Telegram + профиль
       setUser({
         id: String(tgUser.id),
         firstName: tgUser.first_name || 'Пользователь',
         lastName: tgUser.last_name,
         username: tgUser.username,
+        photoUrl: tgUser.photo_url,
         balance: 0,
         bonusBalance: 150,
         totalSpent: 2500,
@@ -100,9 +102,17 @@ export default function ProfilePage() {
 
       {/* User Card */}
       <div className="glass-card text-center mb-6 animate-slide-up">
-        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
-          <User className="text-white" size={40} />
-        </div>
+        {user?.photoUrl ? (
+          <img 
+            src={user.photoUrl} 
+            alt={user.firstName}
+            className="w-24 h-24 rounded-full mx-auto mb-4 shadow-lg object-cover border-4 border-white/50"
+          />
+        ) : (
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <User className="text-white" size={40} />
+          </div>
+        )}
         <h2 className="text-xl font-bold text-primary">
           {user?.firstName} {user?.lastName}
         </h2>

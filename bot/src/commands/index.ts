@@ -5,7 +5,7 @@ import { config } from '../config';
 
 // URL Mini App
 const MINI_APP_URL = process.env.MINI_APP_URL || 'https://esim-anton-production.up.railway.app';
-const ADMIN_PANEL_URL = process.env.ADMIN_PANEL_URL || 'https://admin-production-1234.up.railway.app';
+const ADMIN_PANEL_URL = process.env.ADMIN_PANEL_URL || 'https://admin-production-b10a.up.railway.app';
 
 // Список Telegram ID админов
 const ADMIN_IDS = [316662303, 8141463258];

@@ -1,10 +1,10 @@
-import { Injectable, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, Inject, forwardRef, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { EsimProviderService } from '../esim-provider/esim-provider.service';
 
 @Injectable()
-export class ProductsService {
+export class ProductsService implements OnModuleInit {
   private readonly logger = new Logger(ProductsService.name);
   
   constructor(
@@ -12,6 +12,21 @@ export class ProductsService {
     @Inject(forwardRef(() => EsimProviderService))
     private esimProviderService: EsimProviderService,
   ) {}
+
+  /**
+   * Автоматическая синхронизация при запуске
+   */
+  async onModuleInit() {
+    // Синхронизируем в фоне чтобы не блокировать запуск
+    setTimeout(async () => {
+      try {
+        this.logger.log('🚀 Автоматическая синхронизация тарифов...');
+        await this.syncWithProvider();
+      } catch (error) {
+        this.logger.error('❌ Ошибка автосинхронизации:', error.message);
+      }
+    }, 5000); // Через 5 секунд после запуска
+  }
 
   /**
    * Получить все активные продукты
@@ -117,12 +132,17 @@ export class ProductsService {
             where: { providerId: pkg.packageCode },
           });
           
+          // Форматируем объем данных
+          const dataAmount = pkg.volume >= 1024 
+            ? `${(pkg.volume / 1024).toFixed(0)} GB`
+            : `${pkg.volume} MB`;
+          
           const productData = {
-            country: pkg.destination || 'Unknown',
-            name: pkg.title,
-            description: `${pkg.data} на ${pkg.validity} дней`,
-            dataAmount: pkg.data,
-            validityDays: pkg.validity,
+            country: pkg.location || pkg.locationCode || 'Unknown',
+            name: pkg.name || pkg.slug,
+            description: `${dataAmount} на ${pkg.duration} ${pkg.durationUnit === 'DAY' ? 'дней' : pkg.durationUnit}`,
+            dataAmount: dataAmount,
+            validityDays: pkg.duration,
             providerPrice: pkg.price,
             ourPrice: Math.round(pkg.price * 1.4 * 100) / 100, // Наценка 40%
             providerId: pkg.packageCode,
