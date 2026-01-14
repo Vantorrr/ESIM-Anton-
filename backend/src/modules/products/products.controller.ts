@@ -19,6 +19,12 @@ export class ProductsController {
     return this.productsService.getCountries();
   }
 
+  @Post('sync')
+  @ApiOperation({ summary: 'Синхронизировать с провайдером' })
+  async sync() {
+    return this.productsService.syncWithProvider();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Получить продукт по ID' })
   async findOne(@Param('id') id: string) {
@@ -44,12 +50,5 @@ export class ProductsController {
   @ApiOperation({ summary: 'Удалить продукт' })
   async remove(@Param('id') id: string) {
     return this.productsService.remove(id);
-  }
-
-  @Post('sync')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Синхронизировать с провайдером' })
-  async sync() {
-    return this.productsService.syncWithProvider();
   }
 }
