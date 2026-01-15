@@ -157,7 +157,7 @@ export class ProductsService implements OnModuleInit {
             description: `${dataAmount} на ${pkg.duration} дней`,
             dataAmount: dataAmount,
             validityDays: pkg.duration,
-            providerPrice: priceInCents,
+            providerPrice: priceRaw,
             ourPrice: priceInRUB,
             providerId: pkg.packageCode,
             providerName: 'esimaccess',
