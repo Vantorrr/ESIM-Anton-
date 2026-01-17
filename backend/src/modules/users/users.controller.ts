@@ -2,6 +2,14 @@ import { Controller, Get, Post, Param, Query, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 
+// Хелпер для сериализации BigInt в JSON
+function serializeUser(user: any): any {
+  if (!user) return user;
+  return JSON.parse(JSON.stringify(user, (_, value) =>
+    typeof value === 'bigint' ? value.toString() : value
+  ));
+}
+
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
@@ -11,21 +19,30 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Получить список всех пользователей' })
   async findAll(@Query('page') page = 1, @Query('limit') limit = 20) {
-    return this.usersService.findAll(+page, +limit);
+    const result = await this.usersService.findAll(+page, +limit);
+    return {
+      ...result,
+      data: result.data.map(serializeUser),
+    };
   }
 
   @Get(':id')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Получить пользователя по ID' })
   async findOne(@Param('id') id: string) {
-    return this.usersService.findById(id);
+    const user = await this.usersService.findById(id);
+    return serializeUser(user);
   }
 
   @Get(':id/stats')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Получить статистику пользователя' })
   async getStats(@Param('id') id: string) {
-    return this.usersService.getUserStats(id);
+    const stats = await this.usersService.getUserStats(id);
+    return {
+      ...stats,
+      user: serializeUser(stats.user),
+    };
   }
 
   @Post('find-or-create')
@@ -37,9 +54,10 @@ export class UsersController {
     lastName?: string;
   }) {
     const { telegramId, ...userData } = dto;
-    return this.usersService.findOrCreate(
+    const user = await this.usersService.findOrCreate(
       BigInt(telegramId),
       userData
     );
+    return serializeUser(user);
   }
 }

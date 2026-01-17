@@ -14,10 +14,16 @@ function isAdmin(userId: number | undefined): boolean {
   return userId !== undefined && ADMIN_IDS.includes(userId);
 }
 
+// Экранирование спецсимволов для Markdown
+function escapeMarkdown(text: string): string {
+  return text.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
+}
+
 export function setupCommands(bot: Bot<MyContext>) {
   // /start
   bot.command('start', async (ctx) => {
     const userId = ctx.from?.id;
+    const firstName = escapeMarkdown(ctx.from?.first_name || 'друг');
     
     const keyboard = new InlineKeyboard()
       .webApp('🌍 Открыть каталог eSIM', MINI_APP_URL)
@@ -34,9 +40,9 @@ export function setupCommands(bot: Bot<MyContext>) {
     }
 
     await ctx.reply(
-      `👋 Привет, ${ctx.from?.first_name}!\n\n` +
-      `Добро пожаловать в **eSIM Сервис** — твой надежный партнер для мобильного интернета по всему миру! 🌐\n\n` +
-      `🔥 **Что мы предлагаем:**\n` +
+      `👋 Привет, ${firstName}!\n\n` +
+      `Добро пожаловать в *eSIM Сервис* — твой надежный партнер для мобильного интернета по всему миру! 🌐\n\n` +
+      `🔥 *Что мы предлагаем:*\n` +
       `• Более 100 стран\n` +
       `• Моментальная активация\n` +
       `• Выгодные цены\n` +
