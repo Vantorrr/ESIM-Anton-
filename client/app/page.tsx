@@ -310,60 +310,36 @@ const POPULAR_COUNTRIES = [
 const MULTI_KEYWORDS = ['europe', 'asia', 'africa', 'america', 'regional', 'multi', 'евро', 'ази', 'афри', 'регион']
 const GLOBAL_KEYWORDS = ['global', 'world', 'глобал', 'мир', 'worldwide']
 
-// Компонент красивой карточки страны
-function CountryCard({ group, index, size = 'normal' }: { group: CountryGroup; index: number; size?: 'normal' | 'large' }) {
-  const gradients = [
-    'from-blue-500/20 to-purple-500/20',
-    'from-emerald-500/20 to-teal-500/20',
-    'from-orange-500/20 to-red-500/20',
-    'from-pink-500/20 to-rose-500/20',
-    'from-indigo-500/20 to-blue-500/20',
-    'from-amber-500/20 to-orange-500/20',
-    'from-cyan-500/20 to-blue-500/20',
-    'from-violet-500/20 to-purple-500/20',
-  ]
-  const gradient = gradients[index % gradients.length]
-  
+// Liquid Glass карточка страны (iOS style)
+function CountryCard({ group, index }: { group: CountryGroup; index: number }) {
   return (
     <Link href={`/country/${encodeURIComponent(group.country)}`}>
       <div 
-        className={`
-          relative overflow-hidden cursor-pointer group
-          ${size === 'large' ? 'py-6' : 'py-5'}
+        className="
+          relative overflow-hidden cursor-pointer
+          py-4 px-3
           rounded-2xl
-          bg-gradient-to-br ${gradient}
+          bg-white/70 dark:bg-white/10
           backdrop-blur-xl
-          border border-white/20
-          shadow-lg shadow-black/5
-          transition-all duration-300
-          hover:scale-[1.03] hover:shadow-xl hover:border-white/30
+          border border-white/50 dark:border-white/20
+          shadow-sm
+          transition-all duration-200
+          active:scale-[0.98]
           animate-slide-up
-        `}
-        style={{ animationDelay: `${0.04 * index}s` }}
+        "
+        style={{ animationDelay: `${0.03 * index}s` }}
       >
-        {/* Shimmer effect on hover */}
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-          <div 
-            className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"
-            style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)' }}
-          />
-        </div>
-        
-        {/* Content */}
-        <div className="relative z-10 text-center">
-          <div className={`${size === 'large' ? 'text-6xl mb-4' : 'text-5xl mb-3'} drop-shadow-lg`}>
+        <div className="text-center">
+          <div className="text-4xl mb-2">
             {getCountryEmoji(group.country)}
           </div>
-          <p className={`font-semibold text-primary ${size === 'large' ? 'text-base' : 'text-sm'} mb-1`}>
+          <p className="font-medium text-sm text-gray-900 dark:text-white mb-0.5 truncate">
             {group.country}
           </p>
-          <p className={`${size === 'large' ? 'text-base' : 'text-sm'} font-bold`} style={{ color: '#00C853' }}>
+          <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
             от ₽{formatPrice(group.minPrice)}
           </p>
         </div>
-        
-        {/* Glow effect */}
-        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-20 h-8 bg-white/10 rounded-full blur-xl" />
       </div>
     </Link>
   )
@@ -500,13 +476,13 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Search - sticky at top */}
-      <div className="sticky top-0 z-30 bg-gradient-to-b from-white via-white to-transparent pb-4 -mx-5 px-5 pt-1 animate-slide-up">
+      {/* Search */}
+      <div className="mb-4 animate-slide-up">
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={20} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
-            className="glass-input pl-12"
+            className="w-full py-3 pl-11 pr-10 rounded-xl bg-gray-100/80 dark:bg-white/10 backdrop-blur-sm border-0 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
             placeholder="Поиск страны..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -515,7 +491,7 @@ export default function Home() {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-300 dark:bg-white/20 flex items-center justify-center text-xs text-gray-600 dark:text-white"
             >
               ✕
             </button>
@@ -545,31 +521,29 @@ export default function Home() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 p-6">
-              <div className="skeleton w-16 h-16 rounded-2xl mx-auto mb-3" />
-              <div className="skeleton h-4 w-20 mx-auto mb-2" />
-              <div className="skeleton h-3 w-16 mx-auto" />
+            <div key={i} className="rounded-2xl bg-white/50 dark:bg-white/10 backdrop-blur p-4">
+              <div className="skeleton w-10 h-10 rounded-xl mx-auto mb-2" />
+              <div className="skeleton h-3 w-16 mx-auto mb-1" />
+              <div className="skeleton h-3 w-12 mx-auto" />
             </div>
           ))}
         </div>
       ) : searchQuery ? (
         // Результаты поиска
         <>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
             Результаты поиска
           </h2>
           {filteredCountries.length === 0 ? (
-            <div className="glass-card text-center py-12">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                <Search className="text-muted" size={32} />
-              </div>
-              <p className="text-secondary text-lg font-medium">Ничего не найдено</p>
-              <p className="text-muted text-sm mt-2">Попробуйте другой запрос</p>
+            <div className="rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-xl text-center py-10">
+              <div className="text-4xl mb-3">🔍</div>
+              <p className="text-gray-600 dark:text-gray-300 font-medium">Ничего не найдено</p>
+              <p className="text-gray-400 text-sm mt-1">Попробуйте другой запрос</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {filteredCountries.map((group, index) => (
                 <CountryCard key={group.country} group={group} index={index} />
               ))}
@@ -579,17 +553,17 @@ export default function Home() {
       ) : activeTab === 'multi' ? (
         // Мульти-страны
         <>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
             Региональные пакеты
           </h2>
           {multiGroups.length === 0 ? (
-            <div className="glass-card text-center py-12">
-              <div className="text-5xl mb-4">🌍</div>
-              <p className="text-secondary text-lg font-medium">Скоро появятся</p>
-              <p className="text-muted text-sm mt-2">Мульти-страны в разработке</p>
+            <div className="rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-xl text-center py-10">
+              <div className="text-4xl mb-3">🌍</div>
+              <p className="text-gray-600 dark:text-gray-300 font-medium">Скоро появятся</p>
+              <p className="text-gray-400 text-sm mt-1">Мульти-страны в разработке</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {multiGroups.map((group, index) => (
                 <CountryCard key={group.country} group={group} index={index} />
               ))}
@@ -599,17 +573,17 @@ export default function Home() {
       ) : activeTab === 'global' ? (
         // Глобальный
         <>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
             Глобальные пакеты
           </h2>
           {globalGroups.length === 0 ? (
-            <div className="glass-card text-center py-12">
-              <div className="text-5xl mb-4">🌐</div>
-              <p className="text-secondary text-lg font-medium">Скоро появятся</p>
-              <p className="text-muted text-sm mt-2">Глобальные тарифы в разработке</p>
+            <div className="rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-xl text-center py-10">
+              <div className="text-4xl mb-3">🌐</div>
+              <p className="text-gray-600 dark:text-gray-300 font-medium">Скоро появятся</p>
+              <p className="text-gray-400 text-sm mt-1">Глобальные тарифы в разработке</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {globalGroups.map((group, index) => (
                 <CountryCard key={group.country} group={group} index={index} />
               ))}
@@ -620,23 +594,23 @@ export default function Home() {
         // Главный экран - Страны
         <>
           {/* Популярные направления */}
-          <div className="mb-8 animate-slide-up" style={{ animationDelay: '0.15s' }}>
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+          <div className="mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
               Популярные направления
             </h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {popularCountries.map((group, index) => (
-                <CountryCard key={group.country} group={group} index={index} size="large" />
+                <CountryCard key={group.country} group={group} index={index} />
               ))}
             </div>
           </div>
 
           {/* Все страны */}
           <div className="animate-slide-up" style={{ animationDelay: '0.25s' }}>
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
               Все страны
             </h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {countryGroups.map((group, index) => (
                 <CountryCard key={group.country} group={group} index={index} />
               ))}
