@@ -40,6 +40,7 @@ export const productsApi = {
   getCountries: () => api.get('/products/countries'),
   create: (data: any) => api.post('/products', data),
   update: (id: string, data: any) => api.put(`/products/${id}`, data),
+  sync: () => api.post('/products/sync'),
 }
 
 export const paymentsApi = {
