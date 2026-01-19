@@ -345,12 +345,57 @@ function CountryCard({ group, index }: { group: CountryGroup; index: number }) {
   )
 }
 
+// Кэш для данных (чтобы не загружать заново при возврате)
+const CACHE_KEY = 'esim_products_cache'
+const SEARCH_KEY = 'esim_search_query'
+
+function getCachedProducts(): Product[] | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const cached = sessionStorage.getItem(CACHE_KEY)
+    if (cached) {
+      const { data, timestamp } = JSON.parse(cached)
+      // Кэш валиден 5 минут
+      if (Date.now() - timestamp < 5 * 60 * 1000) {
+        return data
+      }
+    }
+  } catch {}
+  return null
+}
+
+function setCachedProducts(data: Product[]) {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }))
+  } catch {}
+}
+
+function getSavedSearch(): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    return sessionStorage.getItem(SEARCH_KEY) || ''
+  } catch {}
+  return ''
+}
+
+function saveSearch(query: string) {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.setItem(SEARCH_KEY, query)
+  } catch {}
+}
+
 export default function Home() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showSplash, setShowSplash] = useState(true)
-  const [loadProgress, setLoadProgress] = useState(0)
-  const [searchQuery, setSearchQuery] = useState('')
+  // Проверяем кэш при инициализации
+  const cachedData = getCachedProducts()
+  const hasCachedData = cachedData && cachedData.length > 0
+  
+  const [products, setProducts] = useState<Product[]>(cachedData || [])
+  const [loading, setLoading] = useState(!hasCachedData)
+  const [showSplash, setShowSplash] = useState(!hasCachedData)
+  const [loadProgress, setLoadProgress] = useState(hasCachedData ? 100 : 0)
+  const [searchQuery, setSearchQuery] = useState(getSavedSearch())
   const [activeTab, setActiveTab] = useState<'countries' | 'multi' | 'global'>('countries')
   const [countryGroups, setCountryGroups] = useState<CountryGroup[]>([])
   const [multiGroups, setMultiGroups] = useState<CountryGroup[]>([])
@@ -358,12 +403,20 @@ export default function Home() {
   const [popularCountries, setPopularCountries] = useState<CountryGroup[]>([])
 
   useEffect(() => {
-    loadProducts()
+    // Если есть кэш - не загружаем заново
+    if (!hasCachedData) {
+      loadProducts()
+    }
   }, [])
 
   useEffect(() => {
     groupByCountry()
   }, [products])
+
+  // Сохраняем поиск при изменении
+  useEffect(() => {
+    saveSearch(searchQuery)
+  }, [searchQuery])
 
   const loadProducts = async () => {
     try {
@@ -375,6 +428,7 @@ export default function Home() {
       setLoadProgress(70)
       
       setProducts(data)
+      setCachedProducts(data) // Сохраняем в кэш
       setLoadProgress(100)
       
       await new Promise(r => setTimeout(r, 500))
