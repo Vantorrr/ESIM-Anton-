@@ -284,6 +284,8 @@ interface CountryGroup {
   country: string
   minPrice: number
   productCount: number
+  isMulti?: boolean
+  isGlobal?: boolean
 }
 
 // Популярные страны (можно настроить)
@@ -304,6 +306,69 @@ const POPULAR_COUNTRIES = [
   'UK', 'United Kingdom', 'Великобритания',
 ]
 
+// Ключевые слова для мульти-стран
+const MULTI_KEYWORDS = ['europe', 'asia', 'africa', 'america', 'regional', 'multi', 'евро', 'ази', 'афри', 'регион']
+const GLOBAL_KEYWORDS = ['global', 'world', 'глобал', 'мир', 'worldwide']
+
+// Компонент красивой карточки страны
+function CountryCard({ group, index, size = 'normal' }: { group: CountryGroup; index: number; size?: 'normal' | 'large' }) {
+  const gradients = [
+    'from-blue-500/20 to-purple-500/20',
+    'from-emerald-500/20 to-teal-500/20',
+    'from-orange-500/20 to-red-500/20',
+    'from-pink-500/20 to-rose-500/20',
+    'from-indigo-500/20 to-blue-500/20',
+    'from-amber-500/20 to-orange-500/20',
+    'from-cyan-500/20 to-blue-500/20',
+    'from-violet-500/20 to-purple-500/20',
+  ]
+  const gradient = gradients[index % gradients.length]
+  
+  return (
+    <Link href={`/country/${encodeURIComponent(group.country)}`}>
+      <div 
+        className={`
+          relative overflow-hidden cursor-pointer group
+          ${size === 'large' ? 'py-6' : 'py-5'}
+          rounded-2xl
+          bg-gradient-to-br ${gradient}
+          backdrop-blur-xl
+          border border-white/20
+          shadow-lg shadow-black/5
+          transition-all duration-300
+          hover:scale-[1.03] hover:shadow-xl hover:border-white/30
+          animate-slide-up
+        `}
+        style={{ animationDelay: `${0.04 * index}s` }}
+      >
+        {/* Shimmer effect on hover */}
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+          <div 
+            className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"
+            style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)' }}
+          />
+        </div>
+        
+        {/* Content */}
+        <div className="relative z-10 text-center">
+          <div className={`${size === 'large' ? 'text-6xl mb-4' : 'text-5xl mb-3'} drop-shadow-lg`}>
+            {getCountryEmoji(group.country)}
+          </div>
+          <p className={`font-semibold text-primary ${size === 'large' ? 'text-base' : 'text-sm'} mb-1`}>
+            {group.country}
+          </p>
+          <p className={`${size === 'large' ? 'text-base' : 'text-sm'} font-bold`} style={{ color: '#00C853' }}>
+            от ₽{formatPrice(group.minPrice)}
+          </p>
+        </div>
+        
+        {/* Glow effect */}
+        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-20 h-8 bg-white/10 rounded-full blur-xl" />
+      </div>
+    </Link>
+  )
+}
+
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -312,6 +377,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'countries' | 'multi' | 'global'>('countries')
   const [countryGroups, setCountryGroups] = useState<CountryGroup[]>([])
+  const [multiGroups, setMultiGroups] = useState<CountryGroup[]>([])
+  const [globalGroups, setGlobalGroups] = useState<CountryGroup[]>([])
   const [popularCountries, setPopularCountries] = useState<CountryGroup[]>([])
 
   useEffect(() => {
@@ -348,23 +415,44 @@ export default function Home() {
 
   const groupByCountry = () => {
     const groups: Record<string, CountryGroup> = {}
+    const multi: Record<string, CountryGroup> = {}
+    const global: Record<string, CountryGroup> = {}
     
     products.forEach(product => {
       const country = product.country
-      if (!groups[country]) {
-        groups[country] = {
+      const nameLower = (product.name + ' ' + country).toLowerCase()
+      
+      // Определяем тип
+      const isGlobal = GLOBAL_KEYWORDS.some(kw => nameLower.includes(kw))
+      const isMulti = !isGlobal && (
+        MULTI_KEYWORDS.some(kw => nameLower.includes(kw)) ||
+        country.includes(',') ||
+        (product.region && product.region.includes(','))
+      )
+      
+      const targetGroups = isGlobal ? global : isMulti ? multi : groups
+      
+      if (!targetGroups[country]) {
+        targetGroups[country] = {
           country,
           minPrice: product.ourPrice,
-          productCount: 1
+          productCount: 1,
+          isMulti,
+          isGlobal
         }
       } else {
-        groups[country].minPrice = Math.min(groups[country].minPrice, product.ourPrice)
-        groups[country].productCount++
+        targetGroups[country].minPrice = Math.min(targetGroups[country].minPrice, product.ourPrice)
+        targetGroups[country].productCount++
       }
     })
     
     const allGroups = Object.values(groups).sort((a, b) => a.country.localeCompare(b.country))
+    const allMulti = Object.values(multi).sort((a, b) => a.country.localeCompare(b.country))
+    const allGlobal = Object.values(global).sort((a, b) => a.minPrice - b.minPrice)
+    
     setCountryGroups(allGroups)
+    setMultiGroups(allMulti)
+    setGlobalGroups(allGlobal)
     
     // Выделяем популярные
     const popular = allGroups.filter(g => 
@@ -436,11 +524,12 @@ export default function Home() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="glass-card">
+            <div key={i} className="rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 p-6">
               <div className="skeleton w-16 h-16 rounded-2xl mx-auto mb-3" />
-              <div className="skeleton h-4 w-20 mx-auto" />
+              <div className="skeleton h-4 w-20 mx-auto mb-2" />
+              <div className="skeleton h-3 w-16 mx-auto" />
             </div>
           ))}
         </div>
@@ -459,42 +548,64 @@ export default function Home() {
               <p className="text-muted text-sm mt-2">Попробуйте другой запрос</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               {filteredCountries.map((group, index) => (
-                <Link key={group.country} href={`/country/${encodeURIComponent(group.country)}`}>
-                  <div 
-                    className="glass-card text-center py-4 cursor-pointer animate-slide-up"
-                    style={{ animationDelay: `${0.03 * index}s` }}
-                  >
-                    <div className="text-5xl mb-3">{getCountryEmoji(group.country)}</div>
-                    <p className="font-medium text-primary text-sm mb-1">{group.country}</p>
-                    <p className="text-xs text-accent font-semibold">от ₽{formatPrice(group.minPrice)}</p>
-                  </div>
-                </Link>
+                <CountryCard key={group.country} group={group} index={index} />
+              ))}
+            </div>
+          )}
+        </>
+      ) : activeTab === 'multi' ? (
+        // Мульти-страны
+        <>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+            Региональные пакеты
+          </h2>
+          {multiGroups.length === 0 ? (
+            <div className="glass-card text-center py-12">
+              <div className="text-5xl mb-4">🌍</div>
+              <p className="text-secondary text-lg font-medium">Скоро появятся</p>
+              <p className="text-muted text-sm mt-2">Мульти-страны в разработке</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              {multiGroups.map((group, index) => (
+                <CountryCard key={group.country} group={group} index={index} />
+              ))}
+            </div>
+          )}
+        </>
+      ) : activeTab === 'global' ? (
+        // Глобальный
+        <>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+            Глобальные пакеты
+          </h2>
+          {globalGroups.length === 0 ? (
+            <div className="glass-card text-center py-12">
+              <div className="text-5xl mb-4">🌐</div>
+              <p className="text-secondary text-lg font-medium">Скоро появятся</p>
+              <p className="text-muted text-sm mt-2">Глобальные тарифы в разработке</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              {globalGroups.map((group, index) => (
+                <CountryCard key={group.country} group={group} index={index} />
               ))}
             </div>
           )}
         </>
       ) : (
-        // Главный экран
+        // Главный экран - Страны
         <>
           {/* Популярные направления */}
           <div className="mb-8 animate-slide-up" style={{ animationDelay: '0.15s' }}>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
               Популярные направления
             </h2>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               {popularCountries.map((group, index) => (
-                <Link key={group.country} href={`/country/${encodeURIComponent(group.country)}`}>
-                  <div 
-                    className="glass-card text-center py-5 cursor-pointer hover:scale-[1.02] transition-transform"
-                    style={{ animationDelay: `${0.05 * index}s` }}
-                  >
-                    <div className="text-5xl mb-3">{getCountryEmoji(group.country)}</div>
-                    <p className="font-medium text-primary mb-1">{group.country}</p>
-                    <p className="text-sm text-accent font-semibold">от ₽{formatPrice(group.minPrice)}</p>
-                  </div>
-                </Link>
+                <CountryCard key={group.country} group={group} index={index} size="large" />
               ))}
             </div>
           </div>
@@ -504,18 +615,9 @@ export default function Home() {
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
               Все страны
             </h2>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               {countryGroups.map((group, index) => (
-                <Link key={group.country} href={`/country/${encodeURIComponent(group.country)}`}>
-                  <div 
-                    className="glass-card text-center py-4 cursor-pointer hover:scale-[1.02] transition-transform"
-                    style={{ animationDelay: `${0.02 * index}s` }}
-                  >
-                    <div className="text-4xl mb-2">{getCountryEmoji(group.country)}</div>
-                    <p className="font-medium text-primary text-sm mb-1">{group.country}</p>
-                    <p className="text-xs text-accent font-semibold">от ₽{formatPrice(group.minPrice)}</p>
-                  </div>
-                </Link>
+                <CountryCard key={group.country} group={group} index={index} />
               ))}
             </div>
           </div>
