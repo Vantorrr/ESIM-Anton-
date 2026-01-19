@@ -89,21 +89,35 @@ export class ProductsService implements OnModuleInit {
   }
 
   /**
-   * СИНХРОНИЗАЦИЯ V3 - ИСПРАВЛЕННАЯ ЛОГИКА
+   * СИНХРОНИЗАЦИЯ V4 - STANDARD + UNLIMITED
    * Volume приходит в KB из eSIM Access API
    * Price приходит в центах USD
+   * dataType: 1 = standard, 2 = unlimited/day pass
    */
   async syncWithProvider() {
-    this.logger.log('🔄 [SYNC V3] Начало синхронизации...');
+    this.logger.log('🔄 [SYNC V4] Начало синхронизации (standard + unlimited)...');
     
     try {
-      const packages = await this.esimProviderService.getPackages();
+      // Получаем оба типа пакетов
+      const [standardPackages, unlimitedPackages] = await Promise.all([
+        this.esimProviderService.getPackages(undefined, 1), // standard
+        this.esimProviderService.getPackages(undefined, 2), // unlimited/day pass
+      ]);
       
-      if (!packages || packages.length === 0) {
+      this.logger.log(`📦 Standard: ${standardPackages?.length || 0}, Unlimited: ${unlimitedPackages?.length || 0}`);
+      
+      // Объединяем с маркировкой типа
+      const allPackages = [
+        ...(standardPackages || []).map(p => ({ ...p, isUnlimited: false })),
+        ...(unlimitedPackages || []).map(p => ({ ...p, isUnlimited: true })),
+      ];
+      
+      if (allPackages.length === 0) {
         return { success: false, synced: 0, errors: 1, message: 'Не удалось получить список пакетов' };
       }
 
-      this.logger.log(`📦 Получено ${packages.length} пакетов от API`);
+      const packages = allPackages;
+      this.logger.log(`📦 Всего ${packages.length} пакетов для синхронизации`);
       
       let synced = 0;
       let errors = 0;
@@ -161,6 +175,7 @@ export class ProductsService implements OnModuleInit {
             ourPrice: priceInRUB,
             providerId: pkg.packageCode,
             providerName: 'esimaccess',
+            isUnlimited: (pkg as any).isUnlimited || false,
             isActive: true,
           };
           

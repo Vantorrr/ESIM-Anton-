@@ -44,6 +44,7 @@ export interface Product {
   providerId: string;
   providerName: string;
   isActive: boolean;
+  isUnlimited: boolean;
   stock: number;
 }
 

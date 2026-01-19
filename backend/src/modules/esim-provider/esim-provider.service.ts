@@ -118,12 +118,14 @@ export class EsimProviderService {
 
   /**
    * Получить список доступных пакетов/тарифов
+   * @param country - фильтр по стране
+   * @param dataType - 1 = standard, 2 = unlimited/day pass
    */
-  async getPackages(country?: string): Promise<any[]> {
+  async getPackages(country?: string, dataType?: number): Promise<any[]> {
     // Если eSIM Access активен - используем его
     if (this.esimAccessProvider) {
       try {
-        const packages = await this.esimAccessProvider.getPackages(country);
+        const packages = await this.esimAccessProvider.getPackages(country, dataType);
         return packages;
       } catch (error) {
         this.logger.error('❌ Ошибка eSIM Access, пробуем другие провайдеры...');

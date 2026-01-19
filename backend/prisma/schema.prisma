@@ -91,6 +91,9 @@ model EsimProduct {
   providerId       String    // ID тарифа у поставщика
   providerName     String    @default("main")
   
+  // Тип тарифа
+  isUnlimited      Boolean   @default(false)  // true = unlimited/day pass
+  
   // Статус
   isActive         Boolean   @default(true)
   stock            Int       @default(999)

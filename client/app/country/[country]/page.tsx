@@ -22,14 +22,9 @@ export default function CountryPage() {
     loadProducts()
   }, [country])
 
-  // Фильтрация по типу тарифа
-  const isUnlimited = (product: Product) => {
-    const name = (product.name + ' ' + (product.description || '')).toLowerCase()
-    return name.includes('unlimited') || name.includes('безлимит') || name.includes('unlim')
-  }
-
+  // Фильтрация по типу тарифа (используем поле isUnlimited из API)
   const products = allProducts.filter(p => 
-    activeTab === 'unlimited' ? isUnlimited(p) : !isUnlimited(p)
+    activeTab === 'unlimited' ? p.isUnlimited : !p.isUnlimited
   )
 
   // Выбираем первый продукт при смене таба

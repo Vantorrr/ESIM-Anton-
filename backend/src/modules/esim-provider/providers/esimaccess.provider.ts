@@ -21,6 +21,7 @@ export interface EsimAccessPackage {
   durationUnit: string;
   speed: string;
   supportTopup: boolean;
+  dataType?: number; // 1 = standard, 2 = unlimited/day pass
 }
 
 export interface EsimAccessPurchaseResponse {
@@ -115,10 +116,12 @@ export class EsimAccessProvider {
 
   /**
    * Получить список доступных пакетов
+   * @param locationCode - фильтр по стране
+   * @param dataType - 1 = стандартные, 2 = unlimited/day pass
    */
-  async getPackages(locationCode?: string): Promise<EsimAccessPackage[]> {
+  async getPackages(locationCode?: string, dataType?: number): Promise<EsimAccessPackage[]> {
     try {
-      this.logger.log('📦 Запрос списка пакетов...');
+      this.logger.log(`📦 Запрос пакетов (dataType=${dataType || 'all'})...`);
       
       const payload: any = {
         pager: { pageNum: 1, pageSize: 500 }
@@ -126,6 +129,10 @@ export class EsimAccessProvider {
       
       if (locationCode) {
         payload.locationCode = locationCode;
+      }
+      
+      if (dataType) {
+        payload.type = dataType; // 1 = standard, 2 = unlimited/day pass
       }
 
       const response = await this.client.post('/package/list', payload, {
@@ -154,6 +161,7 @@ export class EsimAccessProvider {
         durationUnit: pkg.durationUnit,
         speed: pkg.speed,
         supportTopup: pkg.supportTopup,
+        dataType: dataType || (pkg.type || 1), // Сохраняем тип
       }));
     } catch (error) {
       this.logger.error('❌ Ошибка получения пакетов:', error.message);
