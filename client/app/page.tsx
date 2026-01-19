@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Search, Wifi, Clock, ChevronRight, Sparkles, Globe, Signal } from 'lucide-react'
+import { Search, Globe, Signal } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
-import { formatPrice, formatDataAmount, getCountryEmoji } from '@/lib/utils'
+import { formatPrice, getCountryEmoji } from '@/lib/utils'
 
 // Animated Network Lines Component
 function NetworkLines() {
@@ -279,27 +279,51 @@ function SplashScreen({ progress }: { progress: number }) {
   )
 }
 
+// Типы для группировки стран
+interface CountryGroup {
+  country: string
+  minPrice: number
+  productCount: number
+}
+
+// Популярные страны (можно настроить)
+const POPULAR_COUNTRIES = [
+  'Turkey', 'Турция',
+  'Russia', 'Россия', 
+  'Egypt', 'Египет',
+  'United Arab Emirates', 'ОАЭ', 'UAE',
+  'China', 'Китай',
+  'Georgia', 'Грузия',
+  'Thailand', 'Таиланд',
+  'Japan', 'Япония',
+  'Germany', 'Германия',
+  'France', 'Франция',
+  'Italy', 'Италия',
+  'Spain', 'Испания',
+  'USA', 'United States', 'США',
+  'UK', 'United Kingdom', 'Великобритания',
+]
+
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showSplash, setShowSplash] = useState(true)
   const [loadProgress, setLoadProgress] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCountry, setSelectedCountry] = useState<string>('all')
-  const [countries, setCountries] = useState<string[]>([])
+  const [activeTab, setActiveTab] = useState<'countries' | 'multi' | 'global'>('countries')
+  const [countryGroups, setCountryGroups] = useState<CountryGroup[]>([])
+  const [popularCountries, setPopularCountries] = useState<CountryGroup[]>([])
 
   useEffect(() => {
     loadProducts()
   }, [])
 
   useEffect(() => {
-    filterProducts()
-  }, [searchQuery, selectedCountry, products])
+    groupByCountry()
+  }, [products])
 
   const loadProducts = async () => {
     try {
-      // Анимация прогресса
       setLoadProgress(10)
       await new Promise(r => setTimeout(r, 200))
       setLoadProgress(30)
@@ -308,12 +332,8 @@ export default function Home() {
       setLoadProgress(70)
       
       setProducts(data)
-      const uniqueCountries = Array.from(new Set(data.map(p => p.country)))
-      setCountries(uniqueCountries.sort())
-      
       setLoadProgress(100)
       
-      // Плавное скрытие splash screen
       await new Promise(r => setTimeout(r, 500))
       setShowSplash(false)
       setLoading(false)
@@ -326,26 +346,43 @@ export default function Home() {
     }
   }
 
-  const filterProducts = () => {
-    let filtered = products
-
-    if (selectedCountry !== 'all') {
-      filtered = filtered.filter(p => p.country === selectedCountry)
-    }
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(query) ||
-        p.country.toLowerCase().includes(query) ||
-        p.region?.toLowerCase().includes(query)
+  const groupByCountry = () => {
+    const groups: Record<string, CountryGroup> = {}
+    
+    products.forEach(product => {
+      const country = product.country
+      if (!groups[country]) {
+        groups[country] = {
+          country,
+          minPrice: product.ourPrice,
+          productCount: 1
+        }
+      } else {
+        groups[country].minPrice = Math.min(groups[country].minPrice, product.ourPrice)
+        groups[country].productCount++
+      }
+    })
+    
+    const allGroups = Object.values(groups).sort((a, b) => a.country.localeCompare(b.country))
+    setCountryGroups(allGroups)
+    
+    // Выделяем популярные
+    const popular = allGroups.filter(g => 
+      POPULAR_COUNTRIES.some(pc => 
+        g.country.toLowerCase().includes(pc.toLowerCase()) ||
+        pc.toLowerCase().includes(g.country.toLowerCase())
       )
-    }
-
-    setFilteredProducts(filtered)
+    ).slice(0, 8)
+    
+    setPopularCountries(popular.length > 0 ? popular : allGroups.slice(0, 8))
   }
 
-  // Показываем splash screen
+  const filteredCountries = searchQuery
+    ? countryGroups.filter(g => 
+        g.country.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : countryGroups
+
   if (showSplash) {
     return <SplashScreen progress={loadProgress} />
   }
@@ -353,20 +390,18 @@ export default function Home() {
   return (
     <div className="container animate-fade-in">
       {/* Header */}
-      <header className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-            <Sparkles className="text-white" size={24} />
-          </div>
+      <header className="mb-6">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-primary">eSIM</h1>
-            <p className="text-secondary text-sm">Интернет по всему миру</p>
+            <h1 className="text-2xl font-bold text-primary">eSIM Travel</h1>
+            <p className="text-secondary text-sm">Интернет без границ</p>
           </div>
+          <div className="text-4xl">🎁</div>
         </div>
       </header>
 
       {/* Search */}
-      <div className="mb-6 animate-slide-up">
+      <div className="mb-5 animate-slide-up">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={20} />
           <input
@@ -379,132 +414,112 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Country Filter */}
-      <div className="mb-6 -mx-5 px-5 overflow-x-auto animate-slide-up" style={{ animationDelay: '0.1s' }}>
-        <div className="flex gap-2 pb-2">
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        {[
+          { id: 'countries' as const, label: 'Страны' },
+          { id: 'multi' as const, label: 'Мульти-страны' },
+          { id: 'global' as const, label: 'Глобальный' },
+        ].map(tab => (
           <button
-            onClick={() => setSelectedCountry('all')}
-            className={`px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-              selectedCountry === 'all'
-                ? 'glass-button'
-                : 'glass-button-secondary'
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              activeTab === tab.id
+                ? 'bg-gray-900 text-white'
+                : 'bg-white text-gray-600 border border-gray-200'
             }`}
-            style={{ width: 'auto' }}
           >
-            Все
+            {tab.label}
           </button>
-          {countries.map((country) => (
-            <button
-              key={country}
-              onClick={() => setSelectedCountry(country)}
-              className={`px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${
-                selectedCountry === country
-                  ? 'glass-button'
-                  : 'glass-button-secondary'
-              }`}
-              style={{ width: 'auto' }}
-            >
-              <span>{getCountryEmoji(country)}</span>
-              <span>{country}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Stats Banner */}
-      <div className="glass-card mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
-        <div className="flex justify-around text-center">
-          <div>
-            <p className="text-2xl font-bold text-accent">100+</p>
-            <p className="text-xs text-muted">Стран</p>
-          </div>
-          <div className="w-px bg-gray-200" />
-          <div>
-            <p className="text-2xl font-bold text-accent">5 мин</p>
-            <p className="text-xs text-muted">Активация</p>
-          </div>
-          <div className="w-px bg-gray-200" />
-          <div>
-            <p className="text-2xl font-bold text-accent">24/7</p>
-            <p className="text-xs text-muted">Поддержка</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Products */}
-      <div className="mb-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-        <h2 className="text-lg font-semibold mb-4">
-          {selectedCountry === 'all' ? 'Все тарифы' : selectedCountry}
-        </h2>
+        ))}
       </div>
 
       {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid grid-cols-2 gap-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="glass-card">
-              <div className="flex gap-4">
-                <div className="skeleton w-14 h-14 rounded-xl" />
-                <div className="flex-1">
-                  <div className="skeleton h-5 w-24 mb-2" />
-                  <div className="skeleton h-4 w-full mb-2" />
-                  <div className="skeleton h-4 w-16" />
-                </div>
-              </div>
+              <div className="skeleton w-16 h-16 rounded-2xl mx-auto mb-3" />
+              <div className="skeleton h-4 w-20 mx-auto" />
             </div>
           ))}
         </div>
-      ) : filteredProducts.length === 0 ? (
-        <div className="glass-card text-center py-12">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-            <Search className="text-muted" size={32} />
-          </div>
-          <p className="text-secondary text-lg font-medium">Ничего не найдено</p>
-          <p className="text-muted text-sm mt-2">Попробуйте изменить фильтры</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filteredProducts.map((product, index) => (
-            <Link key={product.id} href={`/product/${product.id}`}>
-              <div 
-                className="glass-card flex items-center gap-4 animate-slide-up cursor-pointer"
-                style={{ animationDelay: `${0.05 * (index + 1)}s` }}
-              >
-                {/* Country Flag */}
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-3xl shrink-0">
-                  {getCountryEmoji(product.country)}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-semibold text-primary truncate">{product.country}</h3>
-                      <p className="text-sm text-secondary">{product.name}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="price-tag">₽{formatPrice(product.ourPrice)}</p>
-                    </div>
-                  </div>
-                  
-                  {/* Features */}
-                  <div className="flex items-center gap-3 mt-2">
-                    <div className="flex items-center gap-1 text-xs text-muted">
-                      <Wifi size={14} />
-                      <span>{formatDataAmount(product.dataAmount)}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-muted">
-                      <Clock size={14} />
-                      <span>{product.validityDays} дн.</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Arrow */}
-                <ChevronRight className="text-muted shrink-0" size={20} />
+      ) : searchQuery ? (
+        // Результаты поиска
+        <>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+            Результаты поиска
+          </h2>
+          {filteredCountries.length === 0 ? (
+            <div className="glass-card text-center py-12">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                <Search className="text-muted" size={32} />
               </div>
-            </Link>
-          ))}
-        </div>
+              <p className="text-secondary text-lg font-medium">Ничего не найдено</p>
+              <p className="text-muted text-sm mt-2">Попробуйте другой запрос</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {filteredCountries.map((group, index) => (
+                <Link key={group.country} href={`/country/${encodeURIComponent(group.country)}`}>
+                  <div 
+                    className="glass-card text-center py-4 cursor-pointer animate-slide-up"
+                    style={{ animationDelay: `${0.03 * index}s` }}
+                  >
+                    <div className="text-5xl mb-3">{getCountryEmoji(group.country)}</div>
+                    <p className="font-medium text-primary text-sm mb-1">{group.country}</p>
+                    <p className="text-xs text-accent font-semibold">от ₽{formatPrice(group.minPrice)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        // Главный экран
+        <>
+          {/* Популярные направления */}
+          <div className="mb-8 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+              Популярные направления
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {popularCountries.map((group, index) => (
+                <Link key={group.country} href={`/country/${encodeURIComponent(group.country)}`}>
+                  <div 
+                    className="glass-card text-center py-5 cursor-pointer hover:scale-[1.02] transition-transform"
+                    style={{ animationDelay: `${0.05 * index}s` }}
+                  >
+                    <div className="text-5xl mb-3">{getCountryEmoji(group.country)}</div>
+                    <p className="font-medium text-primary mb-1">{group.country}</p>
+                    <p className="text-sm text-accent font-semibold">от ₽{formatPrice(group.minPrice)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Все страны */}
+          <div className="animate-slide-up" style={{ animationDelay: '0.25s' }}>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+              Все страны
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {countryGroups.map((group, index) => (
+                <Link key={group.country} href={`/country/${encodeURIComponent(group.country)}`}>
+                  <div 
+                    className="glass-card text-center py-4 cursor-pointer hover:scale-[1.02] transition-transform"
+                    style={{ animationDelay: `${0.02 * index}s` }}
+                  >
+                    <div className="text-4xl mb-2">{getCountryEmoji(group.country)}</div>
+                    <p className="font-medium text-primary text-sm mb-1">{group.country}</p>
+                    <p className="text-xs text-accent font-semibold">от ₽{formatPrice(group.minPrice)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       <BottomNav />
