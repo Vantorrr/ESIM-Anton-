@@ -531,10 +531,10 @@ export default function Home() {
           ))}
         </div>
       ) : searchQuery ? (
-        // Результаты поиска
+        // Результаты поиска - список
         <>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-            Результаты поиска
+            Страны
           </h2>
           {filteredCountries.length === 0 ? (
             <div className="rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-xl text-center py-10">
@@ -543,9 +543,23 @@ export default function Home() {
               <p className="text-gray-400 text-sm mt-1">Попробуйте другой запрос</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-xl overflow-hidden">
               {filteredCountries.map((group, index) => (
-                <CountryCard key={group.country} group={group} index={index} />
+                <Link key={group.country} href={`/country/${encodeURIComponent(group.country)}`}>
+                  <div 
+                    className={`flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-black/5 active:bg-black/10 transition-colors ${
+                      index !== filteredCountries.length - 1 ? 'border-b border-gray-200/50 dark:border-white/10' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">{getCountryEmoji(group.country)}</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{group.country}</span>
+                    </div>
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </Link>
               ))}
             </div>
           )}
