@@ -479,12 +479,14 @@ export default function Home() {
     <div className="container animate-fade-in">
       {/* Header */}
       <header className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-primary">eSIM Travel</h1>
-            <p className="text-secondary text-sm">Интернет без границ</p>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <Globe className="text-white" size={24} />
           </div>
-          <div className="text-4xl">🎁</div>
+          <div>
+            <h1 className="text-2xl font-bold text-primary">eSIM</h1>
+            <p className="text-secondary text-sm">Интернет по всему миру</p>
+          </div>
         </div>
       </header>
 
