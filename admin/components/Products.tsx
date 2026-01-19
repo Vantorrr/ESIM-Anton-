@@ -2,34 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import { productsApi } from '@/lib/api'
-import { Package, Plus, Edit2, Trash2, Eye, EyeOff, RefreshCw } from 'lucide-react'
+import { Package, Plus, Edit2, Eye, EyeOff, RefreshCw } from 'lucide-react'
 
 export default function Products() {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [editingProduct, setEditingProduct] = useState<any>(null)
   const [isCreating, setIsCreating] = useState(false)
-  const [syncing, setSyncing] = useState(false)
-  const [syncResult, setSyncResult] = useState<any>(null)
 
   useEffect(() => {
     loadProducts()
   }, [])
-  
-  const handleSync = async () => {
-    try {
-      setSyncing(true)
-      setSyncResult(null)
-      const response = await productsApi.sync()
-      setSyncResult(response.data)
-      loadProducts() // Перезагружаем продукты после синхронизации
-    } catch (error: any) {
-      console.error('Ошибка синхронизации:', error)
-      setSyncResult({ success: false, message: error.message || 'Ошибка синхронизации' })
-    } finally {
-      setSyncing(false)
-    }
-  }
 
   const loadProducts = async () => {
     try {
@@ -104,17 +87,9 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
-      {/* Кнопки управления */}
+      {/* Кнопка добавить */}
       <div className="glass-card p-6">
-        <div className="flex gap-4 flex-wrap">
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
-          >
-            <RefreshCw className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Синхронизация...' : 'Синхронизировать с API'}
-          </button>
+        <div className="flex gap-4 flex-wrap items-center">
           <button
             onClick={handleCreate}
             className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
@@ -122,12 +97,17 @@ export default function Products() {
             <Plus className="w-5 h-5" />
             Добавить продукт
           </button>
+          <button
+            onClick={loadProducts}
+            className="flex items-center gap-2 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-all"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Обновить
+          </button>
+          <p className="text-sm text-slate-500">
+            Продукты синхронизируются автоматически при запуске сервера
+          </p>
         </div>
-        {syncResult && (
-          <div className={`mt-4 p-4 rounded-xl ${syncResult.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-            {syncResult.message || `Синхронизировано: ${syncResult.synced}, ошибок: ${syncResult.errors}`}
-          </div>
-        )}
       </div>
 
       {/* Таблица продуктов */}
