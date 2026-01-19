@@ -471,6 +471,16 @@ export default function Home() {
       )
     : countryGroups
 
+  // Автоскролл к результатам при поиске
+  useEffect(() => {
+    if (searchQuery) {
+      // Небольшая задержка для отрисовки
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }, 100)
+    }
+  }, [searchQuery])
+
   if (showSplash) {
     return <SplashScreen progress={loadProgress} />
   }
@@ -490,8 +500,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Search */}
-      <div className="mb-5 animate-slide-up">
+      {/* Search - sticky at top */}
+      <div className="sticky top-0 z-30 bg-gradient-to-b from-white via-white to-transparent pb-4 -mx-5 px-5 pt-1 animate-slide-up">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={20} />
           <input
@@ -500,7 +510,16 @@ export default function Home() {
             placeholder="Поиск страны..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            enterKeyHint="search"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors"
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 
