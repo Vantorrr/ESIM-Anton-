@@ -437,8 +437,8 @@ export default function Home() {
           country,
           minPrice: product.ourPrice,
           productCount: 1,
-          isMulti,
-          isGlobal
+          isMulti: Boolean(isMulti),
+          isGlobal: Boolean(isGlobal)
         }
       } else {
         targetGroups[country].minPrice = Math.min(targetGroups[country].minPrice, product.ourPrice)
