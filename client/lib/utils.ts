@@ -1,17 +1,10 @@
 /**
  * Форматирование цены
- * Временный фикс: бэкенд возвращает завышенные цены (баг конвертации)
- * Делим на 100 чтобы получить адекватные цены
+ * Бэкенд возвращает цены в рублях
  */
 export const formatPrice = (price: number | string): string => {
-  let num = Number(price) || 0;
-  
-  // Фикс бага бэкенда: цены приходят x100
-  if (num > 1000) {
-    num = Math.round(num / 100);
-  }
-  
-  return num.toLocaleString('ru-RU');
+  const num = Number(price) || 0;
+  return Math.round(num).toLocaleString('ru-RU');
 };
 
 /**

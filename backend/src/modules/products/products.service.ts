@@ -134,11 +134,11 @@ export class ProductsService implements OnModuleInit {
           // ============================================
           // КОНВЕРТАЦИЯ ЦЕНЫ
           // ============================================
-          // API eSIM Access: price в сотых долях цента (микроцентах)
-          // Пример: 12000 = 120 центов = $1.20
+          // API eSIM Access: price в центах USD
+          // Пример: 350 = $3.50
           
           const priceRaw = Number(pkg.price) || 0;
-          const priceInUSD = priceRaw / 10000;  // микроценты -> доллары
+          const priceInUSD = priceRaw / 100;  // центы -> доллары
           const priceWithMarkup = priceInUSD * 1.3; // +30% наценка
           const exchangeRate = 95; // Курс USD/RUB
           const priceInRUB = Math.round(priceWithMarkup * exchangeRate);

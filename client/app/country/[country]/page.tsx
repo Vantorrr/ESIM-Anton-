@@ -13,7 +13,7 @@ export default function CountryPage() {
   const router = useRouter()
   const country = decodeURIComponent(params.country as string)
   
-  const [products, setProducts] = useState<Product[]>([])
+  const [allProducts, setAllProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'standard' | 'unlimited'>('standard')
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null)
@@ -22,16 +22,32 @@ export default function CountryPage() {
     loadProducts()
   }, [country])
 
+  // Фильтрация по типу тарифа
+  const isUnlimited = (product: Product) => {
+    const name = (product.name + ' ' + (product.description || '')).toLowerCase()
+    return name.includes('unlimited') || name.includes('безлимит') || name.includes('unlim')
+  }
+
+  const products = allProducts.filter(p => 
+    activeTab === 'unlimited' ? isUnlimited(p) : !isUnlimited(p)
+  )
+
+  // Выбираем первый продукт при смене таба
+  useEffect(() => {
+    if (products.length > 0) {
+      setSelectedProduct(products[0].id)
+    } else {
+      setSelectedProduct(null)
+    }
+  }, [activeTab, allProducts])
+
   const loadProducts = async () => {
     try {
-      const allProducts = await productsApi.getAll({ isActive: true })
-      const countryProducts = allProducts.filter(p => p.country === country)
+      const fetchedProducts = await productsApi.getAll({ isActive: true })
+      const countryProducts = fetchedProducts.filter(p => p.country === country)
       // Сортируем по цене
       countryProducts.sort((a, b) => a.ourPrice - b.ourPrice)
-      setProducts(countryProducts)
-      if (countryProducts.length > 0) {
-        setSelectedProduct(countryProducts[0].id)
-      }
+      setAllProducts(countryProducts)
     } catch (error) {
       console.error('Ошибка загрузки:', error)
     } finally {
