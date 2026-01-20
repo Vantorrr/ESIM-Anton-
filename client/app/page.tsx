@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Search, Globe, Signal } from 'lucide-react'
+import { Search, Globe } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
 import { formatPrice, getCountryEmoji } from '@/lib/utils'
@@ -360,7 +360,9 @@ function getCachedProducts(): Product[] | null {
         return data
       }
     }
-  } catch {}
+  } catch {
+    // Ignore sessionStorage errors
+  }
   return null
 }
 
@@ -368,14 +370,18 @@ function setCachedProducts(data: Product[]) {
   if (typeof window === 'undefined') return
   try {
     sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }))
-  } catch {}
+  } catch {
+    // Ignore sessionStorage errors
+  }
 }
 
 function getSavedSearch(): string {
   if (typeof window === 'undefined') return ''
   try {
     return sessionStorage.getItem(SEARCH_KEY) || ''
-  } catch {}
+  } catch {
+    // Ignore sessionStorage errors
+  }
   return ''
 }
 
@@ -383,7 +389,9 @@ function saveSearch(query: string) {
   if (typeof window === 'undefined') return
   try {
     sessionStorage.setItem(SEARCH_KEY, query)
-  } catch {}
+  } catch {
+    // Ignore sessionStorage errors
+  }
 }
 
 export default function Home() {

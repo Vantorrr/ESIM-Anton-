@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ChevronDown, ChevronUp, MessageCircle, Mail, Phone } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronUp, MessageCircle, Mail } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 
 interface FAQ {
