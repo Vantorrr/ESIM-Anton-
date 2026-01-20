@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ChevronDown, ChevronUp, MessageCircle, Mail } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronUp, MessageCircle, Mail, Smartphone } from 'lucide-react'
+import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
 
 interface FAQ {
@@ -71,6 +72,23 @@ export default function HelpPage() {
 
       <div className="px-4 py-6 max-w-lg mx-auto">
         
+        {/* Check Device Support */}
+        <section className="mb-6">
+          <Link href="/devices">
+            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-5 text-white">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
+                  <Smartphone size={28} />
+                </div>
+                <div>
+                  <p className="font-bold text-lg">Проверить устройство</p>
+                  <p className="text-sm text-white/80">Поддерживает ли ваш телефон eSIM</p>
+                </div>
+              </div>
+            </div>
+          </Link>
+        </section>
+
         {/* Contact Cards */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
