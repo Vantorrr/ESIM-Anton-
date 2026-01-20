@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { 
-  DollarSign, Smartphone, ShoppingBag, Globe, Moon, Bell, 
-  ChevronRight, Gift, HelpCircle, FileText, MessageCircle
+  DollarSign, Smartphone, ShoppingBag, Globe, Moon, Bell, Sun, Monitor,
+  ChevronRight, Gift, HelpCircle, FileText, MessageCircle, X, Check
 } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 
@@ -19,15 +19,68 @@ interface UserProfile {
   referralCode: string
 }
 
+type Theme = 'light' | 'dark' | 'system'
+type Language = 'ru' | 'en'
+
 export default function ProfilePage() {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [promoCode, setPromoCode] = useState('')
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
+  const [theme, setTheme] = useState<Theme>('system')
+  const [language, setLanguage] = useState<Language>('ru')
+  const [notifications, setNotifications] = useState(true)
+  
+  // Modals
+  const [showThemeModal, setShowThemeModal] = useState(false)
+  const [showLanguageModal, setShowLanguageModal] = useState(false)
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false)
 
   useEffect(() => {
     loadUserData()
+    // Загружаем сохранённые настройки
+    const savedTheme = localStorage.getItem('theme') as Theme
+    const savedLang = localStorage.getItem('language') as Language
+    const savedNotifications = localStorage.getItem('notifications')
+    
+    if (savedTheme) setTheme(savedTheme)
+    if (savedLang) setLanguage(savedLang)
+    if (savedNotifications !== null) setNotifications(savedNotifications === 'true')
   }, [])
+  
+  // Применение темы
+  useEffect(() => {
+    const root = document.documentElement
+    if (theme === 'dark') {
+      root.classList.add('dark')
+    } else if (theme === 'light') {
+      root.classList.remove('dark')
+    } else {
+      // system
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        root.classList.add('dark')
+      } else {
+        root.classList.remove('dark')
+      }
+    }
+    localStorage.setItem('theme', theme)
+  }, [theme])
+  
+  const changeLanguage = (lang: Language) => {
+    setLanguage(lang)
+    localStorage.setItem('language', lang)
+    setShowLanguageModal(false)
+  }
+  
+  const changeTheme = (newTheme: Theme) => {
+    setTheme(newTheme)
+    setShowThemeModal(false)
+  }
+  
+  const toggleNotifications = () => {
+    const newValue = !notifications
+    setNotifications(newValue)
+    localStorage.setItem('notifications', String(newValue))
+  }
 
   const loadUserData = async () => {
     const tg = (window as any).Telegram?.WebApp
@@ -213,35 +266,53 @@ export default function ProfilePage() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 px-1">Настройки</p>
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
             
-            <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer">
+            <button 
+              onClick={() => setShowLanguageModal(true)}
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+            >
               <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                 <Globe className="text-blue-600 dark:text-blue-400" size={20} />
               </div>
-              <span className="flex-1 font-medium text-gray-900 dark:text-white">Язык</span>
-              <span className="text-gray-400 text-sm mr-1">Русский</span>
+              <span className="flex-1 font-medium text-gray-900 dark:text-white text-left">Язык</span>
+              <span className="text-gray-400 text-sm mr-1">
+                {language === 'ru' ? 'Русский' : 'English'}
+              </span>
               <ChevronRight className="text-gray-400" size={20} />
-            </div>
+            </button>
             
             <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4" />
             
-            <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer">
+            <button 
+              onClick={() => setShowThemeModal(true)}
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+            >
               <div className="w-10 h-10 rounded-xl bg-gray-800 dark:bg-gray-600 flex items-center justify-center">
-                <Moon className="text-white" size={20} />
+                {theme === 'dark' ? <Moon className="text-white" size={20} /> : 
+                 theme === 'light' ? <Sun className="text-white" size={20} /> :
+                 <Monitor className="text-white" size={20} />}
               </div>
-              <span className="flex-1 font-medium text-gray-900 dark:text-white">Тема</span>
-              <span className="text-gray-400 text-sm mr-1">Авто</span>
+              <span className="flex-1 font-medium text-gray-900 dark:text-white text-left">Тема</span>
+              <span className="text-gray-400 text-sm mr-1">
+                {theme === 'light' ? 'Светлая' : theme === 'dark' ? 'Тёмная' : 'Авто'}
+              </span>
               <ChevronRight className="text-gray-400" size={20} />
-            </div>
+            </button>
             
             <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4" />
             
-            <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer">
+            <button 
+              onClick={() => setShowNotificationsModal(true)}
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+            >
               <div className="w-10 h-10 rounded-xl bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
                 <Bell className="text-pink-600 dark:text-pink-400" size={20} />
               </div>
-              <span className="flex-1 font-medium text-gray-900 dark:text-white">Уведомления</span>
+              <span className="flex-1 font-medium text-gray-900 dark:text-white text-left">Уведомления</span>
+              <span className={`text-sm mr-1 ${notifications ? 'text-green-500' : 'text-gray-400'}`}>
+                {notifications ? 'Вкл' : 'Выкл'}
+              </span>
               <ChevronRight className="text-gray-400" size={20} />
-            </div>
+            </button>
             
           </div>
         </section>
@@ -292,6 +363,142 @@ export default function ProfilePage() {
         </p>
 
       </div>
+      
+      {/* Language Modal */}
+      {showLanguageModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowLanguageModal(false)}>
+          <div 
+            className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-t-3xl p-6 animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Выбор языка</h3>
+              <button onClick={() => setShowLanguageModal(false)} className="p-2">
+                <X className="text-gray-400" size={24} />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <button 
+                onClick={() => changeLanguage('ru')}
+                className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
+                  language === 'ru' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🇷🇺</span>
+                  <span className="font-medium text-gray-900 dark:text-white">Русский</span>
+                </div>
+                {language === 'ru' && <Check className="text-blue-500" size={20} />}
+              </button>
+              <button 
+                onClick={() => changeLanguage('en')}
+                className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
+                  language === 'en' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🇬🇧</span>
+                  <span className="font-medium text-gray-900 dark:text-white">English</span>
+                </div>
+                {language === 'en' && <Check className="text-blue-500" size={20} />}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Theme Modal */}
+      {showThemeModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowThemeModal(false)}>
+          <div 
+            className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-t-3xl p-6 animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Выбор темы</h3>
+              <button onClick={() => setShowThemeModal(false)} className="p-2">
+                <X className="text-gray-400" size={24} />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <button 
+                onClick={() => changeTheme('light')}
+                className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
+                  theme === 'light' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Sun className="text-yellow-500" size={24} />
+                  <span className="font-medium text-gray-900 dark:text-white">Светлая</span>
+                </div>
+                {theme === 'light' && <Check className="text-blue-500" size={20} />}
+              </button>
+              <button 
+                onClick={() => changeTheme('dark')}
+                className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
+                  theme === 'dark' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Moon className="text-indigo-500" size={24} />
+                  <span className="font-medium text-gray-900 dark:text-white">Тёмная</span>
+                </div>
+                {theme === 'dark' && <Check className="text-blue-500" size={20} />}
+              </button>
+              <button 
+                onClick={() => changeTheme('system')}
+                className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
+                  theme === 'system' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Monitor className="text-gray-500" size={24} />
+                  <span className="font-medium text-gray-900 dark:text-white">Как в системе</span>
+                </div>
+                {theme === 'system' && <Check className="text-blue-500" size={20} />}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Notifications Modal */}
+      {showNotificationsModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowNotificationsModal(false)}>
+          <div 
+            className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-t-3xl p-6 animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Уведомления</h3>
+              <button onClick={() => setShowNotificationsModal(false)} className="p-2">
+                <X className="text-gray-400" size={24} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between px-4 py-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Push-уведомления</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Статус заказов, акции</p>
+                </div>
+                <button
+                  onClick={toggleNotifications}
+                  className={`w-14 h-8 rounded-full transition-colors relative ${
+                    notifications ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                    notifications ? 'translate-x-7' : 'translate-x-1'
+                  }`} />
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                Мы будем отправлять только важные уведомления о ваших заказах и специальных предложениях
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       <BottomNav />
     </div>
