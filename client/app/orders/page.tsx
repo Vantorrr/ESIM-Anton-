@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Package, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, ShoppingBag } from 'lucide-react'
+import { Package, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, ShoppingBag, RefreshCw } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 
 interface Order {
   id: string
+  productId: string
   product: {
+    id: string
     country: string
     name: string
     dataAmount: string
@@ -147,6 +149,16 @@ export default function OrdersPage() {
                       </div>
                     </div>
 
+                    {/* Кнопка повторить заказ */}
+                    <Link 
+                      href={`/product/${order.productId}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="shrink-0 p-2 rounded-xl bg-blue-50 hover:bg-blue-100 transition-colors"
+                      title="Повторить заказ"
+                    >
+                      <RefreshCw className="text-blue-500" size={18} />
+                    </Link>
+                    
                     <ChevronRight className="text-muted shrink-0" size={18} />
                   </div>
                 </div>

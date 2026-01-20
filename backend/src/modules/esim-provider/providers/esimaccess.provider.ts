@@ -263,6 +263,105 @@ export class EsimAccessProvider {
   }
 
   /**
+   * Пополнить/продлить eSIM (Top-up)
+   * Работает только для пакетов где supportTopup = true
+   */
+  async topupEsim(iccid: string, packageCode: string, transactionId?: string): Promise<any> {
+    try {
+      this.logger.log(`🔄 Пополнение eSIM (iccid: ${iccid}, package: ${packageCode})...`);
+
+      const response = await this.client.post('/esim/topup', {
+        iccid,
+        packageCode,
+        transactionId: transactionId || `topup_${Date.now()}`,
+      }, {
+        headers: this.getAuthHeaders(),
+      });
+
+      if (response.data?.success && response.data?.obj) {
+        this.logger.log(`✅ eSIM пополнен успешно`);
+        return {
+          success: true,
+          orderNo: response.data.obj.orderNo,
+          ...response.data.obj,
+        };
+      }
+
+      throw new Error(response.data?.errorMsg || 'Ошибка пополнения eSIM');
+    } catch (error) {
+      this.logger.error('❌ Ошибка пополнения eSIM:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Получить информацию об eSIM по ICCID
+   */
+  async getEsimInfo(iccid: string): Promise<any> {
+    try {
+      this.logger.log(`🔍 Запрос информации об eSIM ${iccid}...`);
+
+      const response = await this.client.post('/esim/query', {
+        iccid,
+      }, {
+        headers: this.getAuthHeaders(),
+      });
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.errorMsg || 'Ошибка получения информации об eSIM');
+      }
+
+      this.logger.log(`✅ Информация об eSIM получена`);
+      return response.data.obj;
+    } catch (error) {
+      this.logger.error('❌ Ошибка получения информации об eSIM:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Получить пакеты для пополнения конкретного eSIM
+   */
+  async getTopupPackages(iccid: string): Promise<EsimAccessPackage[]> {
+    try {
+      this.logger.log(`📦 Запрос пакетов для пополнения eSIM ${iccid}...`);
+
+      const response = await this.client.post('/esim/topup/package', {
+        iccid,
+      }, {
+        headers: this.getAuthHeaders(),
+      });
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.errorMsg || 'Ошибка получения пакетов для пополнения');
+      }
+
+      const packages = response.data?.obj?.packageList || [];
+      
+      this.logger.log(`✅ Получено ${packages.length} пакетов для пополнения`);
+      
+      return packages.map((pkg: any) => ({
+        packageCode: pkg.packageCode,
+        name: pkg.name,
+        slug: pkg.slug,
+        location: pkg.location,
+        locationCode: pkg.locationCode,
+        price: pkg.price,
+        currencyCode: pkg.currencyCode,
+        volume: pkg.volume,
+        smsVolume: pkg.smsVolume || 0,
+        duration: pkg.duration,
+        durationUnit: pkg.durationUnit,
+        speed: pkg.speed,
+        supportTopup: pkg.supportTopup,
+      }));
+    } catch (error) {
+      this.logger.error('❌ Ошибка получения пакетов для пополнения:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Health check
    */
   async healthCheck(): Promise<boolean> {

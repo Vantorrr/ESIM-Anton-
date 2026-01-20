@@ -34,6 +34,11 @@ model User {
   loyaltyLevel     LoyaltyLevel? @relation(fields: [loyaltyLevelId], references: [id])
   totalSpent       Decimal   @default(0) @db.Decimal(10, 2)
   
+  // UTM-метки для аналитики
+  utmSource        String?   // Источник трафика (google, telegram, instagram)
+  utmMedium        String?   // Тип трафика (cpc, organic, referral)
+  utmCampaign      String?   // Название кампании
+  
   // Мета
   isBlocked        Boolean   @default(false)
   createdAt        DateTime  @default(now())
@@ -93,6 +98,10 @@ model EsimProduct {
   
   // Тип тарифа
   isUnlimited      Boolean   @default(false)  // true = unlimited/day pass
+  
+  // Бейджи (скидки, ХИТ, etc.)
+  badge            String?   // Текст бейджа: "ХИТ", "-25%", "NEW"
+  badgeColor       String?   // Цвет: "red", "green", "blue", "orange"
   
   // Статус
   isActive         Boolean   @default(true)

@@ -145,14 +145,14 @@ export default function Products() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead>
+                <thead>
                 <tr className="border-b border-slate-200">
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Страна</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Название</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Трафик</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Срок</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Цена поставщика</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Наша цена</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Бейдж</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Статус</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Действия</th>
                 </tr>
@@ -169,10 +169,24 @@ export default function Products() {
                     </td>
                     <td className="py-4 px-4">{product.name}</td>
                     <td className="py-4 px-4">{product.dataAmount}</td>
-                    <td className="py-4 px-4">{product.validityDays} дней</td>
-                    <td className="py-4 px-4">₽{Number(product.providerPrice).toLocaleString()}</td>
+                    <td className="py-4 px-4">{product.validityDays} дн</td>
                     <td className="py-4 px-4 font-bold text-green-600">
                       ₽{Number(product.ourPrice).toLocaleString()}
+                    </td>
+                    <td className="py-4 px-4">
+                      {product.badge ? (
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold text-white ${
+                          product.badgeColor === 'red' ? 'bg-red-500' :
+                          product.badgeColor === 'green' ? 'bg-green-500' :
+                          product.badgeColor === 'blue' ? 'bg-blue-500' :
+                          product.badgeColor === 'orange' ? 'bg-orange-500' :
+                          'bg-purple-500'
+                        }`}>
+                          {product.badge}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-sm">—</span>
+                      )}
                     </td>
                     <td className="py-4 px-4">
                       <button
@@ -325,6 +339,37 @@ export default function Products() {
                 <p className="text-sm text-slate-500 mt-1">
                   ID пакета у провайдера eSIM
                 </p>
+              </div>
+
+              {/* Бейдж */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">🏷️ Бейдж</label>
+                <input
+                  type="text"
+                  value={editingProduct.badge || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, badge: e.target.value || null })}
+                  placeholder="ХИТ, -25%, NEW"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                />
+                <p className="text-sm text-slate-500 mt-1">
+                  Текст бейджа (оставьте пустым чтобы скрыть)
+                </p>
+              </div>
+
+              {/* Цвет бейджа */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">🎨 Цвет бейджа</label>
+                <select
+                  value={editingProduct.badgeColor || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, badgeColor: e.target.value || null })}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                >
+                  <option value="">По умолчанию (фиолетовый)</option>
+                  <option value="red">🔴 Красный</option>
+                  <option value="green">🟢 Зеленый</option>
+                  <option value="blue">🔵 Синий</option>
+                  <option value="orange">🟠 Оранжевый</option>
+                </select>
               </div>
 
               {/* Активен */}

@@ -52,6 +52,10 @@ export class UsersController {
     username?: string;
     firstName?: string;
     lastName?: string;
+    // UTM метки для аналитики
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
   }) {
     const { telegramId, ...userData } = dto;
     const user = await this.usersService.findOrCreate(

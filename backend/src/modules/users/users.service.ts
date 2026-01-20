@@ -8,8 +8,16 @@ export class UsersService {
 
   /**
    * Найти или создать пользователя по Telegram ID
+   * Поддерживает UTM метки для аналитики
    */
-  async findOrCreate(telegramId: bigint, data?: Partial<Prisma.UserCreateInput>) {
+  async findOrCreate(
+    telegramId: bigint, 
+    data?: Partial<Prisma.UserCreateInput> & {
+      utmSource?: string;
+      utmMedium?: string;
+      utmCampaign?: string;
+    }
+  ) {
     let user = await this.prisma.user.findUnique({
       where: { telegramId },
       include: {
@@ -25,6 +33,10 @@ export class UsersService {
           username: data?.username as string,
           firstName: data?.firstName as string,
           lastName: data?.lastName as string,
+          // UTM метки сохраняются при первой регистрации
+          utmSource: data?.utmSource,
+          utmMedium: data?.utmMedium,
+          utmCampaign: data?.utmCampaign,
         },
         include: {
           loyaltyLevel: true,

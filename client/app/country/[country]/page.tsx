@@ -142,13 +142,25 @@ export default function CountryPage() {
                 `}
               >
                 <div className="flex-1">
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex items-center gap-2">
                     <span className="font-semibold text-gray-900 dark:text-white">
                       {formatDataAmount(product.dataAmount)}
                     </span>
                     <span className="text-gray-500 dark:text-gray-400 text-sm">
                       на {product.validityDays} дн.
                     </span>
+                    {/* Бейдж */}
+                    {product.badge && (
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${
+                        product.badgeColor === 'red' ? 'bg-red-500' :
+                        product.badgeColor === 'green' ? 'bg-green-500' :
+                        product.badgeColor === 'blue' ? 'bg-blue-500' :
+                        product.badgeColor === 'orange' ? 'bg-orange-500' :
+                        'bg-purple-500'
+                      }`}>
+                        {product.badge}
+                      </span>
+                    )}
                   </div>
                 </div>
                 

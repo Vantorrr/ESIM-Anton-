@@ -46,6 +46,9 @@ export interface Product {
   isActive: boolean;
   isUnlimited: boolean;
   stock: number;
+  // Бейджи (скидки, ХИТ, etc.)
+  badge?: string;
+  badgeColor?: string;
 }
 
 export interface Order {
