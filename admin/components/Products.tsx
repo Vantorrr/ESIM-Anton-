@@ -7,6 +7,7 @@ import { Package, Plus, Edit2, Eye, EyeOff, RefreshCw } from 'lucide-react'
 export default function Products() {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [editingProduct, setEditingProduct] = useState<any>(null)
   const [isCreating, setIsCreating] = useState(false)
 
@@ -17,10 +18,19 @@ export default function Products() {
   const loadProducts = async () => {
     try {
       setLoading(true)
+      setError(null)
       const response = await productsApi.getAll()
-      setProducts(response.data || [])
-    } catch (error) {
-      console.error('Ошибка загрузки продуктов:', error)
+      
+      // Пробуем разные форматы ответа
+      const data = Array.isArray(response.data) 
+        ? response.data 
+        : response.data?.data || response.data?.products || []
+      
+      setProducts(data)
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || err.message || 'Ошибка загрузки'
+      setError(`Ошибка: ${errorMsg}. URL: ${err.config?.url || 'unknown'}`)
+      console.error('❌ Ошибка загрузки продуктов:', err)
     } finally {
       setLoading(false)
     }
@@ -110,11 +120,24 @@ export default function Products() {
         </div>
       </div>
 
+      {/* Ошибка */}
+      {error && (
+        <div className="glass-card p-6 bg-red-50 border-red-200">
+          <p className="text-red-700 font-medium">{error}</p>
+          <button 
+            onClick={loadProducts}
+            className="mt-2 text-sm text-red-600 underline"
+          >
+            Попробовать снова
+          </button>
+        </div>
+      )}
+
       {/* Таблица продуктов */}
       <div className="glass-card p-6">
         <h2 className="text-2xl font-bold mb-6">Продукты (тарифы eSIM)</h2>
 
-        {products.length === 0 ? (
+        {products.length === 0 && !error ? (
           <div className="text-center py-12 text-slate-500">
             <Package className="w-16 h-16 mx-auto mb-3 opacity-30" />
             <p className="text-lg">Пока нет продуктов</p>
