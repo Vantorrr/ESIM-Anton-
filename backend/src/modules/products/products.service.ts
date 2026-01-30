@@ -216,7 +216,7 @@ export class ProductsService implements OnModuleInit {
    * dataType: 1 = standard, 2 = unlimited/day pass
    */
   async syncWithProvider() {
-    this.logger.log('🔄 [SYNC V8] Начало синхронизации (standard + unlimited отдельно)...');
+    this.logger.log('🔄 [SYNC V9] Начало синхронизации...');
     
     try {
       // Получаем настройки ценообразования из БД
@@ -227,42 +227,26 @@ export class ProductsService implements OnModuleInit {
       
       this.logger.log(`📊 Настройки: курс=${exchangeRate}₽/$, наценка=${defaultMarkup}%`);
       
-      // Делаем 2 ОТДЕЛЬНЫХ запроса чтобы правильно определить тип тарифа
-      // dataType=1 для стандартных, dataType=2 для безлимитных
-      let standardPackages: any[] = [];
-      let unlimitedPackages: any[] = [];
+      // Получаем ВСЕ пакеты одним запросом (надежнее)
+      const allPackagesRaw = await this.esimProviderService.getPackages();
       
-      // Пробуем получить стандартные тарифы
-      try {
-        standardPackages = await this.esimProviderService.getPackages(undefined, 1) || [];
-        this.logger.log(`📦 Стандартных получено: ${standardPackages.length}`);
-      } catch (err) {
-        this.logger.warn(`⚠️ Не удалось получить стандартные тарифы: ${err.message}`);
-        // Если не получилось с type=1, пробуем без фильтра
-        try {
-          standardPackages = await this.esimProviderService.getPackages() || [];
-          this.logger.log(`📦 Получено без фильтра: ${standardPackages.length}`);
-        } catch (err2) {
-          this.logger.error(`❌ Полностью не удалось получить тарифы: ${err2.message}`);
-        }
+      if (!allPackagesRaw || allPackagesRaw.length === 0) {
+        return { success: false, synced: 0, errors: 1, message: 'API провайдера не вернул тарифы. Проверьте баланс и API ключи.' };
       }
       
-      // Пробуем получить безлимитные тарифы (если провайдер поддерживает)
-      try {
-        unlimitedPackages = await this.esimProviderService.getPackages(undefined, 2) || [];
-        this.logger.log(`📦 Безлимитных получено: ${unlimitedPackages.length}`);
-      } catch (err) {
-        this.logger.warn(`⚠️ Не удалось получить безлимитные тарифы: ${err.message}`);
-        // Это нормально - не все провайдеры поддерживают безлимитные
-      }
+      // Определяем тип по имени тарифа (если содержит "Day" или "Unlimited" - безлимитный)
+      const allPackages = allPackagesRaw.map(p => ({
+        ...p,
+        isUnlimitedFlag: (p.name?.toLowerCase().includes('day') || 
+                          p.name?.toLowerCase().includes('unlimited') ||
+                          p.name?.toLowerCase().includes('/day') ||
+                          p.durationUnit?.toLowerCase() === 'day'),
+      }));
       
-      // Объединяем с правильной маркировкой типа
-      const allPackages = [
-        ...standardPackages.map(p => ({ ...p, isUnlimitedFlag: false })),
-        ...unlimitedPackages.map(p => ({ ...p, isUnlimitedFlag: true })),
-      ];
+      const standardCount = allPackages.filter(p => !p.isUnlimitedFlag).length;
+      const unlimitedCount = allPackages.filter(p => p.isUnlimitedFlag).length;
       
-      this.logger.log(`📦 Всего: ${allPackages.length} тарифов (${standardPackages.length} стандартных + ${unlimitedPackages.length} безлимитных)`);
+      this.logger.log(`📦 Всего: ${allPackages.length} тарифов (${standardCount} стандартных + ${unlimitedCount} безлимитных)`);
       
       if (!allPackages || allPackages.length === 0) {
         return { success: false, synced: 0, errors: 1, message: 'Не удалось получить список пакетов' };
@@ -352,18 +336,18 @@ export class ProductsService implements OnModuleInit {
         }
       }
       
-      // Считаем сколько стандартных и безлимитных
-      const syncedStandard = (standardPackages || []).length;
-      const syncedUnlimited = (unlimitedPackages || []).length;
+      // Считаем сколько стандартных и безлимитных из синхронизированных
+      const syncedStandard = allPackages.filter(p => !p.isUnlimitedFlag).length;
+      const syncedUnlimited = allPackages.filter(p => p.isUnlimitedFlag).length;
       
-      this.logger.log(`✅ [SYNC V8] Готово: ${synced} синхронизировано (${syncedStandard} стандартных + ${syncedUnlimited} безлимитных), ${errors} ошибок`);
+      this.logger.log(`✅ [SYNC V9] Готово: ${synced} синхронизировано (${syncedStandard} стандартных + ${syncedUnlimited} безлимитных), ${errors} ошибок`);
       
       return { 
         success: true,
         synced, 
         errors,
         message: `Синхронизировано ${synced} продуктов: ${syncedStandard} стандартных + ${syncedUnlimited} безлимитных (курс: ${exchangeRate}₽/$)`,
-        version: 'V8-SEPARATE-TYPES',
+        version: 'V9-AUTO-DETECT-TYPE',
         settings: {
           exchangeRate,
           markupPercent: defaultMarkup,
@@ -374,7 +358,7 @@ export class ProductsService implements OnModuleInit {
         },
       };
     } catch (error) {
-      this.logger.error('❌ [SYNC V8] Ошибка:', error.message);
+      this.logger.error('❌ [SYNC V9] Ошибка:', error.message);
       return {
         success: false,
         synced: 0,
