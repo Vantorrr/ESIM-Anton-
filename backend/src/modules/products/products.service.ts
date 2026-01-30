@@ -229,20 +229,30 @@ export class ProductsService implements OnModuleInit {
       
       // Делаем 2 ОТДЕЛЬНЫХ запроса чтобы правильно определить тип тарифа
       // dataType=1 для стандартных, dataType=2 для безлимитных
-      const [standardPackages, unlimitedPackages] = await Promise.all([
-        this.esimProviderService.getPackages(undefined, 1),  // standard
-        this.esimProviderService.getPackages(undefined, 2),  // unlimited/day pass
-      ]);
+      let standardPackages: any[] = [];
+      let unlimitedPackages: any[] = [];
       
-      this.logger.log(`📦 Стандартных: ${standardPackages?.length || 0}, Безлимитных: ${unlimitedPackages?.length || 0}`);
+      try {
+        standardPackages = await this.esimProviderService.getPackages(undefined, 1) || [];
+        this.logger.log(`📦 Стандартных получено: ${standardPackages.length}`);
+      } catch (err) {
+        this.logger.warn(`⚠️ Не удалось получить стандартные тарифы: ${err.message}`);
+      }
+      
+      try {
+        unlimitedPackages = await this.esimProviderService.getPackages(undefined, 2) || [];
+        this.logger.log(`📦 Безлимитных получено: ${unlimitedPackages.length}`);
+      } catch (err) {
+        this.logger.warn(`⚠️ Не удалось получить безлимитные тарифы: ${err.message}`);
+      }
       
       // Объединяем с правильной маркировкой типа
       const allPackages = [
-        ...(standardPackages || []).map(p => ({ ...p, isUnlimitedFlag: false })),
-        ...(unlimitedPackages || []).map(p => ({ ...p, isUnlimitedFlag: true })),
+        ...standardPackages.map(p => ({ ...p, isUnlimitedFlag: false })),
+        ...unlimitedPackages.map(p => ({ ...p, isUnlimitedFlag: true })),
       ];
       
-      this.logger.log(`📦 Всего: ${allPackages?.length || 0} тарифов`);
+      this.logger.log(`📦 Всего: ${allPackages.length} тарифов (${standardPackages.length} стандартных + ${unlimitedPackages.length} безлимитных)`);
       
       if (!allPackages || allPackages.length === 0) {
         return { success: false, synced: 0, errors: 1, message: 'Не удалось получить список пакетов' };
