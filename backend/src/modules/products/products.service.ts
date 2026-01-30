@@ -232,18 +232,28 @@ export class ProductsService implements OnModuleInit {
       let standardPackages: any[] = [];
       let unlimitedPackages: any[] = [];
       
+      // Пробуем получить стандартные тарифы
       try {
         standardPackages = await this.esimProviderService.getPackages(undefined, 1) || [];
         this.logger.log(`📦 Стандартных получено: ${standardPackages.length}`);
       } catch (err) {
         this.logger.warn(`⚠️ Не удалось получить стандартные тарифы: ${err.message}`);
+        // Если не получилось с type=1, пробуем без фильтра
+        try {
+          standardPackages = await this.esimProviderService.getPackages() || [];
+          this.logger.log(`📦 Получено без фильтра: ${standardPackages.length}`);
+        } catch (err2) {
+          this.logger.error(`❌ Полностью не удалось получить тарифы: ${err2.message}`);
+        }
       }
       
+      // Пробуем получить безлимитные тарифы (если провайдер поддерживает)
       try {
         unlimitedPackages = await this.esimProviderService.getPackages(undefined, 2) || [];
         this.logger.log(`📦 Безлимитных получено: ${unlimitedPackages.length}`);
       } catch (err) {
         this.logger.warn(`⚠️ Не удалось получить безлимитные тарифы: ${err.message}`);
+        // Это нормально - не все провайдеры поддерживают безлимитные
       }
       
       // Объединяем с правильной маркировкой типа
