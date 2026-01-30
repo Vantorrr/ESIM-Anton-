@@ -216,7 +216,7 @@ export class ProductsService implements OnModuleInit {
    * dataType: 1 = standard, 2 = unlimited/day pass
    */
   async syncWithProvider() {
-    this.logger.log('🔄 [SYNC V7] Начало синхронизации (ВСЕ тарифы БЕЗ фильтра)...');
+    this.logger.log('🔄 [SYNC V8] Начало синхронизации (standard + unlimited отдельно)...');
     
     try {
       // Получаем настройки ценообразования из БД
@@ -227,11 +227,22 @@ export class ProductsService implements OnModuleInit {
       
       this.logger.log(`📊 Настройки: курс=${exchangeRate}₽/$, наценка=${defaultMarkup}%`);
       
-      // Получаем ВСЕ пакеты БЕЗ фильтра по типу
-      // Это важно, т.к. API может не возвращать все тарифы при фильтрации по type
-      const allPackages = await this.esimProviderService.getPackages();
+      // Делаем 2 ОТДЕЛЬНЫХ запроса чтобы правильно определить тип тарифа
+      // dataType=1 для стандартных, dataType=2 для безлимитных
+      const [standardPackages, unlimitedPackages] = await Promise.all([
+        this.esimProviderService.getPackages(undefined, 1),  // standard
+        this.esimProviderService.getPackages(undefined, 2),  // unlimited/day pass
+      ]);
       
-      this.logger.log(`📦 Всего получено: ${allPackages?.length || 0} тарифов`);
+      this.logger.log(`📦 Стандартных: ${standardPackages?.length || 0}, Безлимитных: ${unlimitedPackages?.length || 0}`);
+      
+      // Объединяем с правильной маркировкой типа
+      const allPackages = [
+        ...(standardPackages || []).map(p => ({ ...p, isUnlimitedFlag: false })),
+        ...(unlimitedPackages || []).map(p => ({ ...p, isUnlimitedFlag: true })),
+      ];
+      
+      this.logger.log(`📦 Всего: ${allPackages?.length || 0} тарифов`);
       
       if (!allPackages || allPackages.length === 0) {
         return { success: false, synced: 0, errors: 1, message: 'Не удалось получить список пакетов' };
@@ -295,7 +306,7 @@ export class ProductsService implements OnModuleInit {
             ourPrice: priceInRUB,
             providerId: pkg.packageCode,
             providerName: 'esimaccess',
-            isUnlimited: (pkg as any).dataType === 2,  // 2 = unlimited/day pass
+            isUnlimited: (pkg as any).isUnlimitedFlag === true,  // Из нашей маркировки
             isActive: true,
           };
           
@@ -321,21 +332,29 @@ export class ProductsService implements OnModuleInit {
         }
       }
       
-      this.logger.log(`✅ [SYNC V7] Готово: ${synced} синхронизировано, ${errors} ошибок`);
+      // Считаем сколько стандартных и безлимитных
+      const syncedStandard = (standardPackages || []).length;
+      const syncedUnlimited = (unlimitedPackages || []).length;
+      
+      this.logger.log(`✅ [SYNC V8] Готово: ${synced} синхронизировано (${syncedStandard} стандартных + ${syncedUnlimited} безлимитных), ${errors} ошибок`);
       
       return { 
         success: true,
         synced, 
         errors,
-        message: `Синхронизировано ${synced} продуктов (курс: ${exchangeRate}₽/$, наценка: ${defaultMarkup}%)`,
-        version: 'V7-DYNAMIC-PRICING',
+        message: `Синхронизировано ${synced} продуктов: ${syncedStandard} стандартных + ${syncedUnlimited} безлимитных (курс: ${exchangeRate}₽/$)`,
+        version: 'V8-SEPARATE-TYPES',
         settings: {
           exchangeRate,
           markupPercent: defaultMarkup,
         },
+        breakdown: {
+          standard: syncedStandard,
+          unlimited: syncedUnlimited,
+        },
       };
     } catch (error) {
-      this.logger.error('❌ [SYNC V7] Ошибка:', error.message);
+      this.logger.error('❌ [SYNC V8] Ошибка:', error.message);
       return {
         success: false,
         synced: 0,
