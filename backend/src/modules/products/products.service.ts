@@ -95,24 +95,16 @@ export class ProductsService implements OnModuleInit {
    * dataType: 1 = standard, 2 = unlimited/day pass
    */
   async syncWithProvider() {
-    this.logger.log('🔄 [SYNC V4] Начало синхронизации (standard + unlimited)...');
+    this.logger.log('🔄 [SYNC V5] Начало синхронизации (ВСЕ тарифы БЕЗ фильтра)...');
     
     try {
-      // Получаем оба типа пакетов
-      const [standardPackages, unlimitedPackages] = await Promise.all([
-        this.esimProviderService.getPackages(undefined, 1), // standard
-        this.esimProviderService.getPackages(undefined, 2), // unlimited/day pass
-      ]);
+      // Получаем ВСЕ пакеты БЕЗ фильтра по типу
+      // Это важно, т.к. API может не возвращать все тарифы при фильтрации по type
+      const allPackages = await this.esimProviderService.getPackages();
       
-      this.logger.log(`📦 Standard: ${standardPackages?.length || 0}, Unlimited: ${unlimitedPackages?.length || 0}`);
+      this.logger.log(`📦 Всего получено: ${allPackages?.length || 0} тарифов`);
       
-      // Объединяем с маркировкой типа
-      const allPackages = [
-        ...(standardPackages || []).map(p => ({ ...p, isUnlimited: false })),
-        ...(unlimitedPackages || []).map(p => ({ ...p, isUnlimited: true })),
-      ];
-      
-      if (allPackages.length === 0) {
+      if (!allPackages || allPackages.length === 0) {
         return { success: false, synced: 0, errors: 1, message: 'Не удалось получить список пакетов' };
       }
 
@@ -175,7 +167,7 @@ export class ProductsService implements OnModuleInit {
             ourPrice: priceInRUB,
             providerId: pkg.packageCode,
             providerName: 'esimaccess',
-            isUnlimited: (pkg as any).isUnlimited || false,
+            isUnlimited: (pkg as any).dataType === 2,  // 2 = unlimited/day pass
             isActive: true,
           };
           
@@ -201,17 +193,17 @@ export class ProductsService implements OnModuleInit {
         }
       }
       
-      this.logger.log(`✅ [SYNC V3] Готово: ${synced} синхронизировано, ${errors} ошибок`);
+      this.logger.log(`✅ [SYNC V6] Готово: ${synced} синхронизировано, ${errors} ошибок`);
       
       return { 
         success: true,
         synced, 
         errors,
         message: `Синхронизировано ${synced} продуктов`,
-        version: 'V5-FIXED-PRICES',
+        version: 'V6-ALL-PACKAGES',
       };
     } catch (error) {
-      this.logger.error('❌ [SYNC V3] Ошибка:', error.message);
+      this.logger.error('❌ [SYNC V6] Ошибка:', error.message);
       return {
         success: false,
         synced: 0,
