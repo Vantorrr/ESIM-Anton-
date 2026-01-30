@@ -28,6 +28,20 @@ export class SystemSettingsController {
     return this.systemSettingsService.updateReferralSettings(data);
   }
 
+  @Get('pricing')
+  @ApiOperation({ summary: 'Получить настройки ценообразования' })
+  async getPricingSettings() {
+    return this.systemSettingsService.getPricingSettings();
+  }
+
+  @Post('pricing')
+  @ApiOperation({ summary: 'Обновить настройки ценообразования' })
+  async updatePricingSettings(
+    @Body() data: { exchangeRate: number; defaultMarkupPercent: number }
+  ) {
+    return this.systemSettingsService.updatePricingSettings(data);
+  }
+
   @Get(':key')
   @ApiOperation({ summary: 'Получить настройку по ключу' })
   async getByKey(@Param('key') key: string) {

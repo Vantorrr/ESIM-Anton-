@@ -77,4 +77,8 @@ export const systemSettingsApi = {
   getAll: () => api.get('/system-settings'),
   getReferralSettings: () => api.get('/system-settings/referral'),
   updateReferralSettings: (data: any) => api.post('/system-settings/referral', data),
+  // Настройки ценообразования
+  getPricingSettings: () => api.get('/system-settings/pricing'),
+  updatePricingSettings: (data: { exchangeRate: number; defaultMarkupPercent: number }) => 
+    api.post('/system-settings/pricing', data),
 }

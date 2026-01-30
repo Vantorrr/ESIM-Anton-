@@ -1,12 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, Plus, Edit2, Trash2 } from 'lucide-react'
-import { systemSettingsApi, loyaltyApi } from '@/lib/api'
+import { Save, Plus, Edit2, Trash2, DollarSign, RefreshCw } from 'lucide-react'
+import { systemSettingsApi, loyaltyApi, productsApi } from '@/lib/api'
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<'referrals' | 'loyalty'>('referrals')
+  const [activeTab, setActiveTab] = useState<'pricing' | 'referrals' | 'loyalty'>('pricing')
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+
+  // Настройки ценообразования
+  const [pricingSettings, setPricingSettings] = useState({
+    exchangeRate: 95,
+    defaultMarkupPercent: 30,
+  })
 
   // Реферальная программа
   const [referralSettings, setReferralSettings] = useState({
@@ -27,7 +34,12 @@ export default function Settings() {
     try {
       setLoading(true)
       
-      if (activeTab === 'referrals') {
+      if (activeTab === 'pricing') {
+        const response = await systemSettingsApi.getPricingSettings()
+        if (response.data) {
+          setPricingSettings(response.data)
+        }
+      } else if (activeTab === 'referrals') {
         const response = await systemSettingsApi.getReferralSettings()
         if (response.data) {
           setReferralSettings(response.data)
@@ -42,6 +54,29 @@ export default function Settings() {
       console.error('Ошибка загрузки настроек:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSavePricingSettings = async () => {
+    try {
+      await systemSettingsApi.updatePricingSettings(pricingSettings)
+      alert('✅ Настройки ценообразования сохранены!')
+    } catch (error) {
+      console.error('Ошибка сохранения:', error)
+      alert('❌ Ошибка сохранения настроек')
+    }
+  }
+
+  const handleSyncProducts = async () => {
+    try {
+      setSyncing(true)
+      const response = await productsApi.sync()
+      alert(`✅ ${response.data.message}`)
+    } catch (error: any) {
+      console.error('Ошибка синхронизации:', error)
+      alert('❌ Ошибка синхронизации: ' + (error.response?.data?.message || error.message))
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -102,7 +137,21 @@ export default function Settings() {
     <div className="space-y-6">
       {/* Tabs */}
       <div className="glass-card p-2">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setActiveTab('pricing')}
+            className={`
+              flex items-center gap-2 px-6 py-3 rounded-xl font-medium
+              transition-all duration-200
+              ${
+                activeTab === 'pricing'
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
+                  : 'hover:bg-white/50 text-slate-700'
+              }
+            `}
+          >
+            💰 Ценообразование
+          </button>
           <button
             onClick={() => setActiveTab('referrals')}
             className={`
@@ -133,6 +182,112 @@ export default function Settings() {
           </button>
         </div>
       </div>
+
+      {/* Ценообразование */}
+      {activeTab === 'pricing' && (
+        <div className="glass-card p-8">
+          <h2 className="text-2xl font-bold mb-6">Настройки ценообразования</h2>
+          
+          <div className="space-y-6 max-w-2xl">
+            {/* Курс доллара */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Курс USD/RUB
+              </label>
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="number"
+                    value={pricingSettings.exchangeRate}
+                    onChange={(e) => setPricingSettings({ ...pricingSettings, exchangeRate: +e.target.value })}
+                    className="w-40 pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-xl font-bold"
+                    min="1"
+                    max="500"
+                    step="0.5"
+                  />
+                </div>
+                <span className="text-lg font-bold text-slate-700">₽ за $1</span>
+              </div>
+              <p className="text-sm text-slate-500 mt-2">
+                Используется для пересчета цен от поставщика (в $) в рубли
+              </p>
+            </div>
+
+            {/* Наценка по умолчанию */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Наценка по умолчанию при синхронизации
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  type="number"
+                  value={pricingSettings.defaultMarkupPercent}
+                  onChange={(e) => setPricingSettings({ ...pricingSettings, defaultMarkupPercent: +e.target.value })}
+                  className="w-32 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-xl font-bold text-center"
+                  min="0"
+                  max="500"
+                  step="5"
+                />
+                <span className="text-lg font-bold text-slate-700">%</span>
+              </div>
+              <div className="flex gap-2 mt-3 flex-wrap">
+                {[10, 20, 30, 50, 75, 100].map((val) => (
+                  <button
+                    key={val}
+                    onClick={() => setPricingSettings({ ...pricingSettings, defaultMarkupPercent: val })}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                      pricingSettings.defaultMarkupPercent === val 
+                        ? 'bg-green-500 text-white' 
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    +{val}%
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm text-slate-500 mt-2">
+                Применяется при синхронизации тарифов с провайдером
+              </p>
+            </div>
+
+            {/* Пример расчета */}
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+              <h4 className="font-semibold text-slate-700 mb-2">📊 Пример расчета цены:</h4>
+              <div className="text-sm text-slate-600 space-y-1">
+                <p>Цена у поставщика: <strong>$5.00</strong></p>
+                <p>+ Наценка {pricingSettings.defaultMarkupPercent}%: <strong>${(5 * (1 + pricingSettings.defaultMarkupPercent / 100)).toFixed(2)}</strong></p>
+                <p>× Курс {pricingSettings.exchangeRate}₽/$: <strong className="text-green-600">₽{Math.round(5 * (1 + pricingSettings.defaultMarkupPercent / 100) * pricingSettings.exchangeRate)}</strong></p>
+              </div>
+            </div>
+
+            {/* Кнопки */}
+            <div className="flex gap-3 pt-4 flex-wrap">
+              <button
+                onClick={handleSavePricingSettings}
+                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+              >
+                <Save className="w-5 h-5" />
+                Сохранить настройки
+              </button>
+              <button
+                onClick={handleSyncProducts}
+                disabled={syncing}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+              >
+                <RefreshCw className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Синхронизация...' : 'Пересчитать все цены'}
+              </button>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+              <p className="text-sm text-yellow-800">
+                <strong>⚠️ Важно:</strong> После изменения курса или наценки нажмите "Пересчитать все цены" чтобы обновить цены всех тарифов.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Реферальная программа */}
       {activeTab === 'referrals' && (

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, Logger, Inject, forwardRef, OnModuleInit
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { EsimProviderService } from '../esim-provider/esim-provider.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 @Injectable()
 export class ProductsService implements OnModuleInit {
@@ -11,7 +12,15 @@ export class ProductsService implements OnModuleInit {
     private prisma: PrismaService,
     @Inject(forwardRef(() => EsimProviderService))
     private esimProviderService: EsimProviderService,
+    private systemSettingsService: SystemSettingsService,
   ) {}
+
+  /**
+   * Получить настройки ценообразования из БД
+   */
+  private async getPricingSettings() {
+    return this.systemSettingsService.getPricingSettings();
+  }
 
   async onModuleInit() {
     setTimeout(async () => {
@@ -100,12 +109,17 @@ export class ProductsService implements OnModuleInit {
   async bulkSetMarkup(ids: string[], markupPercent: number) {
     this.logger.log(`💰 Массовая установка наценки ${markupPercent}% для ${ids.length} продуктов...`);
     
+    // Получаем настройки из БД
+    const pricingSettings = await this.getPricingSettings();
+    const exchangeRate = pricingSettings.exchangeRate;
+    
+    this.logger.log(`📊 Курс USD/RUB: ${exchangeRate}`);
+    
     // Получаем все продукты
     const products = await this.prisma.esimProduct.findMany({
       where: { id: { in: ids } },
     });
 
-    const exchangeRate = 95; // Курс USD/RUB
     let updated = 0;
 
     for (const product of products) {
@@ -125,7 +139,7 @@ export class ProductsService implements OnModuleInit {
     return {
       success: true,
       updated,
-      message: `Наценка ${markupPercent}% применена к ${updated} продуктам`,
+      message: `Наценка ${markupPercent}% применена к ${updated} продуктам (курс: ${exchangeRate}₽/$)`,
     };
   }
 
@@ -177,9 +191,17 @@ export class ProductsService implements OnModuleInit {
    * dataType: 1 = standard, 2 = unlimited/day pass
    */
   async syncWithProvider() {
-    this.logger.log('🔄 [SYNC V5] Начало синхронизации (ВСЕ тарифы БЕЗ фильтра)...');
+    this.logger.log('🔄 [SYNC V7] Начало синхронизации (ВСЕ тарифы БЕЗ фильтра)...');
     
     try {
+      // Получаем настройки ценообразования из БД
+      const pricingSettings = await this.getPricingSettings();
+      const exchangeRate = pricingSettings.exchangeRate;
+      const defaultMarkup = pricingSettings.defaultMarkupPercent;
+      const markupMultiplier = 1 + defaultMarkup / 100;
+      
+      this.logger.log(`📊 Настройки: курс=${exchangeRate}₽/$, наценка=${defaultMarkup}%`);
+      
       // Получаем ВСЕ пакеты БЕЗ фильтра по типу
       // Это важно, т.к. API может не возвращать все тарифы при фильтрации по type
       const allPackages = await this.esimProviderService.getPackages();
@@ -220,23 +242,22 @@ export class ProductsService implements OnModuleInit {
           }
           
           // ============================================
-          // КОНВЕРТАЦИЯ ЦЕНЫ
+          // КОНВЕРТАЦИЯ ЦЕНЫ (из настроек БД!)
           // ============================================
           // API eSIM Access: price в центах USD
           // Пример: 350 = $3.50
           
           const priceRaw = Number(pkg.price) || 0;
           const priceInUSD = priceRaw / 100;  // центы -> доллары
-          const priceWithMarkup = priceInUSD * 1.3; // +30% наценка
-          const exchangeRate = 95; // Курс USD/RUB
+          const priceWithMarkup = priceInUSD * markupMultiplier;
           const priceInRUB = Math.round(priceWithMarkup * exchangeRate);
           
           // DEBUG: первый пакет
           if (synced === 0) {
-            this.logger.warn(`🔍 [SYNC V5] Первый пакет:`);
+            this.logger.warn(`🔍 [SYNC V7] Первый пакет:`);
             this.logger.warn(`   name: ${pkg.name}`);
             this.logger.warn(`   volume: ${volumeInKB} KB -> ${volumeInMB.toFixed(1)} MB -> ${volumeInGB.toFixed(2)} GB -> "${dataAmount}"`);
-            this.logger.warn(`   price: ${priceRaw} -> $${priceInUSD.toFixed(2)} -> +30% -> $${priceWithMarkup.toFixed(2)} -> ₽${priceInRUB}`);
+            this.logger.warn(`   price: ${priceRaw} -> $${priceInUSD.toFixed(2)} -> +${defaultMarkup}% -> $${priceWithMarkup.toFixed(2)} -> ₽${priceInRUB}`);
           }
           
           const productData = {
@@ -275,17 +296,21 @@ export class ProductsService implements OnModuleInit {
         }
       }
       
-      this.logger.log(`✅ [SYNC V6] Готово: ${synced} синхронизировано, ${errors} ошибок`);
+      this.logger.log(`✅ [SYNC V7] Готово: ${synced} синхронизировано, ${errors} ошибок`);
       
       return { 
         success: true,
         synced, 
         errors,
-        message: `Синхронизировано ${synced} продуктов`,
-        version: 'V6-ALL-PACKAGES',
+        message: `Синхронизировано ${synced} продуктов (курс: ${exchangeRate}₽/$, наценка: ${defaultMarkup}%)`,
+        version: 'V7-DYNAMIC-PRICING',
+        settings: {
+          exchangeRate,
+          markupPercent: defaultMarkup,
+        },
       };
     } catch (error) {
-      this.logger.error('❌ [SYNC V6] Ошибка:', error.message);
+      this.logger.error('❌ [SYNC V7] Ошибка:', error.message);
       return {
         success: false,
         synced: 0,

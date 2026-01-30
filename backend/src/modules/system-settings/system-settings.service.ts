@@ -88,4 +88,46 @@ export class SystemSettingsService {
       enabled: enabled ? enabled.value === 'true' : true,
     };
   }
+
+  // =====================================================
+  // НАСТРОЙКИ ЦЕНООБРАЗОВАНИЯ
+  // =====================================================
+
+  /**
+   * Получить настройки ценообразования
+   */
+  async getPricingSettings() {
+    const [exchangeRate, defaultMarkup] = await Promise.all([
+      this.getByKey('EXCHANGE_RATE_USD_RUB'),
+      this.getByKey('DEFAULT_MARKUP_PERCENT'),
+    ]);
+
+    return {
+      exchangeRate: exchangeRate ? parseFloat(exchangeRate.value) : 95,
+      defaultMarkupPercent: defaultMarkup ? parseFloat(defaultMarkup.value) : 30,
+    };
+  }
+
+  /**
+   * Обновить настройки ценообразования
+   */
+  async updatePricingSettings(data: {
+    exchangeRate: number;
+    defaultMarkupPercent: number;
+  }) {
+    await Promise.all([
+      this.upsert(
+        'EXCHANGE_RATE_USD_RUB',
+        data.exchangeRate.toString(),
+        'Курс USD/RUB для расчета цен'
+      ),
+      this.upsert(
+        'DEFAULT_MARKUP_PERCENT',
+        data.defaultMarkupPercent.toString(),
+        'Наценка по умолчанию при синхронизации (%)'
+      ),
+    ]);
+
+    return { success: true, data };
+  }
 }
