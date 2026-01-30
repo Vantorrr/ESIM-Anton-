@@ -209,6 +209,23 @@ export default function Products() {
     }
   }
 
+  const handleBulkToggleByType = async (tariffType: 'standard' | 'unlimited', isActive: boolean) => {
+    const typeName = tariffType === 'unlimited' ? 'безлимитные' : 'стандартные'
+    const action = isActive ? 'включить' : 'выключить'
+    
+    if (!confirm(`${isActive ? '🟢' : '🔴'} Вы уверены, что хотите ${action} ВСЕ ${typeName} тарифы?`)) {
+      return
+    }
+    
+    try {
+      const response = await productsApi.bulkToggleByType(tariffType, isActive)
+      alert(`✅ ${response.data.message}`)
+      loadProducts()
+    } catch (err: any) {
+      alert('❌ Ошибка: ' + (err.response?.data?.message || err.message))
+    }
+  }
+
   const handleBulkSetBadge = async () => {
     if (selectedIds.size === 0) return
     try {
@@ -376,8 +393,54 @@ export default function Products() {
           <span>Показано: <strong className="text-slate-700">{filteredProducts.length}</strong></span>
           <span>Активных: <strong className="text-green-600">{filteredProducts.filter(p => p.isActive).length}</strong></span>
           <span>Скрытых: <strong className="text-slate-400">{filteredProducts.filter(p => !p.isActive).length}</strong></span>
-          <span className="border-l border-slate-300 pl-4">📊 Стандартных: <strong className="text-blue-600">{filteredProducts.filter(p => !p.isUnlimited).length}</strong></span>
-          <span>♾️ Безлимитных: <strong className="text-purple-600">{filteredProducts.filter(p => p.isUnlimited).length}</strong></span>
+          <span className="border-l border-slate-300 pl-4">📊 Стандартных: <strong className="text-blue-600">{products.filter(p => !p.isUnlimited).length}</strong></span>
+          <span>♾️ Безлимитных: <strong className="text-purple-600">{products.filter(p => p.isUnlimited).length}</strong></span>
+        </div>
+
+        {/* Быстрые действия по типу тарифа */}
+        <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <h4 className="font-semibold text-slate-700 mb-3">⚡ Быстрые действия (одной кнопкой)</h4>
+          <div className="flex gap-3 flex-wrap">
+            {/* Стандартные тарифы */}
+            <div className="flex gap-2 items-center">
+              <span className="text-sm text-slate-600 font-medium">📊 Стандартные:</span>
+              <button
+                onClick={() => handleBulkToggleByType('standard', true)}
+                className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-all flex items-center gap-1"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Включить все
+              </button>
+              <button
+                onClick={() => handleBulkToggleByType('standard', false)}
+                className="px-3 py-1.5 bg-slate-400 text-white rounded-lg text-sm font-medium hover:bg-slate-500 transition-all flex items-center gap-1"
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+                Выключить все
+              </button>
+            </div>
+
+            <div className="w-px bg-slate-300 mx-2"></div>
+
+            {/* Безлимитные тарифы */}
+            <div className="flex gap-2 items-center">
+              <span className="text-sm text-slate-600 font-medium">♾️ Безлимитные:</span>
+              <button
+                onClick={() => handleBulkToggleByType('unlimited', true)}
+                className="px-3 py-1.5 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 transition-all flex items-center gap-1"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Включить все
+              </button>
+              <button
+                onClick={() => handleBulkToggleByType('unlimited', false)}
+                className="px-3 py-1.5 bg-slate-400 text-white rounded-lg text-sm font-medium hover:bg-slate-500 transition-all flex items-center gap-1"
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+                Выключить все
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

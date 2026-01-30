@@ -36,6 +36,13 @@ export class ProductsController {
     return this.productsService.bulkUpdateActive(body.ids, body.isActive);
   }
 
+  @Post('bulk/toggle-by-type')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Включить/выключить все тарифы по типу (стандартные/безлимитные)' })
+  async bulkToggleByType(@Body() body: { tariffType: 'standard' | 'unlimited'; isActive: boolean }) {
+    return this.productsService.bulkToggleByType(body.tariffType, body.isActive);
+  }
+
   @Post('bulk/set-badge')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Массовая установка бейджа' })

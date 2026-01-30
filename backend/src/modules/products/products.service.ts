@@ -82,6 +82,31 @@ export class ProductsService implements OnModuleInit {
   }
 
   /**
+   * Включить/выключить ВСЕ тарифы по типу (стандартные или безлимитные)
+   */
+  async bulkToggleByType(tariffType: 'standard' | 'unlimited', isActive: boolean) {
+    const isUnlimited = tariffType === 'unlimited';
+    const typeName = isUnlimited ? 'безлимитных' : 'стандартных';
+    
+    this.logger.log(`🔄 ${isActive ? 'Включение' : 'Выключение'} ВСЕХ ${typeName} тарифов...`);
+    
+    const result = await this.prisma.esimProduct.updateMany({
+      where: { isUnlimited },
+      data: { isActive },
+    });
+
+    this.logger.log(`✅ ${isActive ? 'Включено' : 'Выключено'} ${result.count} ${typeName} тарифов`);
+    
+    return {
+      success: true,
+      updated: result.count,
+      tariffType,
+      isActive,
+      message: `${isActive ? 'Включено' : 'Выключено'} ${result.count} ${typeName} тарифов`,
+    };
+  }
+
+  /**
    * Массовая установка бейджа
    */
   async bulkSetBadge(ids: string[], badge: string | null, badgeColor: string | null) {

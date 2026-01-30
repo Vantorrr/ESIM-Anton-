@@ -44,6 +44,8 @@ export const productsApi = {
   // Массовые операции
   bulkToggleActive: (ids: string[], isActive: boolean) => 
     api.post('/products/bulk/toggle-active', { ids, isActive }),
+  bulkToggleByType: (tariffType: 'standard' | 'unlimited', isActive: boolean) =>
+    api.post('/products/bulk/toggle-by-type', { tariffType, isActive }),
   bulkSetBadge: (ids: string[], badge: string | null, badgeColor: string | null) => 
     api.post('/products/bulk/set-badge', { ids, badge, badgeColor }),
   bulkSetMarkup: (ids: string[], markupPercent: number) => 
