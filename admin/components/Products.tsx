@@ -17,6 +17,7 @@ export default function Products() {
   // Фильтры
   const [selectedCountry, setSelectedCountry] = useState<string>('')
   const [showActiveOnly, setShowActiveOnly] = useState<boolean | null>(null)
+  const [tariffType, setTariffType] = useState<'all' | 'standard' | 'unlimited'>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
   // Массовый выбор
@@ -49,6 +50,13 @@ export default function Products() {
       result = result.filter(p => p.isActive === showActiveOnly)
     }
 
+    // Фильтр по типу тарифа (стандартный/безлимитный)
+    if (tariffType === 'standard') {
+      result = result.filter(p => !p.isUnlimited)
+    } else if (tariffType === 'unlimited') {
+      result = result.filter(p => p.isUnlimited)
+    }
+
     // Поиск по названию
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
@@ -60,7 +68,7 @@ export default function Products() {
     }
 
     setFilteredProducts(result)
-  }, [products, selectedCountry, showActiveOnly, searchQuery])
+  }, [products, selectedCountry, showActiveOnly, tariffType, searchQuery])
 
   const loadProducts = async () => {
     try {
@@ -287,7 +295,7 @@ export default function Products() {
           <Filter className="w-5 h-5 text-slate-500" />
           <h3 className="font-semibold text-lg">Фильтры</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Поиск */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -335,11 +343,26 @@ export default function Products() {
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
 
+          {/* Фильтр по типу тарифа */}
+          <div className="relative">
+            <select
+              value={tariffType}
+              onChange={(e) => setTariffType(e.target.value as 'all' | 'standard' | 'unlimited')}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all appearance-none bg-white"
+            >
+              <option value="all">📦 Все типы тарифов</option>
+              <option value="standard">📊 Стандартные (с лимитом ГБ)</option>
+              <option value="unlimited">♾️ Безлимитные (Day Pass)</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
+
           {/* Сброс фильтров */}
           <button
             onClick={() => {
               setSelectedCountry('')
               setShowActiveOnly(null)
+              setTariffType('all')
               setSearchQuery('')
             }}
             className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all"
@@ -349,10 +372,12 @@ export default function Products() {
         </div>
 
         {/* Статистика по фильтру */}
-        <div className="mt-4 flex gap-4 text-sm text-slate-500">
+        <div className="mt-4 flex gap-4 flex-wrap text-sm text-slate-500">
           <span>Показано: <strong className="text-slate-700">{filteredProducts.length}</strong></span>
           <span>Активных: <strong className="text-green-600">{filteredProducts.filter(p => p.isActive).length}</strong></span>
           <span>Скрытых: <strong className="text-slate-400">{filteredProducts.filter(p => !p.isActive).length}</strong></span>
+          <span className="border-l border-slate-300 pl-4">📊 Стандартных: <strong className="text-blue-600">{filteredProducts.filter(p => !p.isUnlimited).length}</strong></span>
+          <span>♾️ Безлимитных: <strong className="text-purple-600">{filteredProducts.filter(p => p.isUnlimited).length}</strong></span>
         </div>
       </div>
 
@@ -442,6 +467,7 @@ export default function Products() {
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Страна</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Название</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Тип</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Трафик</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Срок</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Цена провайдера</th>
@@ -480,6 +506,17 @@ export default function Products() {
                         {product.region && <div className="text-xs text-slate-500">{product.region}</div>}
                       </td>
                       <td className="py-3 px-4 text-sm">{product.name}</td>
+                      <td className="py-3 px-4">
+                        {product.isUnlimited ? (
+                          <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                            ♾️ Безлимит
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                            📊 Стандарт
+                          </span>
+                        )}
+                      </td>
                       <td className="py-3 px-4">{product.dataAmount}</td>
                       <td className="py-3 px-4">{product.validityDays} дн</td>
                       <td className="py-3 px-4 text-slate-500 text-sm">
