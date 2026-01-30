@@ -26,7 +26,8 @@ export class ProductsService implements OnModuleInit {
 
   async findAll(filters?: { country?: string; isActive?: boolean }) {
     const where: Prisma.EsimProductWhereInput = {
-      isActive: filters?.isActive ?? true,
+      // Если isActive не указан явно - возвращаем ВСЕ продукты (для админки)
+      ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
       ...(filters?.country && { country: filters.country }),
     };
 
@@ -37,14 +38,95 @@ export class ProductsService implements OnModuleInit {
   }
 
   async getCountries() {
+    // Возвращаем ВСЕ страны (включая неактивные продукты) для админки
     const products = await this.prisma.esimProduct.findMany({
-      where: { isActive: true },
       select: { country: true },
       distinct: ['country'],
       orderBy: { country: 'asc' },
     });
 
     return products.map((p) => p.country);
+  }
+
+  // =====================================================
+  // МАССОВЫЕ ОПЕРАЦИИ
+  // =====================================================
+
+  /**
+   * Массовое включение/выключение продуктов
+   */
+  async bulkUpdateActive(ids: string[], isActive: boolean) {
+    this.logger.log(`🔄 Массовое ${isActive ? 'включение' : 'выключение'} ${ids.length} продуктов...`);
+    
+    const result = await this.prisma.esimProduct.updateMany({
+      where: { id: { in: ids } },
+      data: { isActive },
+    });
+
+    this.logger.log(`✅ Обновлено ${result.count} продуктов`);
+    
+    return {
+      success: true,
+      updated: result.count,
+      message: `${isActive ? 'Активировано' : 'Деактивировано'} ${result.count} продуктов`,
+    };
+  }
+
+  /**
+   * Массовая установка бейджа
+   */
+  async bulkSetBadge(ids: string[], badge: string | null, badgeColor: string | null) {
+    this.logger.log(`🏷️ Массовая установка бейджа "${badge}" для ${ids.length} продуктов...`);
+    
+    const result = await this.prisma.esimProduct.updateMany({
+      where: { id: { in: ids } },
+      data: { badge, badgeColor },
+    });
+
+    this.logger.log(`✅ Обновлено ${result.count} продуктов`);
+    
+    return {
+      success: true,
+      updated: result.count,
+      message: badge 
+        ? `Бейдж "${badge}" установлен для ${result.count} продуктов`
+        : `Бейдж удален у ${result.count} продуктов`,
+    };
+  }
+
+  /**
+   * Массовая установка наценки (пересчет ourPrice)
+   */
+  async bulkSetMarkup(ids: string[], markupPercent: number) {
+    this.logger.log(`💰 Массовая установка наценки ${markupPercent}% для ${ids.length} продуктов...`);
+    
+    // Получаем все продукты
+    const products = await this.prisma.esimProduct.findMany({
+      where: { id: { in: ids } },
+    });
+
+    const exchangeRate = 95; // Курс USD/RUB
+    let updated = 0;
+
+    for (const product of products) {
+      const providerPriceUSD = Number(product.providerPrice) / 100; // центы -> доллары
+      const priceWithMarkup = providerPriceUSD * (1 + markupPercent / 100);
+      const newPrice = Math.round(priceWithMarkup * exchangeRate);
+
+      await this.prisma.esimProduct.update({
+        where: { id: product.id },
+        data: { ourPrice: newPrice },
+      });
+      updated++;
+    }
+
+    this.logger.log(`✅ Обновлено ${updated} продуктов с наценкой ${markupPercent}%`);
+    
+    return {
+      success: true,
+      updated,
+      message: `Наценка ${markupPercent}% применена к ${updated} продуктам`,
+    };
   }
 
   async findByCountry(country: string) {

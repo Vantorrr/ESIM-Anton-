@@ -2,18 +2,65 @@
 
 import { useEffect, useState } from 'react'
 import { productsApi } from '@/lib/api'
-import { Package, Plus, Edit2, Eye, EyeOff, RefreshCw } from 'lucide-react'
+import { Package, Plus, Edit2, Eye, EyeOff, RefreshCw, Check, X, Tag, Percent, Filter, ChevronDown, Search } from 'lucide-react'
 
 export default function Products() {
   const [products, setProducts] = useState<any[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
+  const [countries, setCountries] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingProduct, setEditingProduct] = useState<any>(null)
   const [isCreating, setIsCreating] = useState(false)
 
+  // Фильтры
+  const [selectedCountry, setSelectedCountry] = useState<string>('')
+  const [showActiveOnly, setShowActiveOnly] = useState<boolean | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Массовый выбор
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showBulkActions, setShowBulkActions] = useState(false)
+
+  // Модальные окна для массовых действий
+  const [showBulkBadgeModal, setShowBulkBadgeModal] = useState(false)
+  const [showBulkMarkupModal, setShowBulkMarkupModal] = useState(false)
+  const [bulkBadge, setBulkBadge] = useState('')
+  const [bulkBadgeColor, setBulkBadgeColor] = useState('')
+  const [bulkMarkup, setBulkMarkup] = useState(30)
+
   useEffect(() => {
     loadProducts()
+    loadCountries()
   }, [])
+
+  // Фильтрация продуктов
+  useEffect(() => {
+    let result = [...products]
+
+    // Фильтр по стране
+    if (selectedCountry) {
+      result = result.filter(p => p.country === selectedCountry)
+    }
+
+    // Фильтр по активности
+    if (showActiveOnly !== null) {
+      result = result.filter(p => p.isActive === showActiveOnly)
+    }
+
+    // Поиск по названию
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(p => 
+        p.name?.toLowerCase().includes(query) ||
+        p.country?.toLowerCase().includes(query) ||
+        p.dataAmount?.toLowerCase().includes(query)
+      )
+    }
+
+    setFilteredProducts(result)
+  }, [products, selectedCountry, showActiveOnly, searchQuery])
 
   const loadProducts = async () => {
     try {
@@ -21,7 +68,6 @@ export default function Products() {
       setError(null)
       const response = await productsApi.getAll()
       
-      // Пробуем разные форматы ответа
       const data = Array.isArray(response.data) 
         ? response.data 
         : response.data?.data || response.data?.products || []
@@ -29,10 +75,34 @@ export default function Products() {
       setProducts(data)
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || err.message || 'Ошибка загрузки'
-      setError(`Ошибка: ${errorMsg}. URL: ${err.config?.url || 'unknown'}`)
+      setError(`Ошибка: ${errorMsg}`)
       console.error('❌ Ошибка загрузки продуктов:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadCountries = async () => {
+    try {
+      const response = await productsApi.getCountries()
+      const data = Array.isArray(response.data) ? response.data : []
+      setCountries(data)
+    } catch (err) {
+      console.error('❌ Ошибка загрузки стран:', err)
+    }
+  }
+
+  const handleSync = async () => {
+    try {
+      setSyncing(true)
+      const response = await productsApi.sync()
+      alert(`✅ ${response.data.message}`)
+      loadProducts()
+      loadCountries()
+    } catch (err: any) {
+      alert('❌ Ошибка синхронизации: ' + (err.response?.data?.message || err.message))
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -85,6 +155,87 @@ export default function Products() {
     }
   }
 
+  // =====================================================
+  // МАССОВЫЕ ОПЕРАЦИИ
+  // =====================================================
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === filteredProducts.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredProducts.map(p => p.id)))
+    }
+  }
+
+  const handleSelectOne = (id: string) => {
+    const newSet = new Set(selectedIds)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    setSelectedIds(newSet)
+  }
+
+  const handleBulkActivate = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      const response = await productsApi.bulkToggleActive(Array.from(selectedIds), true)
+      alert(`✅ ${response.data.message}`)
+      setSelectedIds(new Set())
+      loadProducts()
+    } catch (err: any) {
+      alert('❌ Ошибка: ' + (err.response?.data?.message || err.message))
+    }
+  }
+
+  const handleBulkDeactivate = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      const response = await productsApi.bulkToggleActive(Array.from(selectedIds), false)
+      alert(`✅ ${response.data.message}`)
+      setSelectedIds(new Set())
+      loadProducts()
+    } catch (err: any) {
+      alert('❌ Ошибка: ' + (err.response?.data?.message || err.message))
+    }
+  }
+
+  const handleBulkSetBadge = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      const badge = bulkBadge.trim() || null
+      const badgeColor = bulkBadgeColor || null
+      const response = await productsApi.bulkSetBadge(Array.from(selectedIds), badge, badgeColor)
+      alert(`✅ ${response.data.message}`)
+      setShowBulkBadgeModal(false)
+      setBulkBadge('')
+      setBulkBadgeColor('')
+      setSelectedIds(new Set())
+      loadProducts()
+    } catch (err: any) {
+      alert('❌ Ошибка: ' + (err.response?.data?.message || err.message))
+    }
+  }
+
+  const handleBulkSetMarkup = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      const response = await productsApi.bulkSetMarkup(Array.from(selectedIds), bulkMarkup)
+      alert(`✅ ${response.data.message}`)
+      setShowBulkMarkupModal(false)
+      setBulkMarkup(30)
+      setSelectedIds(new Set())
+      loadProducts()
+    } catch (err: any) {
+      alert('❌ Ошибка: ' + (err.response?.data?.message || err.message))
+    }
+  }
+
+  const clearSelection = () => {
+    setSelectedIds(new Set())
+  }
+
   if (loading) {
     return (
       <div className="glass-card p-8">
@@ -97,28 +248,162 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
-      {/* Кнопка добавить */}
+      {/* Панель управления */}
       <div className="glass-card p-6">
-        <div className="flex gap-4 flex-wrap items-center">
-          <button
-            onClick={handleCreate}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
-          >
-            <Plus className="w-5 h-5" />
-            Добавить продукт
-          </button>
-          <button
-            onClick={loadProducts}
-            className="flex items-center gap-2 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-all"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Обновить
-          </button>
-          <p className="text-sm text-slate-500">
-            Продукты синхронизируются автоматически при запуске сервера
-          </p>
+        <div className="flex gap-4 flex-wrap items-center justify-between">
+          <div className="flex gap-3 flex-wrap">
+            <button
+              onClick={handleCreate}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Добавить
+            </button>
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Синхронизация...' : 'Синхронизировать с провайдером'}
+            </button>
+            <button
+              onClick={loadProducts}
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-all"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Обновить
+            </button>
+          </div>
+          <div className="text-sm text-slate-500">
+            Всего: <span className="font-bold text-slate-700">{products.length}</span> тарифов
+          </div>
         </div>
       </div>
+
+      {/* Фильтры */}
+      <div className="glass-card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Filter className="w-5 h-5 text-slate-500" />
+          <h3 className="font-semibold text-lg">Фильтры</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Поиск */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Поиск по названию..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+            />
+          </div>
+
+          {/* Фильтр по стране */}
+          <div className="relative">
+            <select
+              value={selectedCountry}
+              onChange={(e) => setSelectedCountry(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all appearance-none bg-white"
+            >
+              <option value="">Все страны ({countries.length})</option>
+              {countries.map((country) => (
+                <option key={country} value={country}>
+                  {country}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
+
+          {/* Фильтр по статусу */}
+          <div className="relative">
+            <select
+              value={showActiveOnly === null ? '' : showActiveOnly ? 'active' : 'inactive'}
+              onChange={(e) => {
+                if (e.target.value === '') setShowActiveOnly(null)
+                else if (e.target.value === 'active') setShowActiveOnly(true)
+                else setShowActiveOnly(false)
+              }}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all appearance-none bg-white"
+            >
+              <option value="">Все статусы</option>
+              <option value="active">✅ Только активные</option>
+              <option value="inactive">⏸️ Только скрытые</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
+
+          {/* Сброс фильтров */}
+          <button
+            onClick={() => {
+              setSelectedCountry('')
+              setShowActiveOnly(null)
+              setSearchQuery('')
+            }}
+            className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all"
+          >
+            Сбросить фильтры
+          </button>
+        </div>
+
+        {/* Статистика по фильтру */}
+        <div className="mt-4 flex gap-4 text-sm text-slate-500">
+          <span>Показано: <strong className="text-slate-700">{filteredProducts.length}</strong></span>
+          <span>Активных: <strong className="text-green-600">{filteredProducts.filter(p => p.isActive).length}</strong></span>
+          <span>Скрытых: <strong className="text-slate-400">{filteredProducts.filter(p => !p.isActive).length}</strong></span>
+        </div>
+      </div>
+
+      {/* Панель массовых действий */}
+      {selectedIds.size > 0 && (
+        <div className="glass-card p-4 bg-blue-50 border-blue-200 sticky top-0 z-40">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                Выбрано: {selectedIds.size}
+              </div>
+              <button
+                onClick={clearSelection}
+                className="text-sm text-slate-500 hover:text-slate-700"
+              >
+                Снять выделение
+              </button>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={handleBulkActivate}
+                className="flex items-center gap-1.5 px-4 py-2 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-all text-sm"
+              >
+                <Eye className="w-4 h-4" />
+                Активировать
+              </button>
+              <button
+                onClick={handleBulkDeactivate}
+                className="flex items-center gap-1.5 px-4 py-2 bg-slate-500 text-white rounded-lg font-medium hover:bg-slate-600 transition-all text-sm"
+              >
+                <EyeOff className="w-4 h-4" />
+                Деактивировать
+              </button>
+              <button
+                onClick={() => setShowBulkBadgeModal(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-all text-sm"
+              >
+                <Tag className="w-4 h-4" />
+                Установить бейдж
+              </button>
+              <button
+                onClick={() => setShowBulkMarkupModal(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-all text-sm"
+              >
+                <Percent className="w-4 h-4" />
+                Изменить наценку
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Ошибка */}
       {error && (
@@ -137,87 +422,231 @@ export default function Products() {
       <div className="glass-card p-6">
         <h2 className="text-2xl font-bold mb-6">Продукты (тарифы eSIM)</h2>
 
-        {products.length === 0 && !error ? (
+        {filteredProducts.length === 0 && !error ? (
           <div className="text-center py-12 text-slate-500">
             <Package className="w-16 h-16 mx-auto mb-3 opacity-30" />
-            <p className="text-lg">Пока нет продуктов</p>
+            <p className="text-lg">Нет продуктов по выбранным фильтрам</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-                <thead>
+              <thead>
                 <tr className="border-b border-slate-200">
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 rounded"
+                    />
+                  </th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Страна</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Название</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Трафик</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Срок</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Цена провайдера</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Наша цена</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Наценка</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Бейдж</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Статус</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Действия</th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
-                  <tr
-                    key={product.id}
-                    className="border-b border-slate-100 hover:bg-white/50 transition-colors"
-                  >
-                    <td className="py-4 px-4 font-medium">
-                      {product.country}
-                      {product.region && <div className="text-xs text-slate-500">{product.region}</div>}
-                    </td>
-                    <td className="py-4 px-4">{product.name}</td>
-                    <td className="py-4 px-4">{product.dataAmount}</td>
-                    <td className="py-4 px-4">{product.validityDays} дн</td>
-                    <td className="py-4 px-4 font-bold text-green-600">
-                      ₽{Number(product.ourPrice).toLocaleString()}
-                    </td>
-                    <td className="py-4 px-4">
-                      {product.badge ? (
-                        <span className={`px-2 py-1 rounded-full text-xs font-bold text-white ${
-                          product.badgeColor === 'red' ? 'bg-red-500' :
-                          product.badgeColor === 'green' ? 'bg-green-500' :
-                          product.badgeColor === 'blue' ? 'bg-blue-500' :
-                          product.badgeColor === 'orange' ? 'bg-orange-500' :
-                          'bg-purple-500'
-                        }`}>
-                          {product.badge}
+                {filteredProducts.map((product) => {
+                  const providerPriceUSD = Number(product.providerPrice) / 100
+                  const ourPriceRUB = Number(product.ourPrice)
+                  const markup = providerPriceUSD > 0 
+                    ? ((ourPriceRUB / (providerPriceUSD * 95)) - 1) * 100 
+                    : 0
+                  
+                  return (
+                    <tr
+                      key={product.id}
+                      className={`border-b border-slate-100 hover:bg-white/50 transition-colors ${
+                        selectedIds.has(product.id) ? 'bg-blue-50' : ''
+                      }`}
+                    >
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(product.id)}
+                          onChange={() => handleSelectOne(product.id)}
+                          className="w-4 h-4 rounded"
+                        />
+                      </td>
+                      <td className="py-3 px-4 font-medium">
+                        {product.country}
+                        {product.region && <div className="text-xs text-slate-500">{product.region}</div>}
+                      </td>
+                      <td className="py-3 px-4 text-sm">{product.name}</td>
+                      <td className="py-3 px-4">{product.dataAmount}</td>
+                      <td className="py-3 px-4">{product.validityDays} дн</td>
+                      <td className="py-3 px-4 text-slate-500 text-sm">
+                        ${providerPriceUSD.toFixed(2)}
+                      </td>
+                      <td className="py-3 px-4 font-bold text-green-600">
+                        ₽{ourPriceRUB.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4 text-sm">
+                        <span className={markup > 0 ? 'text-green-600' : 'text-slate-400'}>
+                          +{markup.toFixed(0)}%
                         </span>
-                      ) : (
-                        <span className="text-slate-400 text-sm">—</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4">
-                      <button
-                        onClick={() => handleToggleActive(product)}
-                        className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                          product.isActive
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {product.isActive ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                        {product.isActive ? 'Активен' : 'Скрыт'}
-                      </button>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex gap-2">
+                      </td>
+                      <td className="py-3 px-4">
+                        {product.badge ? (
+                          <span className={`px-2 py-1 rounded-full text-xs font-bold text-white ${
+                            product.badgeColor === 'red' ? 'bg-red-500' :
+                            product.badgeColor === 'green' ? 'bg-green-500' :
+                            product.badgeColor === 'blue' ? 'bg-blue-500' :
+                            product.badgeColor === 'orange' ? 'bg-orange-500' :
+                            'bg-purple-500'
+                          }`}>
+                            {product.badge}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-sm">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <button
+                          onClick={() => handleToggleActive(product)}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                            product.isActive
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {product.isActive ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                          {product.isActive ? 'Активен' : 'Скрыт'}
+                        </button>
+                      </td>
+                      <td className="py-3 px-4">
                         <button
                           onClick={() => handleEdit(product)}
                           className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
                         >
                           <Edit2 className="w-4 h-4 text-blue-600" />
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* Модальное окно - Массовый бейдж */}
+      {showBulkBadgeModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="glass-card p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-6">Установить бейдж для {selectedIds.size} продуктов</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Текст бейджа</label>
+                <input
+                  type="text"
+                  value={bulkBadge}
+                  onChange={(e) => setBulkBadge(e.target.value)}
+                  placeholder="ХИТ, -25%, NEW, АКЦИЯ..."
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                />
+                <p className="text-xs text-slate-500 mt-1">Оставьте пустым чтобы удалить бейдж</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Цвет бейджа</label>
+                <select
+                  value={bulkBadgeColor}
+                  onChange={(e) => setBulkBadgeColor(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                >
+                  <option value="">По умолчанию (фиолетовый)</option>
+                  <option value="red">🔴 Красный</option>
+                  <option value="green">🟢 Зеленый</option>
+                  <option value="blue">🔵 Синий</option>
+                  <option value="orange">🟠 Оранжевый</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleBulkSetBadge}
+                className="flex-1 px-6 py-3 bg-purple-500 text-white rounded-xl font-medium hover:bg-purple-600 transition-all"
+              >
+                Применить
+              </button>
+              <button
+                onClick={() => setShowBulkBadgeModal(false)}
+                className="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 transition-all"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно - Массовая наценка */}
+      {showBulkMarkupModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="glass-card p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-6">Изменить наценку для {selectedIds.size} продуктов</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Наценка (%)</label>
+                <input
+                  type="number"
+                  value={bulkMarkup}
+                  onChange={(e) => setBulkMarkup(Number(e.target.value))}
+                  min={0}
+                  max={500}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-2xl font-bold text-center"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Формула: (Цена провайдера USD × (1 + наценка/100)) × курс 95₽
+                </p>
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
+                {[10, 20, 30, 50, 75, 100].map((val) => (
+                  <button
+                    key={val}
+                    onClick={() => setBulkMarkup(val)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                      bulkMarkup === val 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    +{val}%
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleBulkSetMarkup}
+                className="flex-1 px-6 py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-all"
+              >
+                Применить
+              </button>
+              <button
+                onClick={() => setShowBulkMarkupModal(false)}
+                className="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 transition-all"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Форма редактирования/создания */}
       {editingProduct && (
@@ -301,13 +730,16 @@ export default function Products() {
 
               {/* Цена поставщика */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Цена поставщика (₽) *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Цена поставщика (центы) *</label>
                 <input
                   type="number"
                   value={editingProduct.providerPrice}
                   onChange={(e) => setEditingProduct({ ...editingProduct, providerPrice: +e.target.value })}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
                 />
+                <p className="text-sm text-slate-500 mt-1">
+                  = ${(Number(editingProduct.providerPrice) / 100).toFixed(2)} USD
+                </p>
               </div>
 
               {/* Наша цена */}
@@ -319,11 +751,6 @@ export default function Products() {
                   onChange={(e) => setEditingProduct({ ...editingProduct, ourPrice: +e.target.value })}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
                 />
-                <p className="text-sm text-slate-500 mt-1">
-                  Наценка: {editingProduct.providerPrice > 0 
-                    ? `${(((editingProduct.ourPrice - editingProduct.providerPrice) / editingProduct.providerPrice) * 100).toFixed(1)}%`
-                    : '0%'}
-                </p>
               </div>
 
               {/* Provider ID */}
@@ -336,9 +763,6 @@ export default function Products() {
                   placeholder="usa_5gb_30d"
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
                 />
-                <p className="text-sm text-slate-500 mt-1">
-                  ID пакета у провайдера eSIM
-                </p>
               </div>
 
               {/* Бейдж */}
@@ -351,9 +775,6 @@ export default function Products() {
                   placeholder="ХИТ, -25%, NEW"
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
                 />
-                <p className="text-sm text-slate-500 mt-1">
-                  Текст бейджа (оставьте пустым чтобы скрыть)
-                </p>
               </div>
 
               {/* Цвет бейджа */}

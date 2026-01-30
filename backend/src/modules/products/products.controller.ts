@@ -25,6 +25,31 @@ export class ProductsController {
     return this.productsService.syncWithProvider();
   }
 
+  // =====================================================
+  // МАССОВЫЕ ОПЕРАЦИИ
+  // =====================================================
+
+  @Post('bulk/toggle-active')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Массовое включение/выключение продуктов' })
+  async bulkToggleActive(@Body() body: { ids: string[]; isActive: boolean }) {
+    return this.productsService.bulkUpdateActive(body.ids, body.isActive);
+  }
+
+  @Post('bulk/set-badge')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Массовая установка бейджа' })
+  async bulkSetBadge(@Body() body: { ids: string[]; badge: string | null; badgeColor: string | null }) {
+    return this.productsService.bulkSetBadge(body.ids, body.badge, body.badgeColor);
+  }
+
+  @Post('bulk/set-markup')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Массовая установка наценки' })
+  async bulkSetMarkup(@Body() body: { ids: string[]; markupPercent: number }) {
+    return this.productsService.bulkSetMarkup(body.ids, body.markupPercent);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Получить продукт по ID' })
   async findOne(@Param('id') id: string) {

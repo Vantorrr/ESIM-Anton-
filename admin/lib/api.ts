@@ -36,11 +36,18 @@ export const ordersApi = {
 }
 
 export const productsApi = {
-  getAll: () => api.get('/products'),
+  getAll: (country?: string) => api.get('/products', { params: { country } }),
   getCountries: () => api.get('/products/countries'),
   create: (data: any) => api.post('/products', data),
   update: (id: string, data: any) => api.put(`/products/${id}`, data),
   sync: () => api.post('/products/sync'),
+  // Массовые операции
+  bulkToggleActive: (ids: string[], isActive: boolean) => 
+    api.post('/products/bulk/toggle-active', { ids, isActive }),
+  bulkSetBadge: (ids: string[], badge: string | null, badgeColor: string | null) => 
+    api.post('/products/bulk/set-badge', { ids, badge, badgeColor }),
+  bulkSetMarkup: (ids: string[], markupPercent: number) => 
+    api.post('/products/bulk/set-markup', { ids, markupPercent }),
 }
 
 export const paymentsApi = {
