@@ -1,8 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import axios from 'axios';
 
 @Injectable()
 export class SystemSettingsService {
+  private readonly logger = new Logger(SystemSettingsService.name);
+  
   constructor(private prisma: PrismaService) {}
 
   /**
@@ -129,5 +132,85 @@ export class SystemSettingsService {
     ]);
 
     return { success: true, data };
+  }
+
+  // =====================================================
+  // АВТОМАТИЧЕСКИЙ КУРС ВАЛЮТ (ЦБ РФ)
+  // =====================================================
+
+  /**
+   * Получить актуальный курс USD/RUB с ЦБ РФ
+   */
+  async fetchExchangeRateFromCBR(): Promise<{ rate: number; date: string }> {
+    try {
+      this.logger.log('💱 Запрос курса USD/RUB с ЦБ РФ...');
+      
+      // Официальный API ЦБ РФ (бесплатный, без ключа)
+      const response = await axios.get('https://www.cbr-xml-daily.ru/daily_json.js', {
+        timeout: 10000,
+      });
+      
+      const usdRate = response.data?.Valute?.USD?.Value;
+      const date = response.data?.Date;
+      
+      if (!usdRate) {
+        throw new Error('Не удалось получить курс USD');
+      }
+      
+      const rate = Math.round(usdRate * 100) / 100; // Округление до 2 знаков
+      
+      this.logger.log(`✅ Курс USD/RUB: ${rate}₽ (на ${date})`);
+      
+      return { rate, date };
+    } catch (error) {
+      this.logger.error('❌ Ошибка получения курса с ЦБ РФ:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Обновить курс в БД с ЦБ РФ
+   */
+  async updateExchangeRateFromCBR(): Promise<{ success: boolean; rate: number; date: string }> {
+    try {
+      const { rate, date } = await this.fetchExchangeRateFromCBR();
+      
+      // Сохраняем в БД
+      await this.upsert(
+        'EXCHANGE_RATE_USD_RUB',
+        rate.toString(),
+        `Курс USD/RUB (ЦБ РФ, обновлено: ${new Date().toISOString()})`
+      );
+      
+      // Сохраняем дату последнего обновления
+      await this.upsert(
+        'EXCHANGE_RATE_UPDATED_AT',
+        new Date().toISOString(),
+        'Дата последнего обновления курса'
+      );
+      
+      this.logger.log(`✅ Курс обновлен в БД: ${rate}₽`);
+      
+      return { success: true, rate, date };
+    } catch (error) {
+      this.logger.error('❌ Ошибка обновления курса:', error.message);
+      return { success: false, rate: 0, date: '' };
+    }
+  }
+
+  /**
+   * Получить информацию о курсе (текущий + когда обновлен)
+   */
+  async getExchangeRateInfo() {
+    const [rateSetting, updatedAtSetting] = await Promise.all([
+      this.getByKey('EXCHANGE_RATE_USD_RUB'),
+      this.getByKey('EXCHANGE_RATE_UPDATED_AT'),
+    ]);
+
+    return {
+      rate: rateSetting ? parseFloat(rateSetting.value) : 95,
+      updatedAt: updatedAtSetting?.value || null,
+      source: 'ЦБ РФ',
+    };
   }
 }

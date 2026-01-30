@@ -8,12 +8,14 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState<'pricing' | 'referrals' | 'loyalty'>('pricing')
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
+  const [updatingRate, setUpdatingRate] = useState(false)
 
   // Настройки ценообразования
   const [pricingSettings, setPricingSettings] = useState({
     exchangeRate: 95,
     defaultMarkupPercent: 30,
   })
+  const [rateUpdatedAt, setRateUpdatedAt] = useState<string | null>(null)
 
   // Реферальная программа
   const [referralSettings, setReferralSettings] = useState({
@@ -35,9 +37,15 @@ export default function Settings() {
       setLoading(true)
       
       if (activeTab === 'pricing') {
-        const response = await systemSettingsApi.getPricingSettings()
-        if (response.data) {
-          setPricingSettings(response.data)
+        const [pricingResponse, rateInfoResponse] = await Promise.all([
+          systemSettingsApi.getPricingSettings(),
+          systemSettingsApi.getExchangeRateInfo(),
+        ])
+        if (pricingResponse.data) {
+          setPricingSettings(pricingResponse.data)
+        }
+        if (rateInfoResponse.data?.updatedAt) {
+          setRateUpdatedAt(rateInfoResponse.data.updatedAt)
         }
       } else if (activeTab === 'referrals') {
         const response = await systemSettingsApi.getReferralSettings()
@@ -77,6 +85,25 @@ export default function Settings() {
       alert('❌ Ошибка синхронизации: ' + (error.response?.data?.message || error.message))
     } finally {
       setSyncing(false)
+    }
+  }
+
+  const handleUpdateRateFromCBR = async () => {
+    try {
+      setUpdatingRate(true)
+      const response = await systemSettingsApi.updateExchangeRateFromCBR()
+      if (response.data.success) {
+        setPricingSettings(prev => ({ ...prev, exchangeRate: response.data.rate }))
+        setRateUpdatedAt(new Date().toISOString())
+        alert(`✅ Курс обновлен: ${response.data.rate}₽ за $1 (ЦБ РФ)`)
+      } else {
+        alert('❌ Не удалось получить курс с ЦБ РФ')
+      }
+    } catch (error: any) {
+      console.error('Ошибка обновления курса:', error)
+      alert('❌ Ошибка: ' + (error.response?.data?.message || error.message))
+    } finally {
+      setUpdatingRate(false)
     }
   }
 
@@ -194,7 +221,7 @@ export default function Settings() {
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Курс USD/RUB
               </label>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <input
@@ -208,10 +235,23 @@ export default function Settings() {
                   />
                 </div>
                 <span className="text-lg font-bold text-slate-700">₽ за $1</span>
+                <button
+                  onClick={handleUpdateRateFromCBR}
+                  disabled={updatingRate}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${updatingRate ? 'animate-spin' : ''}`} />
+                  {updatingRate ? 'Загрузка...' : 'Обновить с ЦБ РФ'}
+                </button>
               </div>
               <p className="text-sm text-slate-500 mt-2">
                 Используется для пересчета цен от поставщика (в $) в рубли
               </p>
+              {rateUpdatedAt && (
+                <p className="text-xs text-green-600 mt-1">
+                  ✅ Последнее обновление: {new Date(rateUpdatedAt).toLocaleString('ru-RU')}
+                </p>
+              )}
             </div>
 
             {/* Наценка по умолчанию */}

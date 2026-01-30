@@ -81,4 +81,7 @@ export const systemSettingsApi = {
   getPricingSettings: () => api.get('/system-settings/pricing'),
   updatePricingSettings: (data: { exchangeRate: number; defaultMarkupPercent: number }) => 
     api.post('/system-settings/pricing', data),
+  // Автоматический курс ЦБ РФ
+  getExchangeRateInfo: () => api.get('/system-settings/exchange-rate'),
+  updateExchangeRateFromCBR: () => api.post('/system-settings/exchange-rate/update'),
 }

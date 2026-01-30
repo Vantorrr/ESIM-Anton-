@@ -42,6 +42,18 @@ export class SystemSettingsController {
     return this.systemSettingsService.updatePricingSettings(data);
   }
 
+  @Get('exchange-rate')
+  @ApiOperation({ summary: 'Получить информацию о курсе валют' })
+  async getExchangeRateInfo() {
+    return this.systemSettingsService.getExchangeRateInfo();
+  }
+
+  @Post('exchange-rate/update')
+  @ApiOperation({ summary: 'Обновить курс с ЦБ РФ' })
+  async updateExchangeRate() {
+    return this.systemSettingsService.updateExchangeRateFromCBR();
+  }
+
   @Get(':key')
   @ApiOperation({ summary: 'Получить настройку по ключу' })
   async getByKey(@Param('key') key: string) {
