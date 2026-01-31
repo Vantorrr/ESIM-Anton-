@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { ArrowLeft, Share2 } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
-import { formatPrice, formatDataAmount, getCountryEmoji } from '@/lib/utils'
+import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
 
 export default function CountryPage() {
   const params = useParams()
@@ -72,8 +72,12 @@ export default function CountryPage() {
             <ArrowLeft size={24} />
           </button>
           <div className="flex items-center gap-2">
-            <span className="text-2xl">{getCountryEmoji(country)}</span>
-            <span className="font-semibold text-lg">{country}</span>
+            {getFlagUrl(country) ? (
+              <img src={getFlagUrl(country)} alt={getCountryName(country)} className="w-8 h-auto rounded shadow-sm" />
+            ) : (
+              <span className="text-2xl">🌍</span>
+            )}
+            <span className="font-semibold text-lg">{getCountryName(country)}</span>
           </div>
           <button 
             onClick={handleShare}

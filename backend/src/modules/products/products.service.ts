@@ -23,14 +23,10 @@ export class ProductsService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    setTimeout(async () => {
-      try {
-        this.logger.log('🚀 Автоматическая синхронизация тарифов...');
-        await this.syncWithProvider();
-      } catch (error) {
-        this.logger.error('❌ Ошибка автосинхронизации:', error.message);
-      }
-    }, 5000);
+    // Автосинхронизация отключена - данные уже в БД
+    // Синхронизация запускается вручную через POST /api/products/sync
+    const count = await this.prisma.esimProduct.count();
+    this.logger.log(`📦 В базе ${count} продуктов. Автосинхронизация отключена.`);
   }
 
   async findAll(filters?: { country?: string; isActive?: boolean }) {
@@ -216,7 +212,7 @@ export class ProductsService implements OnModuleInit {
    * dataType: 1 = standard, 2 = unlimited/day pass
    */
   async syncWithProvider() {
-    this.logger.log('🔄 [SYNC V9] Начало синхронизации...');
+    this.logger.log('🔄 [SYNC V10] Начало синхронизации (dataType=1 и dataType=2)...');
     
     try {
       // Получаем настройки ценообразования из БД
@@ -227,26 +223,38 @@ export class ProductsService implements OnModuleInit {
       
       this.logger.log(`📊 Настройки: курс=${exchangeRate}₽/$, наценка=${defaultMarkup}%`);
       
-      // Получаем ВСЕ пакеты одним запросом (надежнее)
-      const allPackagesRaw = await this.esimProviderService.getPackages();
+      // Делаем 2 запроса с правильным параметром dataType (из документации eSIM Access)
+      // dataType=1 для стандартных, dataType=2 для Day Pass/Unlimited
+      let standardPackages: any[] = [];
+      let unlimitedPackages: any[] = [];
       
-      if (!allPackagesRaw || allPackagesRaw.length === 0) {
+      try {
+        this.logger.log('📦 Запрос стандартных тарифов (dataType=1)...');
+        standardPackages = await this.esimProviderService.getPackages(undefined, 1) || [];
+        this.logger.log(`✅ Стандартных получено: ${standardPackages.length}`);
+      } catch (err) {
+        this.logger.warn(`⚠️ Ошибка получения стандартных: ${err.message}`);
+      }
+      
+      try {
+        this.logger.log('📦 Запрос Day Pass/Unlimited тарифов (dataType=2)...');
+        unlimitedPackages = await this.esimProviderService.getPackages(undefined, 2) || [];
+        this.logger.log(`✅ Day Pass получено: ${unlimitedPackages.length}`);
+      } catch (err) {
+        this.logger.warn(`⚠️ Ошибка получения Day Pass: ${err.message}`);
+      }
+      
+      // Объединяем с маркировкой типа
+      const allPackages = [
+        ...standardPackages.map(p => ({ ...p, isUnlimitedFlag: false })),
+        ...unlimitedPackages.map(p => ({ ...p, isUnlimitedFlag: true })),
+      ];
+      
+      if (allPackages.length === 0) {
         return { success: false, synced: 0, errors: 1, message: 'API провайдера не вернул тарифы. Проверьте баланс и API ключи.' };
       }
       
-      // Определяем тип по имени тарифа (если содержит "Day" или "Unlimited" - безлимитный)
-      const allPackages = allPackagesRaw.map(p => ({
-        ...p,
-        isUnlimitedFlag: (p.name?.toLowerCase().includes('day') || 
-                          p.name?.toLowerCase().includes('unlimited') ||
-                          p.name?.toLowerCase().includes('/day') ||
-                          p.durationUnit?.toLowerCase() === 'day'),
-      }));
-      
-      const standardCount = allPackages.filter(p => !p.isUnlimitedFlag).length;
-      const unlimitedCount = allPackages.filter(p => p.isUnlimitedFlag).length;
-      
-      this.logger.log(`📦 Всего: ${allPackages.length} тарифов (${standardCount} стандартных + ${unlimitedCount} безлимитных)`);
+      this.logger.log(`📦 Всего: ${allPackages.length} (${standardPackages.length} стандартных + ${unlimitedPackages.length} Day Pass)`);
       
       if (!allPackages || allPackages.length === 0) {
         return { success: false, synced: 0, errors: 1, message: 'Не удалось получить список пакетов' };
@@ -261,16 +269,16 @@ export class ProductsService implements OnModuleInit {
       for (const pkg of packages) {
         try {
           // ============================================
-          // КОНВЕРТАЦИЯ ОБЪЁМА (volume в KB -> GB/MB)
+          // КОНВЕРТАЦИЯ ОБЪЁМА (volume в БАЙТАХ -> GB/MB)
           // ============================================
-          // API возвращает volume в КИЛОБАЙТАХ!
-          // 512000 KB = 500 MB
-          // 1048576 KB = 1024 MB = 1 GB
-          // 20971520 KB = 20480 MB = 20 GB
+          // API возвращает volume в БАЙТАХ!
+          // 524288000 bytes = 500 MB
+          // 1073741824 bytes = 1 GB
+          // 10737418240 bytes = 10 GB
           
-          const volumeInKB = Number(pkg.volume) || 0;
-          const volumeInMB = volumeInKB / 1024;
-          const volumeInGB = volumeInMB / 1024;
+          const volumeInBytes = Number(pkg.volume) || 0;
+          const volumeInMB = volumeInBytes / (1024 * 1024);
+          const volumeInGB = volumeInBytes / (1024 * 1024 * 1024);
           
           let dataAmount: string;
           if (volumeInGB >= 1) {
@@ -284,25 +292,30 @@ export class ProductsService implements OnModuleInit {
           // ============================================
           // КОНВЕРТАЦИЯ ЦЕНЫ (из настроек БД!)
           // ============================================
-          // API eSIM Access: price в центах USD
-          // Пример: 350 = $3.50
+          // API eSIM Access: price в сотых центах (1/10000 доллара)
+          // Пример: 86500 = $8.65
           
           const priceRaw = Number(pkg.price) || 0;
-          const priceInUSD = priceRaw / 100;  // центы -> доллары
+          const priceInUSD = priceRaw / 10000;  // сотые центы -> доллары
           const priceWithMarkup = priceInUSD * markupMultiplier;
           const priceInRUB = Math.round(priceWithMarkup * exchangeRate);
           
           // DEBUG: первый пакет
           if (synced === 0) {
-            this.logger.warn(`🔍 [SYNC V7] Первый пакет:`);
+            this.logger.warn(`🔍 [SYNC V11] Первый пакет:`);
             this.logger.warn(`   name: ${pkg.name}`);
-            this.logger.warn(`   volume: ${volumeInKB} KB -> ${volumeInMB.toFixed(1)} MB -> ${volumeInGB.toFixed(2)} GB -> "${dataAmount}"`);
-            this.logger.warn(`   price: ${priceRaw} -> $${priceInUSD.toFixed(2)} -> +${defaultMarkup}% -> $${priceWithMarkup.toFixed(2)} -> ₽${priceInRUB}`);
+            this.logger.warn(`   volume: ${volumeInBytes} bytes -> ${volumeInMB.toFixed(1)} MB -> ${volumeInGB.toFixed(2)} GB -> "${dataAmount}"`);
+            this.logger.warn(`   price: ${priceRaw} / 10000 = $${priceInUSD.toFixed(2)} -> +${defaultMarkup}% -> $${priceWithMarkup.toFixed(2)} -> ₽${priceInRUB}`);
           }
+          
+          // Определяем isUnlimited по названию (содержит /Day или Daily = Day Pass)
+          const pkgName = pkg.name || pkg.slug || '';
+          const isUnlimitedByName = pkgName.toLowerCase().includes('/day') || 
+                                     pkgName.toLowerCase().includes('daily');
           
           const productData = {
             country: pkg.locationCode || pkg.location || 'Unknown',
-            name: pkg.name || pkg.slug,
+            name: pkgName,
             description: `${dataAmount} на ${pkg.duration} дней`,
             dataAmount: dataAmount,
             validityDays: pkg.duration,
@@ -310,7 +323,7 @@ export class ProductsService implements OnModuleInit {
             ourPrice: priceInRUB,
             providerId: pkg.packageCode,
             providerName: 'esimaccess',
-            isUnlimited: (pkg as any).isUnlimitedFlag === true,  // Из нашей маркировки
+            isUnlimited: isUnlimitedByName,  // По названию, а не по источнику
             isActive: true,
           };
           
@@ -337,17 +350,17 @@ export class ProductsService implements OnModuleInit {
       }
       
       // Считаем сколько стандартных и безлимитных из синхронизированных
-      const syncedStandard = allPackages.filter(p => !p.isUnlimitedFlag).length;
-      const syncedUnlimited = allPackages.filter(p => p.isUnlimitedFlag).length;
+      const syncedStandard = standardPackages.length;
+      const syncedUnlimited = unlimitedPackages.length;
       
-      this.logger.log(`✅ [SYNC V9] Готово: ${synced} синхронизировано (${syncedStandard} стандартных + ${syncedUnlimited} безлимитных), ${errors} ошибок`);
+      this.logger.log(`✅ [SYNC V10] Готово: ${synced} синхронизировано (${syncedStandard} стандартных + ${syncedUnlimited} Day Pass), ${errors} ошибок`);
       
       return { 
         success: true,
         synced, 
         errors,
-        message: `Синхронизировано ${synced} продуктов: ${syncedStandard} стандартных + ${syncedUnlimited} безлимитных (курс: ${exchangeRate}₽/$)`,
-        version: 'V9-AUTO-DETECT-TYPE',
+        message: `Синхронизировано ${synced} продуктов: ${syncedStandard} стандартных + ${syncedUnlimited} Day Pass (курс: ${exchangeRate}₽/$)`,
+        version: 'V10-DATATYPE-FIX',
         settings: {
           exchangeRate,
           markupPercent: defaultMarkup,
@@ -358,7 +371,7 @@ export class ProductsService implements OnModuleInit {
         },
       };
     } catch (error) {
-      this.logger.error('❌ [SYNC V9] Ошибка:', error.message);
+      this.logger.error('❌ [SYNC V10] Ошибка:', error.message);
       return {
         success: false,
         synced: 0,

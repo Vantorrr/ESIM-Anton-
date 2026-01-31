@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Search, Globe } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
-import { formatPrice, getCountryEmoji } from '@/lib/utils'
+import { formatPrice, getFlagUrl, getCountryName, getCountryCode } from '@/lib/utils'
 
 // Animated Network Lines Component
 function NetworkLines() {
@@ -312,6 +312,9 @@ const GLOBAL_KEYWORDS = ['global', 'world', 'глобал', 'мир', 'worldwide
 
 // Liquid Glass карточка страны (iOS style)
 function CountryCard({ group, index }: { group: CountryGroup; index: number }) {
+  const flagUrl = getFlagUrl(group.country);
+  const countryName = getCountryName(group.country);
+  
   return (
     <Link href={`/country/${encodeURIComponent(group.country)}`}>
       <div 
@@ -330,11 +333,20 @@ function CountryCard({ group, index }: { group: CountryGroup; index: number }) {
         style={{ animationDelay: `${0.03 * index}s` }}
       >
         <div className="text-center">
-          <div className="text-4xl mb-2">
-            {getCountryEmoji(group.country)}
+          <div className="w-12 h-8 mx-auto mb-2 flex items-center justify-center">
+            {flagUrl ? (
+              <img 
+                src={flagUrl} 
+                alt={countryName}
+                className="w-12 h-auto rounded shadow-sm object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <span className="text-3xl">🌍</span>
+            )}
           </div>
           <p className="font-medium text-sm text-gray-900 dark:text-white mb-0.5 truncate">
-            {group.country}
+            {countryName}
           </p>
           <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
             от ₽{formatPrice(group.minPrice)}
@@ -606,23 +618,31 @@ export default function Home() {
             </div>
           ) : (
             <div className="rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-xl overflow-hidden">
-              {filteredCountries.map((group, index) => (
-                <Link key={group.country} href={`/country/${encodeURIComponent(group.country)}`}>
-                  <div 
-                    className={`flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-black/5 active:bg-black/10 transition-colors ${
-                      index !== filteredCountries.length - 1 ? 'border-b border-gray-200/50 dark:border-white/10' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{getCountryEmoji(group.country)}</span>
-                      <span className="font-medium text-gray-900 dark:text-white">{group.country}</span>
+              {filteredCountries.map((group, index) => {
+                const flagUrl = getFlagUrl(group.country);
+                const countryName = getCountryName(group.country);
+                return (
+                  <Link key={group.country} href={`/country/${encodeURIComponent(group.country)}`}>
+                    <div 
+                      className={`flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-black/5 active:bg-black/10 transition-colors ${
+                        index !== filteredCountries.length - 1 ? 'border-b border-gray-200/50 dark:border-white/10' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {flagUrl ? (
+                          <img src={flagUrl} alt={countryName} className="w-8 h-auto rounded shadow-sm" loading="lazy" />
+                        ) : (
+                          <span className="text-3xl">🌍</span>
+                        )}
+                        <span className="font-medium text-gray-900 dark:text-white">{countryName}</span>
+                      </div>
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           )}
         </>

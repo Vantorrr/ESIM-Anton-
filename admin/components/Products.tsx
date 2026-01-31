@@ -31,6 +31,9 @@ export default function Products() {
   const [bulkBadgeColor, setBulkBadgeColor] = useState('')
   const [bulkMarkup, setBulkMarkup] = useState(30)
 
+  // Детальный просмотр тарифа
+  const [viewingProduct, setViewingProduct] = useState<any>(null)
+
   useEffect(() => {
     loadProducts()
     loadCountries()
@@ -517,10 +520,10 @@ export default function Products() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">
+                <tr className="border-b-2 border-slate-300 bg-slate-50">
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700 w-10">
                     <input
                       type="checkbox"
                       checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
@@ -528,17 +531,19 @@ export default function Products() {
                       className="w-4 h-4 rounded"
                     />
                   </th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Страна</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Название</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Тип</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Трафик</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Срок</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Цена провайдера</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Наша цена</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Наценка</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Бейдж</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Статус</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Действия</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Name</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Price ⇅</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Data ⇅</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Duration ⇅</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Per GB ⇅</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Наша цена</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Наценка</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Speed</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Region</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Тип</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Бейдж</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Статус</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700"></th>
                 </tr>
               </thead>
               <tbody>
@@ -549,14 +554,24 @@ export default function Products() {
                     ? ((ourPriceRUB / (providerPriceUSD * 95)) - 1) * 100 
                     : 0
                   
+                  // Извлекаем числовое значение GB из dataAmount
+                  const dataMatch = product.dataAmount?.match(/(\d+(\.\d+)?)\s*(GB|MB)/i)
+                  let dataInGB = 0
+                  if (dataMatch) {
+                    const value = parseFloat(dataMatch[1])
+                    const unit = dataMatch[3].toUpperCase()
+                    dataInGB = unit === 'GB' ? value : value / 1024
+                  }
+                  const perGB = dataInGB > 0 ? providerPriceUSD / dataInGB : 0
+                  
                   return (
                     <tr
                       key={product.id}
-                      className={`border-b border-slate-100 hover:bg-white/50 transition-colors ${
-                        selectedIds.has(product.id) ? 'bg-blue-50' : ''
-                      }`}
+                      className={`border-b border-slate-100 hover:bg-blue-50/50 transition-colors ${
+                        selectedIds.has(product.id) ? 'bg-blue-100' : ''
+                      } ${!product.isActive ? 'opacity-50' : ''}`}
                     >
-                      <td className="py-3 px-4">
+                      <td className="py-2 px-2">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(product.id)}
@@ -564,38 +579,60 @@ export default function Products() {
                           className="w-4 h-4 rounded"
                         />
                       </td>
-                      <td className="py-3 px-4 font-medium">
-                        {product.country}
-                        {product.region && <div className="text-xs text-slate-500">{product.region}</div>}
+                      <td className="py-2 px-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">🌍</span>
+                          <button 
+                            onClick={() => setViewingProduct(product)}
+                            className="font-medium text-blue-600 hover:underline text-left"
+                          >
+                            {product.name}
+                          </button>
+                        </div>
                       </td>
-                      <td className="py-3 px-4 text-sm">{product.name}</td>
-                      <td className="py-3 px-4">
-                        {product.isUnlimited ? (
-                          <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                            ♾️ Безлимит
-                          </span>
-                        ) : (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                            📊 Стандарт
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">{product.dataAmount}</td>
-                      <td className="py-3 px-4">{product.validityDays} дн</td>
-                      <td className="py-3 px-4 text-slate-500 text-sm">
+                      <td className="py-2 px-2 font-semibold">
                         ${providerPriceUSD.toFixed(2)}
                       </td>
-                      <td className="py-3 px-4 font-bold text-green-600">
-                        ₽{ourPriceRUB.toLocaleString()}
+                      <td className="py-2 px-2 font-medium">{product.dataAmount}</td>
+                      <td className="py-2 px-2">
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-400">📅</span>
+                          <span>{product.validityDays}</span>
+                        </div>
                       </td>
-                      <td className="py-3 px-4 text-sm">
-                        <span className={markup > 0 ? 'text-green-600' : 'text-slate-400'}>
+                      <td className="py-2 px-2 text-slate-600">
+                        ${perGB.toFixed(2)}
+                      </td>
+                      <td className="py-2 px-2 font-bold text-green-600">
+                        ₽{Math.round(ourPriceRUB).toLocaleString()}
+                      </td>
+                      <td className="py-2 px-2 text-sm">
+                        <span className={`font-medium ${markup > 0 ? 'text-green-600' : 'text-slate-400'}`}>
                           +{markup.toFixed(0)}%
                         </span>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-2 px-2">
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                          3G/4G/5G
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 text-slate-600 text-xs">
+                        {product.country}
+                      </td>
+                      <td className="py-2 px-2">
+                        {product.isUnlimited ? (
+                          <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">
+                            ∞ Безлимит
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium">
+                            Стандарт
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2 px-2">
                         {product.badge ? (
-                          <span className={`px-2 py-1 rounded-full text-xs font-bold text-white ${
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold text-white ${
                             product.badgeColor === 'red' ? 'bg-red-500' :
                             product.badgeColor === 'green' ? 'bg-green-500' :
                             product.badgeColor === 'blue' ? 'bg-blue-500' :
@@ -605,26 +642,26 @@ export default function Products() {
                             {product.badge}
                           </span>
                         ) : (
-                          <span className="text-slate-400 text-sm">—</span>
+                          <span className="text-slate-300">—</span>
                         )}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-2 px-2">
                         <button
                           onClick={() => handleToggleActive(product)}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                          className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
                             product.isActive
                               ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
                           }`}
                         >
                           {product.isActive ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                          {product.isActive ? 'Активен' : 'Скрыт'}
+                          {product.isActive ? 'Вкл' : 'Выкл'}
                         </button>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-2 px-2">
                         <button
                           onClick={() => handleEdit(product)}
-                          className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
+                          className="p-1.5 hover:bg-blue-100 rounded transition-colors"
                         >
                           <Edit2 className="w-4 h-4 text-blue-600" />
                         </button>
@@ -923,6 +960,162 @@ export default function Products() {
                 className="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 transition-all"
               >
                 Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно - Детали тарифа (как у eSIM Access) */}
+      {viewingProduct && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-xl font-bold text-slate-800">Plan Details</h3>
+              <button
+                onClick={() => setViewingProduct(null)}
+                className="text-slate-400 hover:text-slate-600 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-x-12 gap-y-4">
+                {/* Left Column */}
+                <div className="space-y-4">
+                  <div className="flex">
+                    <span className="w-32 text-slate-500 text-sm">Name:</span>
+                    <span className="font-medium text-slate-800">{viewingProduct.name}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-slate-500 text-sm">Slug:</span>
+                    <span className="text-slate-700">{viewingProduct.country}_{viewingProduct.dataAmount?.replace(/\s/g, '')}_{viewingProduct.validityDays}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-slate-500 text-sm">Data type:</span>
+                    <span className="text-blue-600 font-medium">
+                      {viewingProduct.isUnlimited ? 'Daily Unlimited' : 'Data in Total'}
+                    </span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-slate-500 text-sm">Price:</span>
+                    <span className="font-bold text-slate-800">${(Number(viewingProduct.providerPrice) / 100).toFixed(2)}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-slate-500 text-sm">Region type:</span>
+                    <span className="text-slate-700">Single</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-slate-500 text-sm">Top up type:</span>
+                    <span className="text-slate-700 text-sm">Data Reloadable for same area within validity</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-slate-500 text-sm">Validity:</span>
+                    <span className="text-slate-700">180 Days</span>
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-4">
+                  <div className="flex">
+                    <span className="w-32 text-slate-500 text-sm">Code:</span>
+                    <span className="text-slate-700">{viewingProduct.providerId}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-slate-500 text-sm">Data:</span>
+                    <span className="font-medium text-slate-800">{viewingProduct.dataAmount}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-slate-500 text-sm">Duration:</span>
+                    <span className="text-blue-600 font-medium">{viewingProduct.validityDays} Days</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-slate-500 text-sm">Billing starts:</span>
+                    <span className="text-slate-700">First connection</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-slate-500 text-sm">Region:</span>
+                    <span className="text-slate-700">{viewingProduct.country}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 text-slate-500 text-sm">Breakout IP:</span>
+                    <span className="text-slate-700">Local</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Наши настройки */}
+              <div className="mt-8 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-100">
+                <h4 className="font-bold text-slate-700 mb-4">⚙️ Наши настройки</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <span className="text-sm text-slate-500">Наша цена:</span>
+                    <div className="text-xl font-bold text-green-600">₽{Math.round(Number(viewingProduct.ourPrice)).toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <span className="text-sm text-slate-500">Наценка:</span>
+                    <div className="text-xl font-bold text-blue-600">
+                      +{((Number(viewingProduct.ourPrice) / (Number(viewingProduct.providerPrice) / 100 * 95) - 1) * 100).toFixed(0)}%
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-sm text-slate-500">Статус:</span>
+                    <div className={`text-xl font-bold ${viewingProduct.isActive ? 'text-green-600' : 'text-slate-400'}`}>
+                      {viewingProduct.isActive ? '✅ Активен' : '⏸️ Скрыт'}
+                    </div>
+                  </div>
+                </div>
+                {viewingProduct.badge && (
+                  <div className="mt-3">
+                    <span className="text-sm text-slate-500">Бейдж: </span>
+                    <span className={`px-3 py-1 rounded-full text-white text-sm font-bold ${
+                      viewingProduct.badgeColor === 'red' ? 'bg-red-500' :
+                      viewingProduct.badgeColor === 'green' ? 'bg-green-500' :
+                      viewingProduct.badgeColor === 'blue' ? 'bg-blue-500' :
+                      viewingProduct.badgeColor === 'orange' ? 'bg-orange-500' :
+                      'bg-purple-500'
+                    }`}>
+                      {viewingProduct.badge}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Coverage and networks */}
+              <div className="mt-6">
+                <h4 className="text-sm text-slate-500 mb-3">Coverage and networks</h4>
+                <div className="flex items-center justify-between p-4 border rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🌍</span>
+                    <span className="font-medium">{viewingProduct.country}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">4G</span>
+                    <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">LTE</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 p-6 border-t bg-slate-50">
+              <button
+                onClick={() => {
+                  setEditingProduct(viewingProduct)
+                  setViewingProduct(null)
+                }}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+              >
+                ✏️ Редактировать
+              </button>
+              <button
+                onClick={() => setViewingProduct(null)}
+                className="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 transition-all"
+              >
+                Закрыть
               </button>
             </div>
           </div>

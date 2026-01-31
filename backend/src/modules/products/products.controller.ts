@@ -9,8 +9,13 @@ export class ProductsController {
 
   @Get()
   @ApiOperation({ summary: 'Получить все продукты' })
-  async findAll(@Query('country') country?: string) {
-    return this.productsService.findAll({ country });
+  async findAll(
+    @Query('country') country?: string,
+    @Query('isActive') isActive?: string,
+  ) {
+    // isActive приходит как строка "true"/"false", конвертируем в boolean
+    const isActiveFilter = isActive === 'true' ? true : isActive === 'false' ? false : undefined;
+    return this.productsService.findAll({ country, isActive: isActiveFilter });
   }
 
   @Get('countries')

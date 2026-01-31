@@ -58,7 +58,7 @@ export class EsimAccessProvider {
 
     this.client = axios.create({
       baseURL: 'https://api.esimaccess.com/api/v1/open',
-      timeout: 30000,
+      timeout: 90000, // 90 секунд для больших списков пакетов
       headers: {
         'Content-Type': 'application/json',
         'RT-AccessCode': this.accessCode,
@@ -132,7 +132,7 @@ export class EsimAccessProvider {
       }
       
       if (dataType) {
-        payload.type = dataType; // 1 = standard, 2 = unlimited/day pass
+        payload.dataType = dataType; // 1 = standard, 2 = unlimited/day pass (из документации)
       }
 
       const response = await this.client.post('/package/list', payload, {
