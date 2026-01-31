@@ -18,7 +18,7 @@ interface EsimGoPackage {
   operator?: string;
 }
 
-interface EsimGoPurchaseResponse {
+export interface EsimGoPurchaseResponse {
   success: boolean;
   order_id: string;
   iccid: string;
@@ -28,7 +28,7 @@ interface EsimGoPurchaseResponse {
   status: string;
 }
 
-interface EsimGoOrderStatus {
+export interface EsimGoOrderStatus {
   order_id: string;
   status: 'pending' | 'active' | 'completed' | 'failed';
   iccid?: string;

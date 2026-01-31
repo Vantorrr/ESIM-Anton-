@@ -143,7 +143,7 @@ export const getCountryName = (country: string): string => {
     'WS': 'Самоа', 'XK': 'Косово', 'YE': 'Йемен', 'YT': 'Майотта',
     'ZA': 'ЮАР', 'ZM': 'Замбия', 'ZW': 'Зимбабве',
     // Мульти-регионы
-    'XX': 'Мир', 'EU': 'Европа', 'AS': 'Азия', 'AF': 'Африка',
+    'XX': 'Мир',
   };
   
   return names[code] || country;
