@@ -35,3 +35,7 @@ prisma/.env
 # Misc
 *.tsbuildinfo
 .turbo
+
+# Temp API data files
+backend/*_packages.json
+backend/std_*.json
