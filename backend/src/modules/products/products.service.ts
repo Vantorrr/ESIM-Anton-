@@ -144,7 +144,8 @@ export class ProductsService implements OnModuleInit {
     let updated = 0;
 
     for (const product of products) {
-      const providerPriceUSD = Number(product.providerPrice) / 100; // центы -> доллары
+      // providerPrice хранится в центах (2109 = $21.09)
+      const providerPriceUSD = Number(product.providerPrice) / 100;
       const priceWithMarkup = providerPriceUSD * (1 + markupPercent / 100);
       const newPrice = Math.round(priceWithMarkup * exchangeRate);
 
