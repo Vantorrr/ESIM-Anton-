@@ -314,27 +314,38 @@ export class ProductsService implements OnModuleInit {
           const isUnlimitedByName = pkgName.toLowerCase().includes('/day') || 
                                      pkgName.toLowerCase().includes('daily');
           
-          // Для Daily Unlimited: validity = срок действия (180 дней), duration = 1 день
+          // Для Daily Unlimited: 
+          // - validity = 180 дней (стандартный срок действия Day Pass)
+          // - duration = 1 (дневной лимит)
           // Для стандартных: validity = duration
-          const validity = pkg.validity || pkg.duration;
-          const duration = pkg.duration;
+          let validity: number;
+          let duration: number;
+          let speed: string;
           
-          // Парсим скорость из названия если нет в API
-          // Примеры: "1GB/Day FUP1Mbps" -> "1 Mbps", "10GB/Day" -> "384 Kbps" (по умолчанию)
-          let speed = pkg.speed || '';
-          if (!speed && isUnlimitedByName) {
+          if (isUnlimitedByName) {
+            // Day Pass тарифы
+            validity = 180; // Стандартный срок действия для Day Pass
+            duration = 1;   // Дневной лимит
+            
+            // Парсим скорость после лимита из названия
+            // Примеры: "1GB/Day FUP1Mbps" -> "1 Mbps", "10GB/Day" -> "384 Kbps"
             const speedMatch = pkgName.match(/FUP(\d+)\s*(Mbps|Kbps)/i);
             if (speedMatch) {
               speed = `${speedMatch[1]} ${speedMatch[2]}`;
             } else {
-              speed = '384 Kbps'; // Дефолт для Day Pass без указания скорости
+              speed = '384 Kbps'; // Дефолт для Day Pass без FUP в названии
             }
+          } else {
+            // Стандартные тарифы
+            validity = pkg.duration;
+            duration = pkg.duration;
+            speed = ''; // Для стандартных нет ограничения скорости
           }
           
           // Формируем описание
           let description: string;
           if (isUnlimitedByName) {
-            description = `${dataAmount} в день, на ${validity} дней${speed ? `. Скорость: ${speed}` : ''}`;
+            description = `${dataAmount} в день, на ${validity} дней. После лимита: ${speed}`;
           } else {
             description = `${dataAmount} на ${duration} дней`;
           }
