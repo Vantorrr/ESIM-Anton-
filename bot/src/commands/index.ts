@@ -8,7 +8,7 @@ const MINI_APP_URL = process.env.MINI_APP_URL || 'https://esim-anton-production.
 const ADMIN_PANEL_URL = process.env.ADMIN_PANEL_URL || 'https://admin-production-b10a.up.railway.app';
 
 // Список Telegram ID админов
-const ADMIN_IDS = [316662303, 8141463258];
+const ADMIN_IDS = [316662303, 8141463258, 323857366];
 
 function isAdmin(userId: number | undefined): boolean {
   return userId !== undefined && ADMIN_IDS.includes(userId);
