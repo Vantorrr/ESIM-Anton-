@@ -66,12 +66,14 @@ export const getCountryCode = (country: string): string => {
 
 /**
  * URL картинки флага через CDN (работает на всех устройствах!)
+ * Используем GitHub hosted флаги - максимально надёжно
  */
 export const getFlagUrl = (country: string): string => {
   const code = getCountryCode(country).toLowerCase();
   if (code === 'xx') return '';
-  // Используем flagcdn.com - быстрый и бесплатный CDN
-  return `https://flagcdn.com/w80/${code}.png`;
+  
+  // GitHub hosted флаги - работают везде, не блокируются
+  return `https://hatscripts.github.io/circle-flags/flags/${code}.svg`;
 };
 
 /**
