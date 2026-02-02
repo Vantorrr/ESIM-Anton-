@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, CreditCard, History, TrendingUp } from 'lucide-react'
+// Lucide icons removed due to type issues - using emoji instead
 import BottomNav from '@/components/BottomNav'
 
 interface Transaction {
@@ -34,10 +34,10 @@ export default function BalancePage() {
 
   const getTransactionIcon = (type: Transaction['type']) => {
     switch (type) {
-      case 'deposit': return <Plus className="text-green-500" size={18} />
-      case 'purchase': return <CreditCard className="text-blue-500" size={18} />
-      case 'refund': return <History className="text-orange-500" size={18} />
-      case 'bonus': return <TrendingUp className="text-purple-500" size={18} />
+      case 'deposit': return <span className="text-lg">💰</span>
+      case 'purchase': return <span className="text-lg">💳</span>
+      case 'refund': return <span className="text-lg">↩️</span>
+      case 'bonus': return <span className="text-lg">🎁</span>
     }
   }
 
@@ -50,7 +50,7 @@ export default function BalancePage() {
             onClick={() => router.back()}
             className="p-2 -ml-2 text-gray-600 dark:text-gray-300"
           >
-            <ArrowLeft size={24} />
+            <span className="text-xl">←</span>
           </button>
           <h1 className="font-semibold text-lg text-gray-900 dark:text-white">Баланс</h1>
           <div className="w-10" />
@@ -73,7 +73,7 @@ export default function BalancePage() {
 
         {/* Top Up Button */}
         <button className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-2xl transition-colors mb-8 shadow-lg shadow-blue-500/30">
-          <Plus size={24} />
+          <span className="text-xl">➕</span>
           Пополнить баланс
         </button>
 
@@ -106,7 +106,7 @@ export default function BalancePage() {
             </div>
           ) : transactions.length === 0 ? (
             <div className="text-center py-12">
-              <History className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={48} />
+              <span className="block text-5xl text-gray-300 dark:text-gray-600 mb-4">📋</span>
               <p className="text-gray-500 dark:text-gray-400">
                 Пока нет операций
               </p>

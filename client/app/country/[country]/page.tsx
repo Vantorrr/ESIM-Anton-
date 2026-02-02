@@ -146,12 +146,15 @@ export default function CountryPage() {
                 `}
               >
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-gray-900 dark:text-white">
                       {formatDataAmount(product.dataAmount)}
                     </span>
                     <span className="text-gray-500 dark:text-gray-400 text-sm">
-                      на {product.validityDays} дн.
+                      {product.isUnlimited 
+                        ? `в день, на ${product.validityDays} дн.`
+                        : `на ${product.validityDays} дн.`
+                      }
                     </span>
                     {/* Бейдж */}
                     {product.badge && (
@@ -166,6 +169,12 @@ export default function CountryPage() {
                       </span>
                     )}
                   </div>
+                  {/* Скорость после лимита для Daily Unlimited */}
+                  {product.isUnlimited && product.speed && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      После лимита: {product.speed}
+                    </p>
+                  )}
                 </div>
                 
                 <div className="flex items-center gap-3">
@@ -192,42 +201,63 @@ export default function CountryPage() {
         )}
 
         {/* Tariff Details */}
-        {products.length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Особенности тарифа
-            </h3>
-            <div className="rounded-2xl bg-white dark:bg-white/10 divide-y divide-gray-100 dark:divide-white/10">
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
-                  <span className="text-lg">📶</span>
+        {products.length > 0 && (() => {
+          const selectedProd = products.find(p => p.id === selectedProduct);
+          return (
+            <div className="mt-6">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                Особенности тарифа
+              </h3>
+              <div className="rounded-2xl bg-white dark:bg-white/10 divide-y divide-gray-100 dark:divide-white/10">
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
+                    <span className="text-lg">📶</span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase">Скорость сети</p>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {selectedProd?.isUnlimited && selectedProd?.speed 
+                        ? `3G/4G/5G (после лимита: ${selectedProd.speed})`
+                        : '3G/4G/5G'
+                      }
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase">Скорость сети</p>
-                  <p className="font-medium text-gray-900 dark:text-white">3G/4G/5G</p>
+                {selectedProd?.isUnlimited && (
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
+                      <span className="text-lg">📅</span>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase">Тип тарифа</p>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {formatDataAmount(selectedProd.dataAmount)} в день на {selectedProd.validityDays} дней
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-10 h-10 rounded-xl bg-green-100 dark:bg-green-500/20 flex items-center justify-center">
+                    <span className="text-lg">🔄</span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase">Пополнение</p>
+                    <p className="font-medium text-gray-900 dark:text-white">Можно продлить</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-green-100 dark:bg-green-500/20 flex items-center justify-center">
-                  <span className="text-lg">🔄</span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase">Пополнение</p>
-                  <p className="font-medium text-gray-900 dark:text-white">Можно продлить</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-500/20 flex items-center justify-center">
-                  <span className="text-lg">📡</span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase">Тип подключения</p>
-                  <p className="font-medium text-gray-900 dark:text-white">Только данные</p>
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-500/20 flex items-center justify-center">
+                    <span className="text-lg">📡</span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase">Тип подключения</p>
+                    <p className="font-medium text-gray-900 dark:text-white">Только данные</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Important Info */}
         <div className="mt-6">

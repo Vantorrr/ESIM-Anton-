@@ -17,11 +17,12 @@ export interface EsimAccessPackage {
   currencyCode: string;
   volume: number;
   smsVolume: number;
-  duration: number;
+  duration: number;      // Для Daily Unlimited = 1 (в день)
   durationUnit: string;
-  speed: string;
+  validity: number;      // Срок действия (180 дней для Daily Unlimited)
+  speed: string;         // Ограничение скорости после лимита
   supportTopup: boolean;
-  dataType?: number; // 1 = standard, 2 = unlimited/day pass
+  dataType?: number;     // 1 = standard, 2 = unlimited/day pass
 }
 
 export interface EsimAccessPurchaseResponse {
@@ -159,9 +160,10 @@ export class EsimAccessProvider {
         smsVolume: pkg.smsVolume || 0,
         duration: pkg.duration,
         durationUnit: pkg.durationUnit,
-        speed: pkg.speed,
+        validity: pkg.validity || pkg.duration, // Срок действия (для Day Pass обычно 180)
+        speed: pkg.speed || '',                  // Ограничение скорости
         supportTopup: pkg.supportTopup,
-        dataType: dataType || (pkg.type || 1), // Сохраняем тип
+        dataType: dataType || (pkg.type || 1),   // Сохраняем тип
       }));
     } catch (error) {
       this.logger.error('❌ Ошибка получения пакетов:', error.message);

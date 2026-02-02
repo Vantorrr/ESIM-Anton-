@@ -38,7 +38,9 @@ export interface Product {
   name: string;
   description?: string;
   dataAmount: string;
-  validityDays: number;
+  validityDays: number;  // Для Daily Unlimited = срок действия (180 дней)
+  duration?: number;     // Для Daily Unlimited = 1 (в день)
+  speed?: string;        // Ограничение скорости после лимита (384 Kbps, 1 Mbps)
   providerPrice: number;
   ourPrice: number;
   providerId: string;

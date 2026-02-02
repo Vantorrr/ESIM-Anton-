@@ -7,167 +7,100 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// =====================================================
-// ПОЛЬЗОВАТЕЛИ
-// =====================================================
 model User {
-  id               String    @id @default(cuid())
-  telegramId       BigInt    @unique
-  username         String?
-  firstName        String?
-  lastName         String?
-  phone            String?
-  email            String?
-  
-  // Баланс и бонусы
-  balance          Decimal   @default(0) @db.Decimal(10, 2)
-  bonusBalance     Decimal   @default(0) @db.Decimal(10, 2)
-  
-  // Реферальная система
-  referralCode     String    @unique @default(cuid())
-  referredById     String?
-  referredBy       User?     @relation("Referrals", fields: [referredById], references: [id])
-  referrals        User[]    @relation("Referrals")
-  
-  // Лояльность
-  loyaltyLevelId   String?
-  loyaltyLevel     LoyaltyLevel? @relation(fields: [loyaltyLevelId], references: [id])
-  totalSpent       Decimal   @default(0) @db.Decimal(10, 2)
-  
-  // UTM-метки для аналитики
-  utmSource        String?   // Источник трафика (google, telegram, instagram)
-  utmMedium        String?   // Тип трафика (cpc, organic, referral)
-  utmCampaign      String?   // Название кампании
-  
-  // Мета
-  isBlocked        Boolean   @default(false)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  
-  // Связи
-  orders           Order[]
-  transactions     Transaction[]
-  notifications    Notification[]
+  id             String         @id @default(cuid())
+  telegramId     BigInt         @unique
+  username       String?
+  firstName      String?
+  lastName       String?
+  phone          String?
+  email          String?
+  balance        Decimal        @default(0) @db.Decimal(10, 2)
+  bonusBalance   Decimal        @default(0) @db.Decimal(10, 2)
+  referralCode   String         @unique @default(cuid())
+  referredById   String?
+  loyaltyLevelId String?
+  totalSpent     Decimal        @default(0) @db.Decimal(10, 2)
+  isBlocked      Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  utmCampaign    String?
+  utmMedium      String?
+  utmSource      String?
+  notifications  Notification[]
+  orders         Order[]
+  transactions   Transaction[]
+  loyaltyLevel   LoyaltyLevel?  @relation(fields: [loyaltyLevelId], references: [id])
+  referredBy     User?          @relation("Referrals", fields: [referredById], references: [id])
+  referrals      User[]         @relation("Referrals")
 
   @@index([telegramId])
   @@index([referralCode])
   @@map("users")
 }
 
-// =====================================================
-// УРОВНИ ЛОЯЛЬНОСТИ
-// =====================================================
 model LoyaltyLevel {
-  id               String    @id @default(cuid())
-  name             String    @unique
-  minSpent         Decimal   @db.Decimal(10, 2)
-  cashbackPercent  Decimal   @db.Decimal(5, 2)
-  discount         Decimal   @default(0) @db.Decimal(5, 2)
-  
-  users            User[]
-  
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id              String   @id @default(cuid())
+  name            String   @unique
+  minSpent        Decimal  @db.Decimal(10, 2)
+  cashbackPercent Decimal  @db.Decimal(5, 2)
+  discount        Decimal  @default(0) @db.Decimal(5, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  users           User[]
 
   @@map("loyalty_levels")
 }
 
-// =====================================================
-// ПРОДУКТЫ (ТАРИФЫ ESIM)
-// =====================================================
 model EsimProduct {
-  id               String    @id @default(cuid())
-  
-  // Основная информация
-  country          String
-  region           String?
-  name             String
-  description      String?
-  
-  // Характеристики
-  dataAmount       String    // "1GB", "5GB", "Unlimited"
-  validityDays     Int       // Срок действия в днях
-  
-  // Цены
-  providerPrice    Decimal   @db.Decimal(10, 2)  // Цена от поставщика
-  ourPrice         Decimal   @db.Decimal(10, 2)  // Наша цена
-  
-  // Поставщик
-  providerId       String    // ID тарифа у поставщика
-  providerName     String    @default("main")
-  
-  // Тип тарифа
-  isUnlimited      Boolean   @default(false)  // true = unlimited/day pass
-  
-  // Бейджи (скидки, ХИТ, etc.)
-  badge            String?   // Текст бейджа: "ХИТ", "-25%", "NEW"
-  badgeColor       String?   // Цвет: "red", "green", "blue", "orange"
-  
-  // Статус
-  isActive         Boolean   @default(true)
-  stock            Int       @default(999)
-  
-  // Мета
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  
-  // Связи
-  orders           Order[]
+  id            String   @id @default(cuid())
+  country       String
+  region        String?
+  name          String
+  description   String?
+  dataAmount    String
+  validityDays  Int      // Для Daily Unlimited = срок действия (180 дней), для обычных = duration
+  duration      Int?     // Для Daily Unlimited = 1 (в день), для обычных = validityDays
+  speed         String?  // Ограничение скорости после лимита (384 Kbps, 1 Mbps и т.д.)
+  providerPrice Decimal  @db.Decimal(10, 2)
+  ourPrice      Decimal  @db.Decimal(10, 2)
+  providerId    String
+  providerName  String   @default("main")
+  isActive      Boolean  @default(true)
+  stock         Int      @default(999)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  isUnlimited   Boolean  @default(false)
+  badge         String?
+  badgeColor    String?
+  orders        Order[]
 
   @@index([country])
   @@index([isActive])
   @@map("esim_products")
 }
 
-// =====================================================
-// ЗАКАЗЫ
-// =====================================================
-enum OrderStatus {
-  PENDING          // Создан, ждет оплаты
-  PAID             // Оплачен
-  PROCESSING       // В обработке (идет запрос к провайдеру)
-  COMPLETED        // Выполнен (eSIM выдан)
-  FAILED           // Ошибка
-  REFUNDED         // Возврат
-  CANCELLED        // Отменен
-}
-
 model Order {
-  id               String      @id @default(cuid())
-  
-  // Связи
+  id               String        @id @default(cuid())
   userId           String
-  user             User        @relation(fields: [userId], references: [id])
-  
   productId        String
-  product          EsimProduct @relation(fields: [productId], references: [id])
-  
-  // Информация о заказе
-  status           OrderStatus @default(PENDING)
-  quantity         Int         @default(1)
-  
-  // Цены
-  productPrice     Decimal     @db.Decimal(10, 2)
-  discount         Decimal     @default(0) @db.Decimal(10, 2)
-  bonusUsed        Decimal     @default(0) @db.Decimal(10, 2)
-  totalAmount      Decimal     @db.Decimal(10, 2)
-  
-  // eSIM данные (после выдачи)
+  status           OrderStatus   @default(PENDING)
+  quantity         Int           @default(1)
+  productPrice     Decimal       @db.Decimal(10, 2)
+  discount         Decimal       @default(0) @db.Decimal(10, 2)
+  bonusUsed        Decimal       @default(0) @db.Decimal(10, 2)
+  totalAmount      Decimal       @db.Decimal(10, 2)
   qrCode           String?
   iccid            String?
   activationCode   String?
-  
-  // Лог от провайдера
   providerOrderId  String?
   providerResponse Json?
   errorMessage     String?
-  
-  // Мета
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
   completedAt      DateTime?
-  
-  // Связи
+  product          EsimProduct   @relation(fields: [productId], references: [id])
+  user             User          @relation(fields: [userId], references: [id])
   transactions     Transaction[]
 
   @@index([userId])
@@ -176,15 +109,86 @@ model Order {
   @@map("orders")
 }
 
-// =====================================================
-// ТРАНЗАКЦИИ (ПЛАТЕЖИ)
-// =====================================================
+model Transaction {
+  id              String            @id @default(cuid())
+  userId          String
+  orderId         String?
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+  amount          Decimal           @db.Decimal(10, 2)
+  paymentProvider String?
+  paymentId       String?
+  paymentMethod   String?
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  order           Order?            @relation(fields: [orderId], references: [id])
+  user            User              @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([paymentId])
+  @@index([status])
+  @@map("transactions")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+model SystemSettings {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model Admin {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  password    String
+  firstName   String?
+  lastName    String?
+  role        AdminRole @default(SUPPORT)
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("admins")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
 enum TransactionType {
-  PAYMENT          // Оплата заказа
-  REFUND           // Возврат
-  BONUS_ACCRUAL    // Начисление бонусов
-  BONUS_SPENT      // Списание бонусов
-  REFERRAL_BONUS   // Реферальный бонус
+  PAYMENT
+  REFUND
+  BONUS_ACCRUAL
+  BONUS_SPENT
+  REFERRAL_BONUS
 }
 
 enum TransactionStatus {
@@ -194,42 +198,6 @@ enum TransactionStatus {
   CANCELLED
 }
 
-model Transaction {
-  id               String            @id @default(cuid())
-  
-  // Связи
-  userId           String
-  user             User              @relation(fields: [userId], references: [id])
-  
-  orderId          String?
-  order            Order?            @relation(fields: [orderId], references: [id])
-  
-  // Информация о транзакции
-  type             TransactionType
-  status           TransactionStatus @default(PENDING)
-  
-  amount           Decimal           @db.Decimal(10, 2)
-  
-  // Платежная система
-  paymentProvider  String?           // "yukassa"
-  paymentId        String?           // ID платежа в системе (ЮKassa)
-  paymentMethod    String?           // "bank_card", "sbp", "sberbank"
-  
-  // Мета
-  metadata         Json?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-
-  @@index([userId])
-  @@index([orderId])
-  @@index([paymentId])
-  @@index([status])
-  @@map("transactions")
-}
-
-// =====================================================
-// УВЕДОМЛЕНИЯ
-// =====================================================
 enum NotificationType {
   ORDER_CREATED
   ORDER_COMPLETED
@@ -239,65 +207,8 @@ enum NotificationType {
   LEVEL_UP
 }
 
-model Notification {
-  id               String           @id @default(cuid())
-  
-  userId           String
-  user             User             @relation(fields: [userId], references: [id])
-  
-  type             NotificationType
-  title            String
-  message          String
-  
-  isRead           Boolean          @default(false)
-  
-  metadata         Json?
-  
-  createdAt        DateTime         @default(now())
-
-  @@index([userId])
-  @@index([isRead])
-  @@map("notifications")
-}
-
-// =====================================================
-// НАСТРОЙКИ СИСТЕМЫ
-// =====================================================
-model SystemSettings {
-  id               String    @id @default(cuid())
-  key              String    @unique
-  value            String
-  description      String?
-  
-  updatedAt        DateTime  @updatedAt
-
-  @@map("system_settings")
-}
-
-// =====================================================
-// АДМИНЫ
-// =====================================================
 enum AdminRole {
   SUPER_ADMIN
   MANAGER
   SUPPORT
-}
-
-model Admin {
-  id               String    @id @default(cuid())
-  email            String    @unique
-  password         String
-  
-  firstName        String?
-  lastName         String?
-  
-  role             AdminRole @default(SUPPORT)
-  isActive         Boolean   @default(true)
-  
-  lastLoginAt      DateTime?
-  
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  @@map("admins")
 }

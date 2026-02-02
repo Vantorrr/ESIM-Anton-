@@ -314,17 +314,44 @@ export class ProductsService implements OnModuleInit {
           const isUnlimitedByName = pkgName.toLowerCase().includes('/day') || 
                                      pkgName.toLowerCase().includes('daily');
           
+          // Для Daily Unlimited: validity = срок действия (180 дней), duration = 1 день
+          // Для стандартных: validity = duration
+          const validity = pkg.validity || pkg.duration;
+          const duration = pkg.duration;
+          
+          // Парсим скорость из названия если нет в API
+          // Примеры: "1GB/Day FUP1Mbps" -> "1 Mbps", "10GB/Day" -> "384 Kbps" (по умолчанию)
+          let speed = pkg.speed || '';
+          if (!speed && isUnlimitedByName) {
+            const speedMatch = pkgName.match(/FUP(\d+)\s*(Mbps|Kbps)/i);
+            if (speedMatch) {
+              speed = `${speedMatch[1]} ${speedMatch[2]}`;
+            } else {
+              speed = '384 Kbps'; // Дефолт для Day Pass без указания скорости
+            }
+          }
+          
+          // Формируем описание
+          let description: string;
+          if (isUnlimitedByName) {
+            description = `${dataAmount} в день, на ${validity} дней${speed ? `. Скорость: ${speed}` : ''}`;
+          } else {
+            description = `${dataAmount} на ${duration} дней`;
+          }
+          
           const productData = {
             country: pkg.locationCode || pkg.location || 'Unknown',
             name: pkgName,
-            description: `${dataAmount} на ${pkg.duration} дней`,
+            description: description,
             dataAmount: dataAmount,
-            validityDays: pkg.duration,
+            validityDays: validity,  // Для Daily Unlimited = 180, для обычных = duration
+            duration: duration,      // Для Daily Unlimited = 1, для обычных = validityDays
+            speed: speed,            // Ограничение скорости
             providerPrice: priceRaw,
             ourPrice: priceInRUB,
             providerId: pkg.packageCode,
             providerName: 'esimaccess',
-            isUnlimited: isUnlimitedByName,  // По названию, а не по источнику
+            isUnlimited: isUnlimitedByName,
             isActive: true,
           };
           
@@ -346,7 +373,9 @@ export class ProductsService implements OnModuleInit {
                 description: productData.description,
                 dataAmount: productData.dataAmount,
                 validityDays: productData.validityDays,
-                providerPrice: productData.providerPrice, // Обновляем цену провайдера
+                duration: productData.duration,       // Новое поле
+                speed: productData.speed,             // Новое поле
+                providerPrice: productData.providerPrice,
                 // ourPrice - НЕ трогаем! Сохраняем кастомную наценку
                 isUnlimited: productData.isUnlimited,
                 // isActive - НЕ трогаем! Сохраняем настройку скрытия
