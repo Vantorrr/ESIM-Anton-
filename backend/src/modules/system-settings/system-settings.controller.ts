@@ -54,6 +54,12 @@ export class SystemSettingsController {
     return this.systemSettingsService.updateExchangeRateFromCBR();
   }
 
+  @Post('exchange-rate/auto-update')
+  @ApiOperation({ summary: 'Включить/выключить автообновление курса (раз в сутки)' })
+  async setAutoUpdateExchangeRate(@Body() data: { enabled: boolean }) {
+    return this.systemSettingsService.setAutoUpdateExchangeRate(data.enabled);
+  }
+
   @Get(':key')
   @ApiOperation({ summary: 'Получить настройку по ключу' })
   async getByKey(@Param('key') key: string) {

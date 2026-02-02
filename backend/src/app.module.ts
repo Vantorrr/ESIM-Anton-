@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './common/prisma/prisma.module';
 
 // Модули
@@ -21,6 +22,9 @@ import { SystemSettingsModule } from './modules/system-settings/system-settings.
       isGlobal: true,
       envFilePath: '../.env',
     }),
+
+    // Планировщик задач (cron jobs)
+    ScheduleModule.forRoot(),
 
     // База данных
     PrismaModule,

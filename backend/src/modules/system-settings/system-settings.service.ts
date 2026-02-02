@@ -1,12 +1,41 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import axios from 'axios';
 
 @Injectable()
-export class SystemSettingsService {
+export class SystemSettingsService implements OnModuleInit {
   private readonly logger = new Logger(SystemSettingsService.name);
   
   constructor(private prisma: PrismaService) {}
+
+  async onModuleInit() {
+    // Проверяем настройку автообновления курса при старте
+    const autoUpdate = await this.getByKey('auto_update_exchange_rate');
+    if (autoUpdate?.value === 'true') {
+      this.logger.log('🔄 Автообновление курса включено (ежедневно в 9:00)');
+    }
+  }
+
+  /**
+   * Автоматическое обновление курса каждый день в 9:00
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_9AM)
+  async handleExchangeRateUpdate() {
+    try {
+      // Проверяем включено ли автообновление
+      const autoUpdate = await this.getByKey('auto_update_exchange_rate');
+      if (autoUpdate?.value !== 'true') {
+        return; // Автообновление выключено
+      }
+
+      this.logger.log('🔄 Автоматическое обновление курса USD/RUB...');
+      const result = await this.updateExchangeRateFromCBR();
+      this.logger.log(`✅ Курс обновлён: ${result.rate}₽/$ (дата ЦБ: ${result.date})`);
+    } catch (error) {
+      this.logger.error('❌ Ошибка автообновления курса:', error.message);
+    }
+  }
 
   /**
    * Получить все настройки
@@ -202,15 +231,36 @@ export class SystemSettingsService {
    * Получить информацию о курсе (текущий + когда обновлен)
    */
   async getExchangeRateInfo() {
-    const [rateSetting, updatedAtSetting] = await Promise.all([
+    const [rateSetting, updatedAtSetting, autoUpdateSetting] = await Promise.all([
       this.getByKey('EXCHANGE_RATE_USD_RUB'),
       this.getByKey('EXCHANGE_RATE_UPDATED_AT'),
+      this.getByKey('auto_update_exchange_rate'),
     ]);
 
     return {
       rate: rateSetting ? parseFloat(rateSetting.value) : 95,
       updatedAt: updatedAtSetting?.value || null,
+      autoUpdate: autoUpdateSetting?.value === 'true',
       source: 'ЦБ РФ',
+    };
+  }
+
+  /**
+   * Включить/выключить автообновление курса
+   */
+  async setAutoUpdateExchangeRate(enabled: boolean) {
+    await this.upsert(
+      'auto_update_exchange_rate',
+      enabled ? 'true' : 'false',
+      'Автоматическое обновление курса раз в сутки (9:00)'
+    );
+    
+    this.logger.log(`🔄 Автообновление курса ${enabled ? 'ВКЛЮЧЕНО' : 'ВЫКЛЮЧЕНО'}`);
+    
+    return {
+      success: true,
+      autoUpdate: enabled,
+      message: `Автообновление курса ${enabled ? 'включено (ежедневно в 9:00)' : 'выключено'}`,
     };
   }
 }

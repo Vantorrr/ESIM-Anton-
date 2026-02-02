@@ -333,11 +333,28 @@ export class ProductsService implements OnModuleInit {
           });
           
           if (existing) {
+            // Для существующих продуктов НЕ затираем кастомные настройки:
+            // - ourPrice (кастомная наценка)
+            // - isActive (скрытие тарифа)
+            // - badge, badgeColor (бейджи)
+            // Обновляем только данные от провайдера
             await this.prisma.esimProduct.update({
               where: { id: existing.id },
-              data: productData,
+              data: {
+                country: productData.country,
+                name: productData.name,
+                description: productData.description,
+                dataAmount: productData.dataAmount,
+                validityDays: productData.validityDays,
+                providerPrice: productData.providerPrice, // Обновляем цену провайдера
+                // ourPrice - НЕ трогаем! Сохраняем кастомную наценку
+                isUnlimited: productData.isUnlimited,
+                // isActive - НЕ трогаем! Сохраняем настройку скрытия
+                // badge, badgeColor - НЕ трогаем!
+              },
             });
           } else {
+            // Новый продукт - создаём с дефолтными настройками
             await this.prisma.esimProduct.create({
               data: productData,
             });

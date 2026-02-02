@@ -751,7 +751,7 @@ export default function Products() {
               </div>
 
               <div className="flex gap-2 flex-wrap">
-                {[10, 20, 30, 50, 75, 100].map((val) => (
+                {[10, 20, 30, 50, 75, 100, 150, 200].map((val) => (
                   <button
                     key={val}
                     onClick={() => setBulkMarkup(val)}

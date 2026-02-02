@@ -515,10 +515,14 @@ export default function Home() {
     setPopularCountries(popular.length > 0 ? popular : allGroups.slice(0, 8))
   }
 
+  // Поиск по названию страны (на русском) И по ISO коду
   const filteredCountries = searchQuery
-    ? countryGroups.filter(g => 
-        g.country.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? countryGroups.filter(g => {
+        const query = searchQuery.toLowerCase();
+        const countryName = getCountryName(g.country).toLowerCase();
+        const countryCode = g.country.toLowerCase();
+        return countryName.includes(query) || countryCode.includes(query);
+      })
     : countryGroups
 
   // Автоскролл к результатам при поиске
