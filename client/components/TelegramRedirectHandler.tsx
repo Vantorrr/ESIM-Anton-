@@ -2,105 +2,81 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ordersApi, userApi } from '@/lib/api'
 
-const NOTIFICATION_KEY = 'payment_notification'
+const LAST_NOTIFIED_ORDER_KEY = 'last_notified_order_id'
 
 export default function TelegramRedirectHandler() {
   const router = useRouter()
-  const [processed, setProcessed] = useState(false)
+  const [checked, setChecked] = useState(false)
 
   useEffect(() => {
-    if (processed) return
+    if (checked) return
 
-    const tg = (window as any).Telegram?.WebApp
-    if (!tg) {
-      console.log('❌ Telegram WebApp not found')
-      return
-    }
+    const checkForNewOrders = async () => {
+      const tg = (window as any).Telegram?.WebApp
+      if (!tg) {
+        console.log('❌ Telegram WebApp not found')
+        return
+      }
 
-    // Expand app
-    tg.expand()
+      // Expand app
+      tg.expand()
 
-    // Получаем start_param из разных источников
-    const urlParams = new URLSearchParams(window.location.search)
-    const urlStartParam = urlParams.get('tgWebAppStartParam')
-    const initStartParam = tg.initDataUnsafe?.start_param
-    
-    // Также проверяем hash параметры (на случай если Telegram передает так)
-    const hashParams = new URLSearchParams(window.location.hash.substring(1))
-    const hashStartParam = hashParams.get('tgWebAppStartParam')
-    
-    const startParam = urlStartParam || hashStartParam || initStartParam
-    
-    console.log('🔗 TelegramRedirectHandler:', {
-      url: window.location.href,
-      urlStartParam,
-      hashStartParam,
-      initStartParam,
-      final: startParam,
-      initDataUnsafe: tg.initDataUnsafe
-    })
+      try {
+        // Получаем telegramId
+        const telegramId = tg.initDataUnsafe?.user?.id || 316662303 // fallback
+        console.log('🔍 Checking for new orders, telegramId:', telegramId)
 
-    // Проверяем localStorage для отложенных уведомлений
-    const savedNotification = localStorage.getItem(NOTIFICATION_KEY)
-    if (savedNotification && !processed) {
-      console.log('📬 Found saved notification:', savedNotification)
-      localStorage.removeItem(NOTIFICATION_KEY)
-      setProcessed(true)
-      
-      const data = JSON.parse(savedNotification)
-      if (tg.showAlert) {
-        tg.showAlert(data.message, () => {
-          if (data.redirect) {
-            router.push(data.redirect)
+        // Получаем пользователя
+        const user = await userApi.getMe(String(telegramId))
+        
+        // Проверяем новые заказы
+        const { hasNewOrders, latestOrder } = await ordersApi.checkNew(user.id)
+        
+        console.log('📦 Check result:', { hasNewOrders, latestOrder })
+        
+        if (hasNewOrders && latestOrder) {
+          // Проверяем, показывали ли мы уже уведомление для этого заказа
+          const lastNotifiedOrderId = localStorage.getItem(LAST_NOTIFIED_ORDER_KEY)
+          
+          if (lastNotifiedOrderId !== latestOrder.id) {
+            console.log('✅ New order detected! Showing notification:', latestOrder.id)
+            
+            // Сохраняем ID заказа, чтобы не показывать уведомление повторно
+            localStorage.setItem(LAST_NOTIFIED_ORDER_KEY, latestOrder.id)
+            
+            // Показываем уведомление
+            const message = `✅ Заказ оплачен!\n\neSIM для ${latestOrder.product.country}\n${latestOrder.product.dataAmount} готов к использованию`
+            
+            if (tg.showAlert) {
+              tg.showAlert(message, () => {
+                router.push('/my-esim')
+              })
+            } else {
+              alert(message)
+              router.push('/my-esim')
+            }
+          } else {
+            console.log('ℹ️ Order already notified:', latestOrder.id)
           }
-        })
-      } else {
-        alert(data.message)
-        if (data.redirect) {
-          router.push(data.redirect)
+        } else {
+          console.log('ℹ️ No new orders')
         }
+      } catch (error) {
+        console.error('❌ Error checking new orders:', error)
+      } finally {
+        setChecked(true)
       }
-      return
     }
 
-    if (startParam && !processed) {
-      console.log('✅ Start param detected:', startParam)
-      setProcessed(true)
-      
-      if (startParam === 'my_esim' || startParam.startsWith('order_')) {
-        const message = startParam.startsWith('order_') 
-          ? '✅ Заказ оплачен! Ваш eSIM готов'
-          : '✅ Оплата успешна!'
-        
-        // Сохраняем в localStorage на случай если уведомление не покажется сразу
-        localStorage.setItem(NOTIFICATION_KEY, JSON.stringify({
-          message,
-          redirect: '/my-esim',
-          timestamp: Date.now()
-        }))
-        
-        // Показываем уведомление
-        if (tg.showAlert) {
-          tg.showAlert(message, () => {
-            localStorage.removeItem(NOTIFICATION_KEY)
-            router.push('/my-esim')
-          })
-        } else {
-          alert(message)
-          localStorage.removeItem(NOTIFICATION_KEY)
-          router.push('/my-esim')
-        }
-      } else if (startParam === 'payment_failed') {
-        const message = '❌ Оплата не прошла. Попробуйте снова.'
-        if (tg.showAlert) {
-          tg.showAlert(message)
-        } else {
-          alert(message)
-        }
-      }
-    }
-  }, [router, processed])
+    // Небольшая задержка чтобы дать приложению загрузиться
+    const timer = setTimeout(() => {
+      checkForNewOrders()
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [router, checked])
 
   return null
 }

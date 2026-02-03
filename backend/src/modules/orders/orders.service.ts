@@ -101,6 +101,35 @@ export class OrdersService {
   }
 
   /**
+   * Проверить новые оплаченные заказы (за последние 10 минут)
+   */
+  async checkNewOrders(userId: string) {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    
+    const newOrders = await this.prisma.order.findMany({
+      where: {
+        userId,
+        status: {
+          in: [OrderStatus.PAID, OrderStatus.COMPLETED],
+        },
+        createdAt: {
+          gte: tenMinutesAgo,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+      include: {
+        product: true,
+      },
+    });
+
+    return {
+      hasNewOrders: newOrders.length > 0,
+      latestOrder: newOrders[0] || null,
+    };
+  }
+
+  /**
    * Обновить статус заказа
    */
   async updateStatus(orderId: string, status: OrderStatus, data?: Partial<Prisma.OrderUpdateInput>) {

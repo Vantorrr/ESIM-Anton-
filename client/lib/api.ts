@@ -140,6 +140,12 @@ export const ordersApi = {
     const { data } = await api.get(`/orders/${orderId}`);
     return data;
   },
+
+  // Проверить новые оплаченные заказы
+  async checkNew(userId: string): Promise<{ hasNewOrders: boolean; latestOrder: Order | null }> {
+    const { data } = await api.get(`/orders/user/${userId}/check-new`);
+    return data;
+  },
 };
 
 export const referralsApi = {

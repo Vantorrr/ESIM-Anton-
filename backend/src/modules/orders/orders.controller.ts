@@ -31,6 +31,12 @@ export class OrdersController {
     return this.ordersService.findByUser(userId);
   }
 
+  @Get('user/:userId/check-new')
+  @ApiOperation({ summary: 'Проверить новые оплаченные заказы (за последние 10 минут)' })
+  async checkNewOrders(@Param('userId') userId: string) {
+    return this.ordersService.checkNewOrders(userId);
+  }
+
   @Post()
   @ApiOperation({ summary: 'Создать заказ' })
   async create(@Body() createDto: { userId: string; productId: string; quantity?: number; useBonuses?: number }) {
