@@ -14,6 +14,7 @@ import { LoyaltyModule } from './modules/loyalty/loyalty.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { EsimProviderModule } from './modules/esim-provider/esim-provider.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
+import { TelegramModule } from './modules/telegram/telegram.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { SystemSettingsModule } from './modules/system-settings/system-settings.
     AnalyticsModule,
     EsimProviderModule,
     SystemSettingsModule,
+    TelegramModule,
   ],
 })
 export class AppModule {}

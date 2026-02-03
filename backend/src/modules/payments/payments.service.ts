@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { OrdersService } from '../orders/orders.service';
+import { TelegramNotificationService } from '../telegram/telegram-notification.service';
 import { TransactionType, TransactionStatus, OrderStatus } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -20,6 +21,7 @@ export class PaymentsService {
     private prisma: PrismaService,
     private ordersService: OrdersService,
     private configService: ConfigService,
+    private telegramNotification: TelegramNotificationService,
   ) {
     this.merchantLogin = this.configService.get('ROBOKASSA_MERCHANT_LOGIN') || '';
     this.password1 = this.configService.get('ROBOKASSA_PASSWORD1') || '';
@@ -194,6 +196,26 @@ export class PaymentsService {
       this.logger.log(`✅ eSIM выдан для заказа ${transaction.orderId}`);
     } catch (error) {
       this.logger.error(`❌ Ошибка выдачи eSIM: ${error.message}`);
+    }
+
+    // Отправляем уведомление в Telegram
+    try {
+      const fullOrder = await this.ordersService.findById(transaction.orderId);
+      if (fullOrder && fullOrder.user) {
+        await this.telegramNotification.sendPaymentSuccessNotification(
+          fullOrder.user.telegramId,
+          {
+            orderId: fullOrder.id,
+            productName: fullOrder.product.name,
+            country: fullOrder.product.country,
+            dataAmount: fullOrder.product.dataAmount,
+            price: Number(fullOrder.totalAmount),
+          }
+        );
+        this.logger.log(`✅ Уведомление отправлено в Telegram для ${fullOrder.user.telegramId}`);
+      }
+    } catch (error) {
+      this.logger.error(`❌ Ошибка отправки уведомления: ${error.message}`);
     }
 
     // Robokassa ожидает ответ "OK" + InvId
