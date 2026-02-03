@@ -53,36 +53,39 @@ export class PaymentsController {
       <html>
       <head>
         <title>Оплата успешна</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <script src="https://telegram.org/js/telegram-web-app.js"></script>
         <style>
-          body { font-family: sans-serif; text-align: center; padding: 20px; background: #f8f9fa; }
-          .success-icon { font-size: 48px; color: #28a745; margin-bottom: 10px; }
-          .btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 16px; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 20px; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 20px; background: #f8f9fa; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+          .success-icon { font-size: 64px; margin-bottom: 20px; }
+          h2 { color: #333; margin-bottom: 10px; }
+          p { color: #666; margin-bottom: 30px; }
+          .btn { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; width: 100%; max-width: 300px; box-sizing: border-box; }
+          .btn:active { transform: scale(0.98); }
         </style>
       </head>
       <body>
         <div class="success-icon">✅</div>
         <h2>Оплата прошла успешно!</h2>
-        <p>Ваш заказ оплачен. Сейчас вы вернетесь в магазин.</p>
+        <p>Ваш заказ оплачен.</p>
         
         <a href="${redirectUrl}" id="btn" class="btn">Вернуться в магазин</a>
+        <br><br>
+        <button onclick="closeApp()" class="btn" style="background: #6c757d;">Закрыть окно</button>
 
         <script>
-          // Пытаемся закрыть окно, если это WebApp
-          if (window.Telegram && window.Telegram.WebApp) {
-            window.Telegram.WebApp.ready();
-            // Даем пользователю прочитать сообщение 2 секунды, потом закрываем/редиректим
-            setTimeout(() => {
-               // Если открыто как External Link (через openLink), то WebApp.close() может закрыть браузер
-               // Но лучше перенаправить обратно в Mini App
-               window.location.href = "${redirectUrl}";
-            }, 1500);
-          } else {
-            // Обычный браузер - редирект
-            setTimeout(() => {
-              window.location.href = "${redirectUrl}";
-            }, 1000);
+          function closeApp() {
+            if (window.Telegram && window.Telegram.WebApp) {
+              window.Telegram.WebApp.close();
+            } else {
+              window.close();
+            }
           }
+
+          // Автоматический редирект
+          setTimeout(() => {
+             window.location.href = "${redirectUrl}";
+          }, 1000);
         </script>
       </body>
       </html>
@@ -104,11 +107,14 @@ export class PaymentsController {
       <html>
       <head>
         <title>Ошибка оплаты</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <script src="https://telegram.org/js/telegram-web-app.js"></script>
         <style>
-          body { font-family: sans-serif; text-align: center; padding: 20px; background: #fff5f5; }
-          .error-icon { font-size: 48px; color: #dc3545; margin-bottom: 10px; }
-          .btn { background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 16px; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 20px; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 20px; background: #fff5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+          .error-icon { font-size: 64px; margin-bottom: 20px; }
+          h2 { color: #333; margin-bottom: 10px; }
+          p { color: #666; margin-bottom: 30px; }
+          .btn { background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; width: 100%; max-width: 300px; box-sizing: border-box; }
         </style>
       </head>
       <body>
@@ -117,8 +123,18 @@ export class PaymentsController {
         <p>К сожалению, произошла ошибка при оплате.</p>
         
         <a href="${redirectUrl}" class="btn">Вернуться в магазин</a>
+        <br><br>
+        <button onclick="closeApp()" class="btn" style="background: #333;">Закрыть окно</button>
 
         <script>
+          function closeApp() {
+            if (window.Telegram && window.Telegram.WebApp) {
+              window.Telegram.WebApp.close();
+            } else {
+              window.close();
+            }
+          }
+          
           setTimeout(() => {
             window.location.href = "${redirectUrl}";
           }, 2000);
