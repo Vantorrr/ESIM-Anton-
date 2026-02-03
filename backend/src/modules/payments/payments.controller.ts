@@ -17,20 +17,16 @@ export class PaymentsController {
 
   /**
    * Robokassa ResultURL webhook
-   * Принимает POST с form-data или query params
-   * Должен вернуть plain text "OK{InvId}"
    */
   @Post('webhook')
   @HttpCode(200)
   @Header('Content-Type', 'text/plain')
   @ApiOperation({ summary: 'Webhook от Robokassa (ResultURL)' })
   async handleWebhook(@Body() body: any, @Query() query: any, @Res() res: any) {
-    // Robokassa может отправлять данные как в body, так и в query
     const payload = { ...query, ...body };
     
     try {
       const result = await this.paymentsService.handleWebhook(payload);
-      // Robokassa ожидает plain text ответ "OK{InvId}"
       res.send(result);
     } catch (error) {
       res.status(400).send(`error: ${error.message}`);
@@ -38,19 +34,14 @@ export class PaymentsController {
   }
 
   /**
-   * Success URL - редирект после успешной оплаты
+   * Success URL
    */
   @Get('success')
   @ApiOperation({ summary: 'Success URL для Robokassa' })
   async handleSuccess(@Query() query: any, @Res() res: any) {
     const { InvId } = query;
-    // Ссылка на возврат в бота (Deep Link)
-    // TODO: Вынести username бота в конфиг
     const botUrl = 'https://t.me/esim_testt_bot';
-    
-    // Редирект в Mini App через прямую ссылку на бота
-    // Можно добавить startapp параметр: https://t.me/esim_testt_bot/app?startapp=orders
-    const returnUrl = `${botUrl}/app`;
+    const returnUrl = `${botUrl}/app`; // Можно добавить ?startapp=orders
 
     res.send(`
       <!DOCTYPE html>
@@ -77,7 +68,6 @@ export class PaymentsController {
         <button onclick="Telegram.WebApp.close()" class="btn btn-secondary">Закрыть окно</button>
 
         <script>
-          // Пытаемся автоматически вернуть пользователя
           setTimeout(() => {
              window.location.href = "${returnUrl}";
           }, 2000);
@@ -86,18 +76,10 @@ export class PaymentsController {
       </html>
     `);
   }
-  }
 
   /**
-   * Fail URL - редирект при ошибке оплаты
+   * Fail URL
    */
-  @Get('fail')
-  @ApiOperation({ summary: 'Fail URL для Robokassa' })
-  async handleFail(@Query() query: any, @Res() res: any) {
-    const { InvId } = query;
-    const botUrl = 'https://t.me/esim_testt_bot';
-    const returnUrl = `${botUrl}/app`;
-
   @Get('fail')
   @ApiOperation({ summary: 'Fail URL для Robokassa' })
   async handleFail(@Query() query: any, @Res() res: any) {
@@ -136,8 +118,6 @@ export class PaymentsController {
       </body>
       </html>
     `);
-  }
-  }
   }
 
   @Get()
