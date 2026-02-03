@@ -1,6 +1,6 @@
 {
   "name": "admin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Admin Panel for eSIM Service",
   "scripts": {
     "dev": "next dev -p 3001",
@@ -16,8 +16,8 @@
     "@tanstack/react-table": "^8.11.6",
     "axios": "^1.6.5",
     "date-fns": "^3.2.0",
-    "recharts": "^2.10.3",
-    "lucide-react": "^0.309.0",
+    "recharts": "^2.15.0",
+    "lucide-react": "^0.469.0",
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.2.0",
     "class-variance-authority": "^0.7.0"
