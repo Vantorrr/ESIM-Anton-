@@ -4,6 +4,11 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
+// Фикс для сериализации BigInt в JSON (telegramId из Prisma)
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
