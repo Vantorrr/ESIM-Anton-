@@ -1,8 +1,7 @@
-import { Controller, Get, Post, Param, Body, Query, Res, Header } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query, Res, Header, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { TransactionStatus, TransactionType } from '@prisma/client';
-import { Response } from 'express';
 
 @ApiTags('payments')
 @Controller('payments')
@@ -22,9 +21,10 @@ export class PaymentsController {
    * Должен вернуть plain text "OK{InvId}"
    */
   @Post('webhook')
+  @HttpCode(200)
   @Header('Content-Type', 'text/plain')
   @ApiOperation({ summary: 'Webhook от Robokassa (ResultURL)' })
-  async handleWebhook(@Body() body: any, @Query() query: any, @Res() res: Response) {
+  async handleWebhook(@Body() body: any, @Query() query: any, @Res() res: any) {
     // Robokassa может отправлять данные как в body, так и в query
     const payload = { ...query, ...body };
     
@@ -42,7 +42,7 @@ export class PaymentsController {
    */
   @Get('success')
   @ApiOperation({ summary: 'Success URL для Robokassa' })
-  async handleSuccess(@Query() query: any, @Res() res: Response) {
+  async handleSuccess(@Query() query: any, @Res() res: any) {
     const { InvId } = query;
     // Редирект в Mini App с параметром успеха
     const miniAppUrl = process.env.MINI_APP_URL || 'https://esim-anton-production.up.railway.app';
@@ -54,7 +54,7 @@ export class PaymentsController {
    */
   @Get('fail')
   @ApiOperation({ summary: 'Fail URL для Robokassa' })
-  async handleFail(@Query() query: any, @Res() res: Response) {
+  async handleFail(@Query() query: any, @Res() res: any) {
     const { InvId } = query;
     const miniAppUrl = process.env.MINI_APP_URL || 'https://esim-anton-production.up.railway.app';
     res.redirect(`${miniAppUrl}/orders?payment=failed&invId=${InvId || ''}`);
