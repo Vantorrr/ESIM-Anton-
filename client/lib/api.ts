@@ -120,6 +120,7 @@ export const productsApi = {
 export const ordersApi = {
   // Создать заказ
   async create(orderData: {
+    userId: string;
     productId: string;
     quantity: number;
     bonusToUse?: number;
@@ -156,8 +157,16 @@ export const referralsApi = {
 };
 
 export const paymentsApi = {
-  // Создать платеж
-  async createPayment(orderId: string): Promise<{ paymentUrl: string }> {
+  // Создать платеж через Robokassa
+  async createPayment(orderId: string): Promise<{
+    transaction: any;
+    payment: {
+      paymentId: string;
+      paymentUrl: string;
+      amount: number;
+      currency: string;
+    };
+  }> {
     const { data } = await api.post(`/payments/create`, { orderId });
     return data;
   },

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Wifi, Clock, CheckCircle2, Zap, Shield, Globe } from 'lucide-react'
-import { productsApi, Product } from '@/lib/api'
+import { productsApi, Product, userApi, ordersApi, paymentsApi } from '@/lib/api'
 import { formatPrice, formatDataAmount, getCountryEmoji } from '@/lib/utils'
 
 export default function ProductPage() {
@@ -33,12 +33,44 @@ export default function ProductPage() {
     
     setPurchasing(true)
     
-    // TODO: Интеграция с платежной системой
-    // Пока показываем сообщение
-    setTimeout(() => {
-      setPurchasing(false)
-      alert('Функция оплаты будет доступна после интеграции с платёжной системой')
-    }, 1000)
+    try {
+      // Получаем Telegram user ID
+      const tg = (window as any).Telegram?.WebApp;
+      const telegramId = tg?.initDataUnsafe?.user?.id || 316662303; // fallback для теста
+      
+      // Создаем/получаем пользователя
+      const user = await userApi.getMe(String(telegramId));
+      
+      // Создаем заказ
+      const order = await ordersApi.create({
+        userId: user.id,
+        productId: product.id,
+        quantity: 1,
+      });
+      
+      // Получаем payment URL от Robokassa
+      const { payment } = await paymentsApi.createPayment(order.id);
+      
+      // Открываем страницу оплаты через Telegram WebApp
+      if (tg?.openLink) {
+        tg.openLink(payment.paymentUrl);
+      } else {
+        // Fallback для браузера
+        window.open(payment.paymentUrl, '_blank');
+      }
+    } catch (error: any) {
+      console.error('Ошибка оплаты:', error);
+      const errorMsg = error?.response?.data?.message || error.message || 'Ошибка при создании заказа';
+      
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.showAlert) {
+        tg.showAlert(errorMsg);
+      } else {
+        alert(errorMsg);
+      }
+    } finally {
+      setPurchasing(false);
+    }
   }
 
   if (loading) {
