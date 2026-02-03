@@ -23,6 +23,17 @@ export default function TelegramRedirectHandler() {
       // Expand app
       tg.expand()
 
+      // Проверяем параметр startapp для редиректа
+      const startParam = tg.initDataUnsafe?.start_param
+      console.log('🔗 start_param:', startParam)
+      
+      if (startParam === 'my-esim') {
+        console.log('✅ Redirecting to /my-esim from startapp parameter')
+        router.push('/my-esim')
+        setChecked(true)
+        return
+      }
+
       try {
         // Получаем telegramId
         const telegramId = tg.initDataUnsafe?.user?.id || 316662303 // fallback

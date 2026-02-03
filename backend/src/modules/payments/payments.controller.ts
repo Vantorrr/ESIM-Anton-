@@ -40,9 +40,8 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Success URL для Robokassa' })
   async handleSuccess(@Query() query: any, @Res() res: any) {
     const { InvId } = query;
-    // Прямой URL на страницу my-esim в клиенте
-    const clientUrl = 'https://client-production-7a4e.up.railway.app/my-esim';
-    const botUrl = 'https://t.me/esim_testt_bot/app?startapp=payment_success';
+    // Редирект в Telegram Mini App с параметром для открытия страницы my-esim
+    const telegramUrl = 'https://t.me/esim_testt_bot/app?startapp=my-esim';
 
     res.send(`
       <!DOCTYPE html>
@@ -50,8 +49,7 @@ export class PaymentsController {
       <head>
         <title>Оплата успешна</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="refresh" content="1;url=${clientUrl}">
-        <script src="https://telegram.org/js/telegram-web-app.js"></script>
+        <meta http-equiv="refresh" content="2;url=${telegramUrl}">
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white; }
           .success-icon { font-size: 80px; margin-bottom: 20px; animation: bounce 1s ease-in-out; }
@@ -68,14 +66,14 @@ export class PaymentsController {
         <h2>Оплата прошла!</h2>
         <p>Ваш eSIM готов к использованию</p>
         <div class="loader"></div>
-        <p style="font-size: 14px; opacity: 0.8;">Возвращаемся в приложение...</p>
+        <p style="font-size: 14px; opacity: 0.8;">Возвращаемся в Telegram...</p>
+        <a href="${telegramUrl}" class="btn">Открыть в Telegram</a>
         
         <script>
-          console.log('✅ Success page loaded, redirecting to my-esim');
-          // Редирект на страницу Мои eSIM
+          console.log('✅ Success page loaded, redirecting to Telegram');
           setTimeout(() => {
-            window.location.replace('${clientUrl}');
-          }, 1000);
+            window.location.replace('${telegramUrl}');
+          }, 2000);
         </script>
       </body>
       </html>
