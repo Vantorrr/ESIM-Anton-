@@ -53,13 +53,7 @@ export class TelegramNotificationService {
         [
           {
             text: '📱 Открыть Мои eSIM',
-            web_app: { url: 'https://client-production-7a4e.up.railway.app/my-esim' }
-          }
-        ],
-        [
-          {
-            text: '📲 Открыть приложение',
-            url: 'https://t.me/esim_testt_bot/app'
+            url: 'https://t.me/esim_testt_bot/app?startapp=my-esim'
           }
         ]
       ]
