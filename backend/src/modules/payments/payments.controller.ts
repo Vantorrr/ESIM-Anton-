@@ -63,29 +63,32 @@ export class PaymentsController {
       <head>
         <title>Оплата успешна</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="refresh" content="1;url=${returnUrl}">
         <script src="https://telegram.org/js/telegram-web-app.js"></script>
         <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 20px; background: #f8f9fa; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-          .success-icon { font-size: 64px; margin-bottom: 20px; }
-          h2 { color: #333; margin-bottom: 10px; }
-          p { color: #666; margin-bottom: 30px; }
-          .btn { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; width: 100%; max-width: 300px; box-sizing: border-box; margin-bottom: 10px; }
-          .btn-secondary { background: #6c757d; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white; }
+          .success-icon { font-size: 80px; margin-bottom: 20px; animation: bounce 1s ease-in-out; }
+          @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+          h2 { color: white; margin-bottom: 10px; font-size: 28px; }
+          p { color: rgba(255,255,255,0.9); margin-bottom: 30px; font-size: 18px; }
+          .btn { background: white; color: #667eea; border: none; padding: 14px 28px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; width: 100%; max-width: 300px; box-sizing: border-box; margin-bottom: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+          .loader { border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         </style>
       </head>
       <body>
         <div class="success-icon">✅</div>
-        <h2>Оплата прошла успешно!</h2>
-        <p>Ваш заказ оплачен. Возвращаемся в приложение...</p>
+        <h2>Оплата прошла!</h2>
+        <p>Ваш eSIM готов к использованию</p>
+        <div class="loader"></div>
+        <p style="font-size: 14px; opacity: 0.8;">Возвращаемся в приложение...</p>
         
-        <a href="${returnUrl}" class="btn">Вернуться в приложение</a>
-        <button onclick="Telegram.WebApp.close()" class="btn btn-secondary">Закрыть окно</button>
-
         <script>
-          // Автоматический редирект через 2 секунды
+          console.log('✅ Success page loaded, redirecting to:', '${returnUrl}');
+          // Мгновенный редирект
           setTimeout(() => {
-             window.location.href = "${returnUrl}";
-          }, 2000);
+            window.location.replace('${returnUrl}');
+          }, 1000);
         </script>
       </body>
       </html>
@@ -108,27 +111,26 @@ export class PaymentsController {
       <head>
         <title>Ошибка оплаты</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="refresh" content="2;url=${returnUrl}">
         <script src="https://telegram.org/js/telegram-web-app.js"></script>
         <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 20px; background: #fff5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-          .error-icon { font-size: 64px; margin-bottom: 20px; }
-          h2 { color: #333; margin-bottom: 10px; }
-          p { color: #666; margin-bottom: 30px; }
-          .btn { background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; width: 100%; max-width: 300px; box-sizing: border-box; margin-bottom: 10px; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 20px; background: linear-gradient(135deg, #fc5c7d 0%, #6a82fb 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white; }
+          .error-icon { font-size: 80px; margin-bottom: 20px; }
+          h2 { color: white; margin-bottom: 10px; font-size: 28px; }
+          p { color: rgba(255,255,255,0.9); margin-bottom: 30px; font-size: 18px; }
+          .btn { background: white; color: #fc5c7d; border: none; padding: 14px 28px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; width: 100%; max-width: 300px; box-sizing: border-box; margin-bottom: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         </style>
       </head>
       <body>
         <div class="error-icon">❌</div>
         <h2>Оплата не прошла</h2>
-        <p>К сожалению, произошла ошибка при оплате.</p>
+        <p>Попробуйте еще раз или выберите другой способ оплаты</p>
         
-        <a href="${returnUrl}" class="btn">Вернуться в приложение</a>
-        <button onclick="Telegram.WebApp.close()" class="btn" style="background: #333;">Закрыть окно</button>
-
         <script>
+          console.log('❌ Failed page loaded, redirecting to:', '${returnUrl}');
           setTimeout(() => {
-            window.location.href = "${returnUrl}";
-          }, 3000);
+            window.location.replace('${returnUrl}');
+          }, 2000);
         </script>
       </body>
       </html>
