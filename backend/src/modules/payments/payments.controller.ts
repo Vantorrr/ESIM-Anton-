@@ -44,10 +44,14 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Success URL для Robokassa' })
   async handleSuccess(@Query() query: any, @Res() res: any) {
     const { InvId } = query;
-    const miniAppUrl = process.env.MINI_APP_URL || 'https://esim-anton-production.up.railway.app';
-    const redirectUrl = `${miniAppUrl}/orders?payment=success&invId=${InvId || ''}`;
+    // Ссылка на возврат в бота (Deep Link)
+    // TODO: Вынести username бота в конфиг
+    const botUrl = 'https://t.me/esim_testt_bot';
+    
+    // Редирект в Mini App через прямую ссылку на бота
+    // Можно добавить startapp параметр: https://t.me/esim_testt_bot/app?startapp=orders
+    const returnUrl = `${botUrl}/app`;
 
-    // Возвращаем HTML, который закроет окно в Telegram WebApp или сделает редирект
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -60,8 +64,8 @@ export class PaymentsController {
           .success-icon { font-size: 64px; margin-bottom: 20px; }
           h2 { color: #333; margin-bottom: 10px; }
           p { color: #666; margin-bottom: 30px; }
-          .btn { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; width: 100%; max-width: 300px; box-sizing: border-box; }
-          .btn:active { transform: scale(0.98); }
+          .btn { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; width: 100%; max-width: 300px; box-sizing: border-box; margin-bottom: 10px; }
+          .btn-secondary { background: #6c757d; }
         </style>
       </head>
       <body>
@@ -69,27 +73,19 @@ export class PaymentsController {
         <h2>Оплата прошла успешно!</h2>
         <p>Ваш заказ оплачен.</p>
         
-        <a href="${redirectUrl}" id="btn" class="btn">Вернуться в магазин</a>
-        <br><br>
-        <button onclick="closeApp()" class="btn" style="background: #6c757d;">Закрыть окно</button>
+        <a href="${returnUrl}" class="btn">Вернуться в приложение</a>
+        <button onclick="Telegram.WebApp.close()" class="btn btn-secondary">Закрыть окно</button>
 
         <script>
-          function closeApp() {
-            if (window.Telegram && window.Telegram.WebApp) {
-              window.Telegram.WebApp.close();
-            } else {
-              window.close();
-            }
-          }
-
-          // Автоматический редирект
+          // Пытаемся автоматически вернуть пользователя
           setTimeout(() => {
-             window.location.href = "${redirectUrl}";
-          }, 1000);
+             window.location.href = "${returnUrl}";
+          }, 2000);
         </script>
       </body>
       </html>
     `);
+  }
   }
 
   /**
@@ -99,8 +95,15 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Fail URL для Robokassa' })
   async handleFail(@Query() query: any, @Res() res: any) {
     const { InvId } = query;
-    const miniAppUrl = process.env.MINI_APP_URL || 'https://esim-anton-production.up.railway.app';
-    const redirectUrl = `${miniAppUrl}/orders?payment=failed&invId=${InvId || ''}`;
+    const botUrl = 'https://t.me/esim_testt_bot';
+    const returnUrl = `${botUrl}/app`;
+
+  @Get('fail')
+  @ApiOperation({ summary: 'Fail URL для Robokassa' })
+  async handleFail(@Query() query: any, @Res() res: any) {
+    const { InvId } = query;
+    const botUrl = 'https://t.me/esim_testt_bot';
+    const returnUrl = `${botUrl}/app`;
 
     res.send(`
       <!DOCTYPE html>
@@ -114,7 +117,7 @@ export class PaymentsController {
           .error-icon { font-size: 64px; margin-bottom: 20px; }
           h2 { color: #333; margin-bottom: 10px; }
           p { color: #666; margin-bottom: 30px; }
-          .btn { background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; width: 100%; max-width: 300px; box-sizing: border-box; }
+          .btn { background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; width: 100%; max-width: 300px; box-sizing: border-box; margin-bottom: 10px; }
         </style>
       </head>
       <body>
@@ -122,26 +125,19 @@ export class PaymentsController {
         <h2>Оплата не прошла</h2>
         <p>К сожалению, произошла ошибка при оплате.</p>
         
-        <a href="${redirectUrl}" class="btn">Вернуться в магазин</a>
-        <br><br>
-        <button onclick="closeApp()" class="btn" style="background: #333;">Закрыть окно</button>
+        <a href="${returnUrl}" class="btn">Вернуться в приложение</a>
+        <button onclick="Telegram.WebApp.close()" class="btn" style="background: #333;">Закрыть окно</button>
 
         <script>
-          function closeApp() {
-            if (window.Telegram && window.Telegram.WebApp) {
-              window.Telegram.WebApp.close();
-            } else {
-              window.close();
-            }
-          }
-          
           setTimeout(() => {
-            window.location.href = "${redirectUrl}";
-          }, 2000);
+            window.location.href = "${returnUrl}";
+          }, 3000);
         </script>
       </body>
       </html>
     `);
+  }
+  }
   }
 
   @Get()
