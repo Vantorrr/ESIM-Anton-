@@ -41,7 +41,21 @@ export class PaymentsController {
   async handleSuccess(@Query() query: any, @Res() res: any) {
     const { InvId } = query;
     const botUrl = 'https://t.me/esim_testt_bot';
-    const returnUrl = `${botUrl}/app`; // Можно добавить ?startapp=orders
+    
+    // Находим заказ по InvId для редиректа на конкретный заказ
+    let returnUrl = `${botUrl}/app`;
+    try {
+      const order = await this.paymentsService.findOrderByInvId(InvId);
+      if (order) {
+        // startapp параметр позволяет открыть приложение на конкретной странице
+        returnUrl = `${botUrl}/app?startapp=order_${order.id}`;
+      } else {
+        returnUrl = `${botUrl}/app?startapp=my_esim`;
+      }
+    } catch (e) {
+      console.error('Error finding order for redirect:', e);
+      returnUrl = `${botUrl}/app?startapp=my_esim`;
+    }
 
     res.send(`
       <!DOCTYPE html>
@@ -62,12 +76,13 @@ export class PaymentsController {
       <body>
         <div class="success-icon">✅</div>
         <h2>Оплата прошла успешно!</h2>
-        <p>Ваш заказ оплачен.</p>
+        <p>Ваш заказ оплачен. Возвращаемся в приложение...</p>
         
         <a href="${returnUrl}" class="btn">Вернуться в приложение</a>
         <button onclick="Telegram.WebApp.close()" class="btn btn-secondary">Закрыть окно</button>
 
         <script>
+          // Автоматический редирект через 2 секунды
           setTimeout(() => {
              window.location.href = "${returnUrl}";
           }, 2000);
@@ -85,7 +100,7 @@ export class PaymentsController {
   async handleFail(@Query() query: any, @Res() res: any) {
     const { InvId } = query;
     const botUrl = 'https://t.me/esim_testt_bot';
-    const returnUrl = `${botUrl}/app`;
+    const returnUrl = `${botUrl}/app?startapp=payment_failed`;
 
     res.send(`
       <!DOCTYPE html>

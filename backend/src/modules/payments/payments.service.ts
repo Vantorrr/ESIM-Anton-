@@ -125,6 +125,17 @@ export class PaymentsService {
   }
 
   /**
+   * Найти заказ по InvId (для редиректа)
+   */
+  async findOrderByInvId(invId: string) {
+    const transaction = await this.prisma.transaction.findFirst({
+      where: { paymentId: invId },
+      include: { order: true },
+    });
+    return transaction?.order;
+  }
+
+  /**
    * Обработка webhook (ResultURL) от Robokassa
    * Robokassa отправляет: OutSum, InvId, SignatureValue
    * Подпись проверяется: MD5(OutSum:InvId:Password2)
