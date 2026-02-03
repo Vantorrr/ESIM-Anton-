@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import TelegramRedirectHandler from '@/components/TelegramRedirectHandler'
 
 export const metadata: Metadata = {
   title: 'eSIM Service - Мобильный интернет по всему миру',
@@ -50,6 +51,7 @@ export default function RootLayout({
         <script src="https://telegram.org/js/telegram-web-app.js" async />
       </head>
       <body>
+        <TelegramRedirectHandler />
         {children}
       </body>
     </html>

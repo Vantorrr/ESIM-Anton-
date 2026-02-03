@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Search, Globe } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
@@ -408,7 +407,6 @@ function saveSearch(query: string) {
 }
 
 export default function Home() {
-  const router = useRouter()
   // Проверяем кэш при инициализации
   const cachedData = getCachedProducts()
   const hasCachedData = cachedData && cachedData.length > 0
@@ -423,27 +421,6 @@ export default function Home() {
   const [multiGroups, setMultiGroups] = useState<CountryGroup[]>([])
   const [globalGroups, setGlobalGroups] = useState<CountryGroup[]>([])
   const [popularCountries, setPopularCountries] = useState<CountryGroup[]>([])
-
-  useEffect(() => {
-    // Check for start_param from Telegram
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg) {
-       // Expand app
-       tg.expand();
-       
-       const startParam = tg.initDataUnsafe?.start_param;
-       if (startParam) {
-         if (startParam === 'my_esim') {
-           router.push('/my-esim');
-         } else if (startParam.startsWith('order_')) {
-           // Redirect to my-esim to show the new order
-           router.push('/my-esim');
-         } else if (startParam === 'payment_failed') {
-           tg.showAlert('Оплата не прошла. Попробуйте снова.');
-         }
-       }
-    }
-  }, []);
 
   useEffect(() => {
     // Если есть кэш - не загружаем заново
