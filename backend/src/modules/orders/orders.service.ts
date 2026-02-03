@@ -140,12 +140,16 @@ export class OrdersService {
       //   providerResponse: esimData as any,
       // });
 
-      // Временная заглушка (пока нет доступа к API)
+      // Временная заглушка (пока нет доступа к API или для тестов)
+      // Генерируем QR-код через API для красивого отображения
+      const mockLpaString = 'LPA:1$rsp.truphone.com$TEST-ACTIVATION-CODE';
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(mockLpaString)}`;
+
       const mockEsimData = {
-        qrCode: 'data:image/png;base64,MOCK_QR_CODE',
-        iccid: '8901234567890123456',
-        activationCode: 'LPA:1$provider.com$ACTIVATION_CODE',
-        providerOrderId: `MOCK_${Date.now()}`,
+        qrCode: qrCodeUrl, // Ссылка на реальный QR-код
+        iccid: '89000000000000000000', // Тестовый ICCID
+        activationCode: mockLpaString,
+        providerOrderId: `TEST_${Date.now()}`,
       };
 
       // Обновляем заказ
