@@ -1,19 +1,48 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { OrdersService } from '../orders/orders.service';
 import { TransactionType, TransactionStatus, OrderStatus } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+  
+  // Robokassa credentials
+  private readonly merchantLogin: string;
+  private readonly password1: string;
+  private readonly password2: string;
+  private readonly isTest: boolean;
+  private readonly robokassaUrl = 'https://auth.robokassa.ru/Merchant/Index.aspx';
+
   constructor(
     private prisma: PrismaService,
     private ordersService: OrdersService,
     private configService: ConfigService,
-  ) {}
+  ) {
+    this.merchantLogin = this.configService.get('ROBOKASSA_MERCHANT_LOGIN') || '';
+    this.password1 = this.configService.get('ROBOKASSA_PASSWORD1') || '';
+    this.password2 = this.configService.get('ROBOKASSA_PASSWORD2') || '';
+    this.isTest = this.configService.get('ROBOKASSA_TEST_MODE') === 'true';
+    
+    if (this.merchantLogin) {
+      this.logger.log(`✅ Robokassa инициализирована (Merchant: ${this.merchantLogin}, Test: ${this.isTest})`);
+    } else {
+      this.logger.warn('⚠️ Robokassa не настроена - отсутствуют credentials');
+    }
+  }
 
   /**
-   * Создать платеж для заказа (ЮKassa)
+   * Генерация MD5 подписи для Robokassa
+   */
+  private generateSignature(...parts: (string | number)[]): string {
+    const str = parts.join(':');
+    return crypto.createHash('md5').update(str).digest('hex');
+  }
+
+  /**
+   * Создать платеж через Robokassa
    */
   async createPayment(orderId: string) {
     const order = await this.ordersService.findById(orderId);
@@ -34,81 +63,130 @@ export class PaymentsService {
         type: TransactionType.PAYMENT,
         status: TransactionStatus.PENDING,
         amount: order.totalAmount,
-        paymentProvider: 'yukassa',
+        paymentProvider: 'robokassa',
       },
     });
 
-    // TODO: Интеграция с ЮKassa
-    // Здесь будет запрос к API ЮKassa для создания платежа
+    // Формируем данные для Robokassa
+    const outSum = Number(order.totalAmount).toFixed(2);
+    const invId = transaction.id.replace(/\D/g, '').slice(0, 15) || Date.now().toString(); // Только цифры, макс 15 символов
+    const description = `eSIM заказ #${order.id.slice(-8)}`;
     
-    // Временная заглушка (мок)
-    const mockPaymentUrl = `https://yoomoney.ru/checkout/payments/v2/contract?orderId=${order.id}`;
-    
-    const mockPaymentData = {
-      paymentId: `mock_${transaction.id}`,
-      paymentUrl: mockPaymentUrl,
-      amount: Number(order.totalAmount),
-      currency: 'RUB',
-    };
+    // Подпись: MerchantLogin:OutSum:InvId:Password1
+    const signature = this.generateSignature(
+      this.merchantLogin,
+      outSum,
+      invId,
+      this.password1
+    );
 
-    // Обновляем транзакцию с ID платежа
+    // Формируем URL для редиректа на Robokassa
+    const params = new URLSearchParams({
+      MerchantLogin: this.merchantLogin,
+      OutSum: outSum,
+      InvId: invId,
+      Description: description,
+      SignatureValue: signature,
+      Culture: 'ru',
+      Encoding: 'utf-8',
+    });
+
+    if (this.isTest) {
+      params.append('IsTest', '1');
+    }
+
+    const paymentUrl = `${this.robokassaUrl}?${params.toString()}`;
+
+    // Обновляем транзакцию с данными платежа
     await this.prisma.transaction.update({
       where: { id: transaction.id },
       data: {
-        paymentId: mockPaymentData.paymentId,
-        metadata: mockPaymentData as any,
+        paymentId: invId,
+        metadata: {
+          invId,
+          outSum,
+          paymentUrl,
+          orderId: order.id,
+        } as any,
       },
     });
 
+    this.logger.log(`💳 Создан платеж Robokassa: InvId=${invId}, Sum=${outSum}₽, Order=${order.id}`);
+
     return {
       transaction,
-      payment: mockPaymentData,
+      payment: {
+        paymentId: invId,
+        paymentUrl,
+        amount: Number(outSum),
+        currency: 'RUB',
+      },
     };
   }
 
   /**
-   * Обработка webhook от ЮKassa
+   * Обработка webhook (ResultURL) от Robokassa
+   * Robokassa отправляет: OutSum, InvId, SignatureValue
+   * Подпись проверяется: MD5(OutSum:InvId:Password2)
    */
   async handleWebhook(payload: any) {
-    // TODO: Верификация подписи ЮKassa
+    this.logger.log(`📨 Robokassa webhook: ${JSON.stringify(payload)}`);
     
-    const { object } = payload;
+    const { OutSum, InvId, SignatureValue } = payload;
     
-    if (!object || !object.id) {
-      throw new BadRequestException('Invalid webhook payload');
+    if (!OutSum || !InvId || !SignatureValue) {
+      this.logger.error('❌ Неполные данные webhook');
+      throw new BadRequestException('Missing required parameters');
     }
 
+    // Проверяем подпись: MD5(OutSum:InvId:Password2)
+    const expectedSignature = this.generateSignature(OutSum, InvId, this.password2);
+    
+    if (SignatureValue.toLowerCase() !== expectedSignature.toLowerCase()) {
+      this.logger.error(`❌ Неверная подпись! Expected: ${expectedSignature}, Got: ${SignatureValue}`);
+      throw new BadRequestException('Invalid signature');
+    }
+
+    this.logger.log(`✅ Подпись верна для InvId=${InvId}`);
+
+    // Находим транзакцию по InvId (paymentId)
     const transaction = await this.prisma.transaction.findFirst({
-      where: { paymentId: object.id },
+      where: { paymentId: InvId },
       include: { order: true },
     });
 
     if (!transaction) {
+      this.logger.error(`❌ Транзакция не найдена: InvId=${InvId}`);
       throw new BadRequestException('Transaction not found');
     }
 
-    // Обновляем статус транзакции
-    if (object.status === 'succeeded') {
-      await this.prisma.transaction.update({
-        where: { id: transaction.id },
-        data: { status: TransactionStatus.SUCCEEDED },
-      });
-
-      // Обновляем статус заказа
-      await this.ordersService.updateStatus(transaction.orderId, OrderStatus.PAID);
-
-      // Выдаем eSIM
-      await this.ordersService.fulfillOrder(transaction.orderId);
-    } else if (object.status === 'canceled') {
-      await this.prisma.transaction.update({
-        where: { id: transaction.id },
-        data: { status: TransactionStatus.CANCELLED },
-      });
-
-      await this.ordersService.updateStatus(transaction.orderId, OrderStatus.CANCELLED);
+    // Проверяем сумму
+    if (Number(OutSum).toFixed(2) !== Number(transaction.amount).toFixed(2)) {
+      this.logger.error(`❌ Сумма не совпадает! Expected: ${transaction.amount}, Got: ${OutSum}`);
+      throw new BadRequestException('Amount mismatch');
     }
 
-    return { received: true };
+    // Обновляем статус транзакции
+    await this.prisma.transaction.update({
+      where: { id: transaction.id },
+      data: { status: TransactionStatus.SUCCEEDED },
+    });
+
+    // Обновляем статус заказа
+    await this.ordersService.updateStatus(transaction.orderId, OrderStatus.PAID);
+
+    this.logger.log(`✅ Платеж подтверждён: InvId=${InvId}, Order=${transaction.orderId}`);
+
+    // Выдаем eSIM
+    try {
+      await this.ordersService.fulfillOrder(transaction.orderId);
+      this.logger.log(`✅ eSIM выдан для заказа ${transaction.orderId}`);
+    } catch (error) {
+      this.logger.error(`❌ Ошибка выдачи eSIM: ${error.message}`);
+    }
+
+    // Robokassa ожидает ответ "OK" + InvId
+    return `OK${InvId}`;
   }
 
   /**
