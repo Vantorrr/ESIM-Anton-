@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, ShoppingBag, RefreshCw } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
+import { ordersApi, userApi } from '@/lib/api'
+import { getCountryEmoji, getFlagUrl } from '@/lib/utils'
 
 interface Order {
   id: string
@@ -28,10 +30,22 @@ export default function OrdersPage() {
   }, [])
 
   const loadOrders = async () => {
-    // Демо-заказы для отображения
-    // TODO: Подключить реальный API
-    setOrders([])
-    setLoading(false)
+    try {
+      // Получаем Telegram user ID
+      const tg = (window as any).Telegram?.WebApp;
+      const telegramId = tg?.initDataUnsafe?.user?.id || 316662303; // fallback для теста
+      
+      // Получаем пользователя
+      const user = await userApi.getMe(String(telegramId));
+      
+      // Получаем заказы
+      const userOrders = await ordersApi.getMy(user.id);
+      setOrders(userOrders as any);
+    } catch (error) {
+      console.error('Ошибка загрузки заказов:', error);
+    } finally {
+      setLoading(false)
+    }
   }
 
   const getStatusConfig = (status: Order['status']) => {
@@ -45,18 +59,6 @@ export default function OrdersPage() {
       CANCELLED: { label: 'Отменён', icon: XCircle, color: 'text-gray-500', bg: 'bg-gray-50' },
     }
     return configs[status]
-  }
-
-  const getCountryEmoji = (country: string): string => {
-    const flags: Record<string, string> = {
-      'США': '🇺🇸',
-      'Европа': '🇪🇺',
-      'Турция': '🇹🇷',
-      'ОАЭ': '🇦🇪',
-      'Таиланд': '🇹🇭',
-      'Япония': '🇯🇵',
-    }
-    return flags[country] || '🌍'
   }
 
   const formatDate = (dateString: string) => {
@@ -126,8 +128,16 @@ export default function OrdersPage() {
                 >
                   <div className="flex items-center gap-4">
                     {/* Country Flag */}
-                    <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-2xl shrink-0">
-                      {getCountryEmoji(order.product.country)}
+                    <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
+                      {getFlagUrl(order.product.country) ? (
+                        <img 
+                          src={getFlagUrl(order.product.country)} 
+                          alt={order.product.country}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl">🌍</span>
+                      )}
                     </div>
 
                     {/* Info */}
