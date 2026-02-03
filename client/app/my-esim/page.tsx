@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Smartphone, Plus, Wifi, WifiOff, RefreshCw, QrCode } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
-import { getCountryEmoji } from '@/lib/utils'
+import { getCountryEmoji, formatDataAmount } from '@/lib/utils'
+import { userApi, ordersApi } from '@/lib/api'
 
 interface MyEsim {
   id: string
@@ -17,6 +18,7 @@ interface MyEsim {
   status: 'active' | 'expired' | 'pending'
   qrCode?: string
   canTopup: boolean
+  activationCode?: string
 }
 
 export default function MyEsimPage() {
@@ -29,10 +31,38 @@ export default function MyEsimPage() {
   }, [])
 
   const loadEsims = async () => {
-    // TODO: Загрузка реальных eSIM из API
-    // Пока показываем пустой список
-    setEsims([])
-    setLoading(false)
+    try {
+      // Получаем Telegram user ID
+      const tg = (window as any).Telegram?.WebApp;
+      const telegramId = tg?.initDataUnsafe?.user?.id || 316662303; // fallback
+      
+      const user = await userApi.getMe(String(telegramId));
+      const orders = await ordersApi.getMy(user.id);
+      
+      // Фильтруем только оплаченные и завершенные заказы
+      const activeOrders = orders.filter(o => 
+        o.status === 'PAID' || o.status === 'COMPLETED'
+      );
+
+      const mappedEsims: MyEsim[] = activeOrders.map(order => ({
+        id: order.id,
+        iccid: order.iccid || 'Ожидает генерации...',
+        country: order.product.country,
+        dataAmount: formatDataAmount(order.product.dataAmount),
+        usedData: '0 MB', // TODO: Получать реальное использование
+        validUntil: new Date(new Date(order.createdAt).getTime() + order.product.validityDays * 24 * 60 * 60 * 1000).toLocaleDateString(),
+        status: 'active', // TODO: Реальный статус от провайдера
+        qrCode: order.qrCode,
+        activationCode: order.activationCode,
+        canTopup: true
+      }));
+
+      setEsims(mappedEsims);
+    } catch (error) {
+      console.error('Ошибка загрузки eSIM:', error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   const getStatusConfig = (status: MyEsim['status']) => {
@@ -167,7 +197,10 @@ export default function MyEsimPage() {
                   {/* Actions */}
                   <div className="flex gap-2 mt-4">
                     {esim.qrCode && (
-                      <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl font-medium text-sm">
+                      <button 
+                        onClick={() => router.push(`/order/${esim.id}`)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl font-medium text-sm"
+                      >
                         <QrCode size={18} />
                         QR-код
                       </button>
