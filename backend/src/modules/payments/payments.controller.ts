@@ -40,8 +40,9 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Success URL для Robokassa' })
   async handleSuccess(@Query() query: any, @Res() res: any) {
     const { InvId } = query;
-    const botUrl = 'https://t.me/esim_testt_bot';
-    const returnUrl = `${botUrl}/app`; // Простой редирект, логика на клиенте
+    // Прямой URL на страницу my-esim в клиенте
+    const clientUrl = 'https://client-production-7a4e.up.railway.app/my-esim';
+    const botUrl = 'https://t.me/esim_testt_bot/app?startapp=payment_success';
 
     res.send(`
       <!DOCTYPE html>
@@ -49,7 +50,7 @@ export class PaymentsController {
       <head>
         <title>Оплата успешна</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="refresh" content="1;url=${returnUrl}">
+        <meta http-equiv="refresh" content="1;url=${clientUrl}">
         <script src="https://telegram.org/js/telegram-web-app.js"></script>
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white; }
@@ -70,10 +71,10 @@ export class PaymentsController {
         <p style="font-size: 14px; opacity: 0.8;">Возвращаемся в приложение...</p>
         
         <script>
-          console.log('✅ Success page loaded, redirecting to:', '${returnUrl}');
-          // Мгновенный редирект
+          console.log('✅ Success page loaded, redirecting to my-esim');
+          // Редирект на страницу Мои eSIM
           setTimeout(() => {
-            window.location.replace('${returnUrl}');
+            window.location.replace('${clientUrl}');
           }, 1000);
         </script>
       </body>
