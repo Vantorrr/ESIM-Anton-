@@ -1,7 +1,7 @@
 import { Bot } from 'grammy';
 import { InlineKeyboard } from 'grammy';
 import { MyContext } from '../types';
-import { config } from '../config';
+import { api } from '../api';
 
 // URL Mini App
 const MINI_APP_URL = process.env.MINI_APP_URL || 'https://esim-anton-production.up.railway.app';
@@ -24,6 +24,41 @@ export function setupCommands(bot: Bot<MyContext>) {
   bot.command('start', async (ctx) => {
     const userId = ctx.from?.id;
     const firstName = escapeMarkdown(ctx.from?.first_name || 'друг');
+    const payload = ctx.match; // Получаем payload (например, "ref_12345")
+
+    // Регистрируем пользователя (если новый)
+    let user;
+    if (userId) {
+      try {
+        // Используем api.users.findOrCreate, который уже вызывается в middleware, 
+        // но здесь нам нужен объект user для регистрации реферала
+        // В middleware он сохраняется в session, но мы можем получить его снова или использовать session
+        // Для надежности вызовем findOrCreate снова (он идемпотентен)
+        user = await api.users.findOrCreate(
+          BigInt(userId),
+          {
+            username: ctx.from?.username,
+            firstName: ctx.from?.first_name,
+            lastName: ctx.from?.last_name,
+          }
+        );
+
+        // Если есть реферальный код
+        if (payload && typeof payload === 'string' && payload.startsWith('ref_')) {
+          const referralCode = payload.replace('ref_', '');
+          console.log(`🔗 Обработка реферальной ссылки: ${referralCode} для пользователя ${userId}`);
+          
+          try {
+            await api.referrals.register(user.id, referralCode);
+            console.log('✅ Реферал успешно зарегистрирован');
+          } catch (error) {
+            console.error('❌ Ошибка регистрации реферала:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Error in start command user processing:', error);
+      }
+    }
     
     const keyboard = new InlineKeyboard()
       .webApp('🌍 Открыть каталог', MINI_APP_URL)

@@ -62,6 +62,10 @@ export const api = {
   },
 
   referrals: {
+    register: async (userId: string, referralCode: string) => {
+      const response = await client.post('/referrals/register', { userId, referralCode });
+      return response.data;
+    },
     getStats: async (userId: string) => {
       const response = await client.get(`/referrals/stats/${userId}`);
       return response.data;
