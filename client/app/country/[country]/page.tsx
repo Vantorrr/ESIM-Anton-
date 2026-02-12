@@ -276,7 +276,7 @@ export default function CountryPage() {
           <div className="mt-6 pb-24">
             <Link href={`/product/${selectedProduct}`}>
               <button className="w-full py-4 rounded-2xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-lg transition-colors shadow-lg shadow-blue-500/30">
-                Купить тариф
+                Купить eSIM
               </button>
             </Link>
           </div>
