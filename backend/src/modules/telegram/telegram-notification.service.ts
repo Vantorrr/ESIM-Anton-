@@ -8,8 +8,11 @@ export class TelegramNotificationService {
   private readonly botToken: string;
   private readonly apiUrl: string;
 
+  private readonly botUsername: string;
+
   constructor(private configService: ConfigService) {
     this.botToken = this.configService.get('TELEGRAM_BOT_TOKEN') || '';
+    this.botUsername = this.configService.get('TELEGRAM_BOT_USERNAME') || 'mojomobile_bot';
     this.apiUrl = `https://api.telegram.org/bot${this.botToken}`;
     
     if (this.botToken) {
@@ -53,7 +56,7 @@ export class TelegramNotificationService {
         [
           {
             text: '📱 Открыть Мои eSIM',
-            web_app: { url: 'https://esim-anton-production.up.railway.app/my-esim' }
+            url: `https://t.me/${this.botUsername}/app`
           }
         ]
       ]
@@ -97,7 +100,7 @@ ${reason ? `Причина: ${reason}` : 'Попробуйте еще раз и�
         [
           {
             text: '🔄 Попробовать снова',
-            url: 'https://t.me/esim_testt_bot/app'
+            url: `https://t.me/${this.botUsername}/app`
           }
         ]
       ]

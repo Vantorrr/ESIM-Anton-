@@ -41,7 +41,8 @@ export class PaymentsController {
   async handleSuccess(@Query() query: any, @Res() res: any) {
     const { InvId } = query;
     // Редирект в Telegram Mini App с параметром для открытия страницы my-esim
-    const telegramUrl = 'https://t.me/esim_testt_bot/app?startapp=my-esim';
+    const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'mojomobile_bot';
+    const telegramUrl = `https://t.me/${botUsername}/app?startapp=my-esim`;
 
     res.send(`
       <!DOCTYPE html>
@@ -87,8 +88,8 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Fail URL для Robokassa' })
   async handleFail(@Query() query: any, @Res() res: any) {
     const { InvId } = query;
-    const botUrl = 'https://t.me/esim_testt_bot';
-    const returnUrl = `${botUrl}/app`; // Простой редирект
+    const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'mojomobile_bot';
+    const returnUrl = `https://t.me/${botUsername}/app`; // Простой редирект
 
     res.send(`
       <!DOCTYPE html>
