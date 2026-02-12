@@ -346,13 +346,15 @@ export default function ProfilePage() {
             
             <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4" />
             
-            <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer">
-              <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                <FileText className="text-gray-600 dark:text-gray-400" size={20} />
+            <Link href="/offer">
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer">
+                <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                  <FileText className="text-gray-600 dark:text-gray-400" size={20} />
+                </div>
+                <span className="flex-1 font-medium text-gray-900 dark:text-white">Публичная оферта</span>
+                <ChevronRight className="text-gray-400" size={20} />
               </div>
-              <span className="flex-1 font-medium text-gray-900 dark:text-white">Условия использования</span>
-              <ChevronRight className="text-gray-400" size={20} />
-            </div>
+            </Link>
             
           </div>
         </section>
