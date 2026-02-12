@@ -29,7 +29,7 @@ export function setupCommands(bot: Bot<MyContext>) {
       .webApp('🌍 Открыть каталог', MINI_APP_URL)
       .row()
       .webApp('👤 Мой профиль', `${MINI_APP_URL}/profile`)
-      .webApp('📦 Мои заказы', `${MINI_APP_URL}/orders`)
+      .webApp('📦 Мои eSIM', `${MINI_APP_URL}/my-esim`)
       .row()
       .webApp('🎁 Рефералы', `${MINI_APP_URL}/referrals`)
       .text('❓ Помощь', 'help');
@@ -86,10 +86,10 @@ export function setupCommands(bot: Bot<MyContext>) {
   // Команда /orders
   bot.command('orders', async (ctx) => {
     const keyboard = new InlineKeyboard()
-      .webApp('📦 Открыть заказы', `${MINI_APP_URL}/orders`);
+      .webApp('📦 Открыть Мои eSIM', `${MINI_APP_URL}/my-esim`);
 
     await ctx.reply(
-      '📦 **Мои заказы**\n\nНажми кнопку чтобы открыть заказы:',
+      '📦 **Мои eSIM**\n\nЗдесь вы найдете все ваши купленные eSIM и QR-коды для активации:',
       {
         parse_mode: 'Markdown',
         reply_markup: keyboard,
