@@ -1,5 +1,5 @@
 {
-  "name": "mojo-mobile-bot",
+  "name": "bot",
   "version": "1.0.0",
   "description": "Telegram Bot + Mini App for Mojo mobile",
   "main": "dist/index.js",

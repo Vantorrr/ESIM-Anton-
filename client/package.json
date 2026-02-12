@@ -1,5 +1,5 @@
 {
-  "name": "mojo-mobile-client",
+  "name": "client",
   "version": "1.0.3",
   "private": true,
   "scripts": {

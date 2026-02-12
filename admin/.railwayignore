@@ -1,3 +1,0 @@
-# Ignore root monorepo files
-../pnpm-workspace.yaml
-../.pnpm-lock.yaml
