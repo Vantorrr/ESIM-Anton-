@@ -119,7 +119,7 @@ export default function ProfilePage() {
 
   const shareReferral = () => {
     const tg = (window as any).Telegram?.WebApp
-    const shareText = `🎁 Дарю тебе скидку 20% на первую покупку eSIM!\n\nИспользуй мой код: ${user?.referralCode}\n\nПереходи: https://t.me/your_bot`
+    const shareText = `🎁 Дарю тебе скидку 20% на первую покупку в Mojo mobile!\n\nИспользуй мой код: ${user?.referralCode}\n\nПереходи: https://t.me/mojo_mobile_bot`
     
     if (tg?.openTelegramLink) {
       tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareText)}`)
