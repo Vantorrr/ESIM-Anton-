@@ -151,7 +151,7 @@ export default function ProductPage() {
             </div>
             <div>
               <p className="font-medium text-primary">Мгновенная активация</p>
-              <p className="text-xs text-muted">Получите eSIM за 2 минуты</p>
+              <p className="text-xs text-muted">Активация за 2 минуты</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -220,7 +220,7 @@ export default function ProductPage() {
             </>
           ) : (
             <>
-              <span>Купить eSIM</span>
+              <span>Купить тариф</span>
             </>
           )}
         </button>

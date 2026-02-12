@@ -135,7 +135,7 @@ export default function MyEsimPage() {
             <Link href="/">
               <button className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-xl transition-colors">
                 <Plus size={20} />
-                Купить eSIM
+                Купить тариф
               </button>
             </Link>
           </div>

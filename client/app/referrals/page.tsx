@@ -63,7 +63,7 @@ export default function ReferralsPage() {
     const tg = (window as any).Telegram?.WebApp
     
     if (tg?.openTelegramLink) {
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(stats.referralLink)}&text=${encodeURIComponent('Покупай eSIM со скидкой! 🌍')}`
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(stats.referralLink)}&text=${encodeURIComponent('Покупай мобильный интернет со скидкой в Mojo mobile! 🌍')}`
       tg.openTelegramLink(shareUrl)
     } else {
       window.open(`https://t.me/share/url?url=${encodeURIComponent(stats.referralLink)}`, '_blank')
