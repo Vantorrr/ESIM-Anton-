@@ -72,7 +72,7 @@ export class PaymentsService {
     // Формируем данные для Robokassa
     const outSum = Number(order.totalAmount).toFixed(2);
     const invId = transaction.id.replace(/\D/g, '').slice(0, 15) || Date.now().toString(); // Только цифры, макс 15 символов
-    const description = `eSIM заказ #${order.id.slice(-8)}`;
+    const description = `Mojo mobile заказ #${order.id.slice(-8)}`;
     
     // Подпись: MerchantLogin:OutSum:InvId:Password1
     const signature = this.generateSignature(
@@ -87,7 +87,7 @@ export class PaymentsService {
       sno: 'usn_income', // Система налогообложения (УСН доход)
       items: [
         {
-          name: `eSIM ${order.product.country} ${order.product.dataAmount}`,
+          name: `Лицензионное вознаграждение за ПО Mojo mobile`,
           quantity: 1,
           sum: Number(outSum),
           tax: 'none', // Без НДС

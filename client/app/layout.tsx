@@ -3,8 +3,8 @@ import './globals.css'
 import TelegramRedirectHandler from '@/components/TelegramRedirectHandler'
 
 export const metadata: Metadata = {
-  title: 'eSIM Service - Мобильный интернет по всему миру',
-  description: 'Покупайте eSIM для путешествий в более чем 100 странах мира',
+  title: 'Mojo mobile - Мобильный интернет по всему миру',
+  description: 'Покупайте eSIM для путешествий в более чем 100 странах мира через Mojo mobile',
 }
 
 export const viewport: Viewport = {

@@ -28,9 +28,9 @@ export default function Home() {
         <header className="mb-8 animate-fade-in">
           <div className="glass-card p-6">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              eSIM Admin Panel
+              Mojo mobile Admin Panel
             </h1>
-            <p className="text-slate-600 mt-1">Управление сервисом продажи eSIM</p>
+            <p className="text-slate-600 mt-1">Управление сервисом Mojo mobile</p>
           </div>
         </header>
 

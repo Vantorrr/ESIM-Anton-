@@ -26,7 +26,7 @@ export function setupCommands(bot: Bot<MyContext>) {
     const firstName = escapeMarkdown(ctx.from?.first_name || 'друг');
     
     const keyboard = new InlineKeyboard()
-      .webApp('🌍 Открыть каталог eSIM', MINI_APP_URL)
+      .webApp('🌍 Открыть каталог', MINI_APP_URL)
       .row()
       .webApp('👤 Мой профиль', `${MINI_APP_URL}/profile`)
       .webApp('📦 Мои заказы', `${MINI_APP_URL}/orders`)
@@ -41,7 +41,7 @@ export function setupCommands(bot: Bot<MyContext>) {
 
     await ctx.reply(
       `👋 Привет, ${firstName}!\n\n` +
-      `Добро пожаловать в *eSIM Сервис* — твой надежный партнер для мобильного интернета по всему миру! 🌐\n\n` +
+      `Добро пожаловать в *Mojo mobile* — твой надежный партнер для мобильного интернета по всему миру! 🌐\n\n` +
       `🔥 *Что мы предлагаем:*\n` +
       `• Более 100 стран\n` +
       `• Моментальная активация\n` +
@@ -61,7 +61,7 @@ export function setupCommands(bot: Bot<MyContext>) {
       .webApp('🌍 Открыть каталог', MINI_APP_URL);
 
     await ctx.reply(
-      '🌍 **Каталог eSIM**\n\nНажми кнопку чтобы открыть каталог:',
+      '🌍 **Каталог Mojo mobile**\n\nНажми кнопку чтобы открыть каталог:',
       {
         parse_mode: 'Markdown',
         reply_markup: keyboard,
@@ -128,7 +128,7 @@ export function setupCommands(bot: Bot<MyContext>) {
       `3. Сканируй QR-код\n\n` +
       `**Команды:**\n` +
       `/start - Главное меню\n` +
-      `/catalog - Каталог eSIM\n` +
+      `/catalog - Каталог Mojo mobile\n` +
       `/orders - Мои заказы\n` +
       `/profile - Профиль\n` +
       `/referrals - Рефералы\n\n` +
@@ -145,7 +145,7 @@ export function setupCommands(bot: Bot<MyContext>) {
       `Доступные команды:\n` +
       `/start - Главное меню\n` +
       `/help - Помощь\n` +
-      `/catalog - Каталог eSIM\n` +
+      `/catalog - Каталог Mojo mobile\n` +
       `/profile - Мой профиль\n` +
       `/orders - Мои заказы`;
     

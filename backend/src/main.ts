@@ -32,8 +32,8 @@ async function bootstrap() {
 
   // Swagger Documentation
   const config = new DocumentBuilder()
-    .setTitle('eSIM Service API')
-    .setDescription('API для сервиса продажи eSIM')
+    .setTitle('Mojo mobile API')
+    .setDescription('API для сервиса Mojo mobile')
     .setVersion('1.0')
     .addBearerAuth()
     .addTag('auth', 'Аутентификация')
