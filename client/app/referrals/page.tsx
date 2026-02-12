@@ -25,7 +25,7 @@ export default function ReferralsPage() {
   const loadStats = async () => {
     // Получаем данные из Telegram
     const tg = (window as any).Telegram?.WebApp
-    const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'mojomobile_bot'
+    const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'mojo_mobile_bot'
     const refCode = tg?.initDataUnsafe?.user?.id || '123456'
     
     setStats({

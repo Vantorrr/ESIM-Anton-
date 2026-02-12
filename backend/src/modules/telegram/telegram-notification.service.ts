@@ -12,7 +12,7 @@ export class TelegramNotificationService {
 
   constructor(private configService: ConfigService) {
     this.botToken = this.configService.get('TELEGRAM_BOT_TOKEN') || '';
-    this.botUsername = this.configService.get('TELEGRAM_BOT_USERNAME') || 'mojomobile_bot';
+    this.botUsername = this.configService.get('TELEGRAM_BOT_USERNAME') || 'mojo_mobile_bot';
     this.apiUrl = `https://api.telegram.org/bot${this.botToken}`;
     
     if (this.botToken) {
