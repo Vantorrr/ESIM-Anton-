@@ -82,6 +82,21 @@ export class PaymentsService {
       this.password1
     );
 
+    // Формируем чек для фискализации (Робочеки)
+    const receipt = {
+      sno: 'usn_income', // Система налогообложения (УСН доход)
+      items: [
+        {
+          name: `eSIM ${order.product.country} ${order.product.dataAmount}`,
+          quantity: 1,
+          sum: Number(outSum),
+          tax: 'none', // Без НДС
+          payment_method: 'full_prepayment', // Полная предоплата
+          payment_object: 'service', // Услуга
+        }
+      ]
+    };
+
     // Формируем URL для редиректа на Robokassa
     const params = new URLSearchParams({
       MerchantLogin: this.merchantLogin,
@@ -91,6 +106,7 @@ export class PaymentsService {
       SignatureValue: signature,
       Culture: 'ru',
       Encoding: 'utf-8',
+      Receipt: JSON.stringify(receipt), // Добавляем чек
     });
 
     if (this.isTest) {
@@ -113,7 +129,7 @@ export class PaymentsService {
       },
     });
 
-    this.logger.log(`💳 Создан платеж Robokassa: InvId=${invId}, Sum=${outSum}₽, Order=${order.id}`);
+    this.logger.log(`💳 Создан платеж Robokassa: InvId=${invId}, Sum=${outSum}₽, Order=${order.id}, Items: ${receipt.items[0].name}`);
 
     return {
       transaction,
