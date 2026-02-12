@@ -1,7 +1,7 @@
 {
-  "name": "admin",
+  "name": "mojo-mobile-admin",
   "version": "1.0.1",
-  "description": "Admin Panel for eSIM Service",
+  "description": "Admin Panel for Mojo mobile",
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",

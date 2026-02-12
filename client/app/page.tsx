@@ -182,7 +182,7 @@ function SplashScreen({ progress }: { progress: number }) {
             animation: 'gradient-shift 3s ease-in-out infinite',
           }}
         >
-          eSIM
+          Mojo mobile
         </h1>
         <p className="text-white/50 text-lg mb-10 font-light tracking-wide">
           Интернет по всему миру
@@ -548,7 +548,7 @@ export default function Home() {
             <Globe className="text-white" size={24} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-primary">eSIM</h1>
+            <h1 className="text-2xl font-bold text-primary">Mojo mobile</h1>
             <p className="text-secondary text-sm">Интернет по всему миру</p>
           </div>
         </div>

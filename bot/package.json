@@ -1,7 +1,7 @@
 {
-  "name": "bot",
+  "name": "mojo-mobile-bot",
   "version": "1.0.0",
-  "description": "Telegram Bot + Mini App for eSIM Service",
+  "description": "Telegram Bot + Mini App for Mojo mobile",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",

@@ -1,7 +1,7 @@
 {
-  "name": "backend",
+  "name": "mojo-mobile-backend",
   "version": "1.0.1",
-  "description": "eSIM Service Backend API",
+  "description": "Mojo mobile Backend API",
   "scripts": {
     "dev": "nest start --watch",
     "build": "prisma generate && nest build",
