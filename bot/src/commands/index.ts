@@ -1,6 +1,7 @@
 import { Bot } from 'grammy';
 import { InlineKeyboard } from 'grammy';
 import { MyContext } from '../types';
+import { config } from '../config';
 import { api } from '../api';
 
 // URL Mini App

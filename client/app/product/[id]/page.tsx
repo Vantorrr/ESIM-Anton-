@@ -48,18 +48,77 @@ export default function ProductPage() {
         quantity: 1,
       });
       
-      // Получаем payment URL от Robokassa
-      const { payment } = await paymentsApi.createPayment(order.id);
+      // Инициализируем виджет CloudPayments
+      const widget = new (window as any).cp.CloudPayments();
       
-      // Открываем страницу оплаты через Telegram WebApp
-      if (tg?.openLink) {
-        tg.openLink(payment.paymentUrl);
-      } else {
-        // Fallback для браузера
-        window.open(payment.paymentUrl, '_blank');
-      }
+      const receipt = {
+        Items: [
+          {
+            label: `eSIM ${product.country} ${product.dataAmount}`,
+            price: Number(product.ourPrice),
+            quantity: 1.00,
+            amount: Number(product.ourPrice),
+            vat: null,
+            method: 0, // Full prepayment
+            object: 4, // Service
+          }
+        ],
+        taxationSystem: 0, // General
+        email: user.email || '',
+        phone: user.phone || '',
+        isBso: false,
+        amounts: {
+          electronic: Number(product.ourPrice),
+          advancePayment: 0.00,
+          credit: 0.00,
+          provision: 0.00
+        }
+      };
+
+      const data = {
+        CloudPayments: {
+          CustomerReceipt: receipt
+        }
+      };
+
+      widget.pay('charge', {
+        publicId: process.env.NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID,
+        description: `Mojo mobile заказ #${order.id.slice(-8)}`,
+        amount: Number(product.ourPrice),
+        currency: 'RUB',
+        invoiceId: order.id,
+        accountId: user.id,
+        email: user.email,
+        data: data
+      }, {
+        onSuccess: function (options: any) {
+          // Действие при успешной оплате
+          // Можно перенаправить на страницу успеха или показать сообщение
+          if (tg?.showAlert) {
+            tg.showAlert('Оплата прошла успешно!', () => {
+               router.push('/my-esim');
+            });
+          } else {
+             alert('Оплата прошла успешно!');
+             router.push('/my-esim');
+          }
+        },
+        onFail: function (reason: any, options: any) {
+          // Действие при ошибке
+          console.error('Payment failed:', reason);
+          if (tg?.showAlert) {
+             tg.showAlert('Оплата не прошла. Попробуйте еще раз.');
+          } else {
+             alert('Оплата не прошла');
+          }
+        },
+        onComplete: function (paymentResult: any, options: any) {
+          // Вызывается как только виджет получает ответ от сервера
+        }
+      });
+
     } catch (error: any) {
-      console.error('Ошибка оплаты:', error);
+      console.error('Ошибка создания заказа:', error);
       const errorMsg = error?.response?.data?.message || error.message || 'Ошибка при создании заказа';
       
       const tg = (window as any).Telegram?.WebApp;

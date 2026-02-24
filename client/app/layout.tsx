@@ -49,6 +49,7 @@ export default function RootLayout({
           }}
         />
         <script src="https://telegram.org/js/telegram-web-app.js" async />
+        <script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js" async />
       </head>
       <body>
         <TelegramRedirectHandler />
