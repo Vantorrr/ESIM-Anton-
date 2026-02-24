@@ -16,6 +16,8 @@ export interface User {
   username?: string;
   firstName?: string;
   lastName?: string;
+  email?: string;
+  phone?: string;
   balance: number;
   bonusBalance: number;
   referralCode: string;
