@@ -56,7 +56,7 @@ export class TelegramNotificationService {
         [
           {
             text: '📱 Открыть Мои eSIM',
-            url: `https://t.me/${this.botUsername}/app`
+            url: `https://t.me/${this.botUsername}/app?startapp=my-esim`
           }
         ]
       ]
