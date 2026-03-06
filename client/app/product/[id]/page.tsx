@@ -55,36 +55,6 @@ export default function ProductPage() {
       
       // Инициализируем виджет CloudPayments
       const widget = new (window as any).cp.CloudPayments();
-      
-      const receipt = {
-        Items: [
-          {
-            label: `eSIM ${product.country} ${product.dataAmount}`,
-            price: Number(product.ourPrice),
-            quantity: 1.00,
-            amount: Number(product.ourPrice),
-            vat: null,
-            method: 0, // Full prepayment
-            object: 4, // Service
-          }
-        ],
-        taxationSystem: 0, // General
-        email: user.email || '',
-        phone: user.phone || '',
-        isBso: false,
-        amounts: {
-          electronic: Number(product.ourPrice),
-          advancePayment: 0.00,
-          credit: 0.00,
-          provision: 0.00
-        }
-      };
-
-      const data = {
-        CloudPayments: {
-          CustomerReceipt: receipt
-        }
-      };
 
       widget.pay('charge', {
         publicId: process.env.NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID,
@@ -93,8 +63,6 @@ export default function ProductPage() {
         currency: 'RUB',
         invoiceId: order.id,
         accountId: user.id,
-        email: user.email,
-        data: data
       }, {
         onSuccess: function (options: any) {
           // Действие при успешной оплате
