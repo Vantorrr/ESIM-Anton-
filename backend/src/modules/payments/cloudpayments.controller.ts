@@ -1,11 +1,35 @@
-import { Controller, Post, Body, Res, HttpCode } from '@nestjs/common';
+import { Controller, Post, Get, Body, Res, HttpCode, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CloudPaymentsService } from './cloudpayments.service';
+import { TelegramNotificationService } from '../telegram/telegram-notification.service';
 
 @ApiTags('payments')
 @Controller('payments/cloudpayments')
 export class CloudPaymentsController {
-  constructor(private readonly cloudPaymentsService: CloudPaymentsService) {}
+  constructor(
+    private readonly cloudPaymentsService: CloudPaymentsService,
+    private readonly telegramNotification: TelegramNotificationService,
+  ) {}
+
+  @Get('test-notify')
+  @ApiOperation({ summary: 'Test Telegram notification' })
+  async testNotify(@Query('telegramId') telegramId: string) {
+    try {
+      await this.telegramNotification.sendPaymentSuccessNotification(
+        telegramId || '316662303',
+        {
+          orderId: 'test-order-id',
+          productName: 'Test eSIM',
+          country: 'RU',
+          dataAmount: '10 GB',
+          price: 45,
+        }
+      );
+      return { success: true, message: `Notification sent to ${telegramId || '316662303'}` };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
 
   @Post('check')
   @HttpCode(200)
