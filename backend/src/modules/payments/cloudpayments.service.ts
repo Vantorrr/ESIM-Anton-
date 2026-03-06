@@ -170,8 +170,10 @@ export class CloudPaymentsService {
       // Send notification
       try {
         if (order.user) {
+          const tgId = String(order.user.telegramId);
+          this.logger.log(`📤 Sending notification to telegramId: ${tgId}`);
           await this.telegramNotification.sendPaymentSuccessNotification(
-            order.user.telegramId,
+            tgId,
             {
               orderId: order.id,
               productName: order.product.name,
@@ -180,9 +182,12 @@ export class CloudPaymentsService {
               price: Number(order.totalAmount),
             }
           );
+          this.logger.log(`✅ Notification sent to ${tgId}`);
+        } else {
+          this.logger.warn(`⚠️ No user found on order ${order.id}`);
         }
       } catch (error) {
-        this.logger.error(`❌ Notification error: ${error.message}`);
+        this.logger.error(`❌ Notification error: ${error.message}`, error.stack);
       }
     }
 
