@@ -41,12 +41,17 @@ export default function ProductPage() {
       // Создаем/получаем пользователя
       const user = await userApi.getMe(String(telegramId));
       
-      // Создаем заказ
-      const order = await ordersApi.create({
-        userId: user.id,
-        productId: product.id,
-        quantity: 1,
-      });
+      // Проверяем есть ли уже PENDING заказ на этот продукт (чтобы не создавать дубли)
+      let order;
+      try {
+        const myOrders = await ordersApi.getMy(user.id);
+        const pending = (Array.isArray(myOrders) ? myOrders : []).find(
+          (o: any) => o.productId === product.id && o.status === 'PENDING'
+        );
+        order = pending || await ordersApi.create({ userId: user.id, productId: product.id, quantity: 1 });
+      } catch {
+        order = await ordersApi.create({ userId: user.id, productId: product.id, quantity: 1 });
+      }
       
       // Инициализируем виджет CloudPayments
       const widget = new (window as any).cp.CloudPayments();
