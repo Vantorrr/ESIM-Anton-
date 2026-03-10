@@ -79,7 +79,7 @@ export default function InstallBanner() {
               e.stopPropagation()
               handleInstall()
             }}
-            className="shrink-0 min-h-[44px] min-w-[112px] px-4 py-2 bg-accent text-white rounded-xl text-sm font-semibold whitespace-nowrap"
+            className="shrink-0 min-h-[44px] min-w-[112px] px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap border border-[#e5671a] bg-[#f7741d] text-white shadow-[0_4px_12px_rgba(247,116,29,0.35)]"
           >
             Установить
           </button>
