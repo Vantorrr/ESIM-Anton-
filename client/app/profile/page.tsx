@@ -83,8 +83,9 @@ export default function ProfilePage() {
   }
 
   const loadUserData = async () => {
+    let redirectedToLogin = false
     try {
-      const { isTelegramWebApp, getToken } = await import('@/lib/auth')
+      const { isTelegramWebApp, getToken, clearToken } = await import('@/lib/auth')
 
       if (isTelegramWebApp()) {
         const tg = (window as any).Telegram?.WebApp
@@ -118,14 +119,20 @@ export default function ProfilePage() {
             referralCode: data.referralCode,
           })
         } else {
-          window.location.href = '/login'
+          redirectedToLogin = true
+          window.location.replace('/login')
           return
         }
       }
     } catch (e) {
       console.error('Profile load error:', e)
+      redirectedToLogin = true
+      clearToken()
+      window.location.replace('/login')
     } finally {
-      setLoading(false)
+      if (!redirectedToLogin) {
+        setLoading(false)
+      }
     }
   }
 

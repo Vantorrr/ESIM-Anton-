@@ -73,17 +73,6 @@ export default function InstallBanner() {
             <p className="text-xs text-secondary">Добавьте на главный экран для быстрого доступа</p>
           )}
         </div>
-        {!isIOS && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              handleInstall()
-            }}
-            className="shrink-0 min-h-[44px] min-w-[112px] px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap border border-[#e5671a] bg-[#f7741d] text-white shadow-[0_4px_12px_rgba(247,116,29,0.35)]"
-          >
-            Установить
-          </button>
-        )}
         <button
           onClick={(e) => {
             e.stopPropagation()
