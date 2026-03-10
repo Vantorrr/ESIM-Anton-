@@ -487,10 +487,12 @@ export default function Home() {
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
               Популярные направления
             </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {popularCountries.map((group, index) => (
-                <CountryCard key={group.country} group={group} index={index} />
-              ))}
+            <div className="rounded-[22px] bg-gradient-to-b from-[#f7b35f] to-[#f29b41] p-2.5 shadow-[0_10px_24px_rgba(242,155,65,0.32)]">
+              <div className="grid grid-cols-2 gap-3">
+                {popularCountries.map((group, index) => (
+                  <CountryCard key={group.country} group={group} index={index} />
+                ))}
+              </div>
             </div>
           </div>
 
@@ -499,10 +501,12 @@ export default function Home() {
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
               Все страны
             </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {countryGroups.map((group, index) => (
-                <CountryCard key={group.country} group={group} index={index} />
-              ))}
+            <div className="rounded-[22px] bg-gradient-to-b from-[#f7b35f] to-[#f29b41] p-2.5 shadow-[0_10px_24px_rgba(242,155,65,0.32)]">
+              <div className="grid grid-cols-2 gap-3">
+                {countryGroups.map((group, index) => (
+                  <CountryCard key={group.country} group={group} index={index} />
+                ))}
+              </div>
             </div>
           </div>
         </>
