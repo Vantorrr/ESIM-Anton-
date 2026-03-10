@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { OAuthProfile } from './oauth.service';
 
@@ -123,11 +124,21 @@ export class AuthService {
    */
   async loginWithOAuth(profile: OAuthProfile) {
     const providerId = String(profile.providerId);
+    const telegramId =
+      profile.provider === 'telegram' && /^\d+$/.test(providerId)
+        ? BigInt(providerId)
+        : null;
 
     // Try by providerId first
     let user = await this.prisma.user.findFirst({
       where: { authProvider: profile.provider, providerId },
     });
+
+    // Telegram users may already exist from bot flow with unique telegramId,
+    // but without authProvider/providerId linked yet.
+    if (!user && telegramId !== null) {
+      user = await this.prisma.user.findUnique({ where: { telegramId } });
+    }
 
     // Try by email if provider is google/yandex
     if (!user && profile.email) {
@@ -135,22 +146,34 @@ export class AuthService {
     }
 
     if (!user) {
-      user = await this.prisma.user.create({
-        data: {
-          authProvider: profile.provider,
-          providerId,
-          firstName: profile.firstName,
-          lastName: profile.lastName,
-          email: profile.email,
-          username: profile.username,
-          phone: profile.phone,
-          // Telegram OAuth widget users get telegramId set
-          ...(profile.provider === 'telegram'
-            ? { telegramId: BigInt(providerId) }
-            : {}),
-        },
-      });
-      this.logger.log(`✅ New user created via ${profile.provider}: ${providerId}`);
+      try {
+        user = await this.prisma.user.create({
+          data: {
+            authProvider: profile.provider,
+            providerId,
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            email: profile.email,
+            username: profile.username,
+            phone: profile.phone,
+            ...(telegramId !== null ? { telegramId } : {}),
+          },
+        });
+        this.logger.log(`✅ New user created via ${profile.provider}: ${providerId}`);
+      } catch (error) {
+        // Handle concurrent create race / pre-existing unique keys gracefully.
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          if (telegramId !== null) {
+            user = await this.prisma.user.findUnique({ where: { telegramId } });
+          }
+          if (!user) {
+            user = await this.prisma.user.findFirst({
+              where: { authProvider: profile.provider, providerId },
+            });
+          }
+        }
+        if (!user) throw error;
+      }
     } else if (!user.authProvider) {
       // Link existing user to OAuth provider
       user = await this.prisma.user.update({
