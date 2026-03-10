@@ -122,9 +122,11 @@ export class AuthService {
    * Найти или создать пользователя через OAuth
    */
   async loginWithOAuth(profile: OAuthProfile) {
+    const providerId = String(profile.providerId);
+
     // Try by providerId first
     let user = await this.prisma.user.findFirst({
-      where: { authProvider: profile.provider, providerId: profile.providerId },
+      where: { authProvider: profile.provider, providerId },
     });
 
     // Try by email if provider is google/yandex
@@ -136,7 +138,7 @@ export class AuthService {
       user = await this.prisma.user.create({
         data: {
           authProvider: profile.provider,
-          providerId: profile.providerId,
+          providerId,
           firstName: profile.firstName,
           lastName: profile.lastName,
           email: profile.email,
@@ -144,16 +146,16 @@ export class AuthService {
           phone: profile.phone,
           // Telegram OAuth widget users get telegramId set
           ...(profile.provider === 'telegram'
-            ? { telegramId: BigInt(profile.providerId) }
+            ? { telegramId: BigInt(providerId) }
             : {}),
         },
       });
-      this.logger.log(`✅ New user created via ${profile.provider}: ${profile.providerId}`);
+      this.logger.log(`✅ New user created via ${profile.provider}: ${providerId}`);
     } else if (!user.authProvider) {
       // Link existing user to OAuth provider
       user = await this.prisma.user.update({
         where: { id: user.id },
-        data: { authProvider: profile.provider, providerId: profile.providerId },
+        data: { authProvider: profile.provider, providerId },
       });
     }
 
