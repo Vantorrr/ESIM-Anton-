@@ -273,7 +273,6 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [isLocalhost, setIsLocalhost] = useState(false)
   const [widgetFailed, setWidgetFailed] = useState(false)
-  const [widgetReady, setWidgetReady] = useState(false)
 
   useEffect(() => {
     setIsLocalhost(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -284,7 +283,6 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
     if (isLocalhost) return
     containerRef.current.innerHTML = ''
     setWidgetFailed(false)
-    setWidgetReady(false)
 
     const script = document.createElement('script')
     script.src = 'https://telegram.org/js/telegram-widget.js?22'
@@ -301,11 +299,7 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
     // If widget iframe does not appear, show clear fallback.
     const t = setTimeout(() => {
       const hasIframe = !!containerRef.current?.querySelector('iframe')
-      if (!hasIframe) {
-        setWidgetFailed(true)
-      } else {
-        setWidgetReady(true)
-      }
+      if (!hasIframe) setWidgetFailed(true)
     }, 3500)
 
     return () => clearTimeout(t)
@@ -332,16 +326,14 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
             </div>
             <div className="flex-1">
               <p className="font-medium text-primary text-sm">Telegram</p>
-              <p className="text-xs text-secondary">
-                {widgetReady ? 'Войти через Telegram' : 'Подключение кнопки...'}
-              </p>
+              <p className="text-xs text-secondary">Войти через Telegram</p>
             </div>
             <ArrowRight size={16} className="text-muted" />
           </div>
 
           <div
             ref={containerRef}
-            className={`absolute inset-0 flex items-center justify-center ${widgetReady ? 'opacity-0 cursor-pointer' : 'opacity-0 pointer-events-none'}`}
+            className="absolute inset-0 flex items-center justify-center opacity-0 cursor-pointer"
             aria-hidden="true"
           />
         </div>
