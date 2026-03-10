@@ -58,7 +58,10 @@ export default function InstallBanner() {
       className="fixed left-0 right-0 z-[70] px-4 animate-slide-up"
       style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
     >
-      <div className="glass-card flex items-center gap-3 shadow-2xl border border-white/20">
+      <div
+        className={`glass-card flex items-center gap-3 shadow-2xl border border-white/20 ${!isIOS ? 'cursor-pointer' : ''}`}
+        onClick={!isIOS ? handleInstall : undefined}
+      >
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#f2622a] to-[#f9d17f] flex items-center justify-center shrink-0 p-1.5">
           <img src="/logo-mark.png" alt="Mojo mobile" className="w-full h-full object-contain rounded-xl" />
         </div>
@@ -71,11 +74,23 @@ export default function InstallBanner() {
           )}
         </div>
         {!isIOS && (
-          <button onClick={handleInstall} className="shrink-0 px-3 py-1.5 bg-accent text-white rounded-xl text-xs font-semibold">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleInstall()
+            }}
+            className="shrink-0 min-h-[44px] min-w-[112px] px-4 py-2 bg-accent text-white rounded-xl text-sm font-semibold whitespace-nowrap"
+          >
             Установить
           </button>
         )}
-        <button onClick={handleDismiss} className="shrink-0 text-muted hover:text-primary">
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            handleDismiss()
+          }}
+          className="shrink-0 text-muted hover:text-primary"
+        >
           <X size={18} />
         </button>
       </div>
