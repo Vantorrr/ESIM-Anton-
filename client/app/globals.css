@@ -9,11 +9,11 @@
   --text-primary: #2f2f2f;
   --text-secondary: #636567;
   --text-muted: #8f9599;
-  --accent: #f77430;
-  --accent-light: rgba(247, 116, 48, 0.14);
+  --accent: #f7741d;
+  --accent-light: rgba(247, 116, 29, 0.14);
   --bg-gradient: linear-gradient(135deg, #f6f7f8 0%, #eceff1 100%);
   --success: #34C759;
-  --warning: #f29b41;
+  --warning: #f7b64f;
   --error: #FF3B30;
 }
 
@@ -41,7 +41,7 @@ body {
 .card-neutral {
   background: #ffffff;
   border: 1px solid #eceef2;
-  border-radius: 18px;
+  border-radius: 16px;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
 }
 

@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { Inter } from 'next/font/google'
 import TelegramRedirectHandler from '@/components/TelegramRedirectHandler'
 import { AuthProvider } from '@/components/AuthProvider'
 import InstallBanner from '@/components/InstallBanner'
+
+const inter = Inter({ subsets: ['latin', 'cyrillic'], weight: ['500', '700'] })
 
 export const metadata: Metadata = {
   title: 'Mojo mobile - Мобильный интернет по всему миру',
@@ -59,7 +62,7 @@ export default function RootLayout({
         <script src="https://telegram.org/js/telegram-web-app.js" async />
         <script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js" async />
       </head>
-      <body>
+      <body className={inter.className}>
         <AuthProvider>
           <TelegramRedirectHandler />
           <InstallBanner />

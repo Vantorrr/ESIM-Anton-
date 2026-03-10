@@ -112,20 +112,20 @@ function CountryCard({ group, index }: { group: CountryGroup; index: number }) {
     <Link href={`/country/${encodeURIComponent(group.country)}`}>
       <div
         className="
-          relative overflow-hidden cursor-pointer
-          py-4 px-3
-          card-neutral
+          relative overflow-hidden cursor-pointer rounded-2xl p-[2px]
+          bg-gradient-to-b from-[#f7b35f] to-[#f7741d]
+          shadow-[0_8px_18px_rgba(247,116,29,0.28)]
           transition-all duration-200
           active:scale-[0.98]
           animate-slide-up
         "
         style={{ animationDelay: `${0.03 * index}s` }}
       >
-        <div className="text-center">
+        <div className="card-neutral py-4 px-3 text-center">
           <div className="w-12 h-8 mx-auto mb-2 flex items-center justify-center">
             {flagUrl ? (
-              <img 
-                src={flagUrl} 
+              <img
+                src={flagUrl}
                 alt={countryName}
                 className="w-12 h-auto rounded shadow-sm object-cover"
                 loading="lazy"
@@ -137,7 +137,7 @@ function CountryCard({ group, index }: { group: CountryGroup; index: number }) {
           <p className="font-medium text-sm text-gray-900 mb-0.5 truncate">
             {countryName}
           </p>
-          <p className="text-sm font-semibold text-[#f2622a]">
+          <p className="text-sm font-semibold text-[#f7741d]">
             от ₽{formatPrice(group.minPrice)}
           </p>
         </div>
@@ -487,12 +487,10 @@ export default function Home() {
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
               Популярные направления
             </h2>
-            <div className="rounded-[22px] bg-gradient-to-b from-[#f7b35f] to-[#f29b41] p-2.5 shadow-[0_10px_24px_rgba(242,155,65,0.32)]">
-              <div className="grid grid-cols-2 gap-3">
-                {popularCountries.map((group, index) => (
-                  <CountryCard key={group.country} group={group} index={index} />
-                ))}
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              {popularCountries.map((group, index) => (
+                <CountryCard key={group.country} group={group} index={index} />
+              ))}
             </div>
           </div>
 
@@ -501,12 +499,10 @@ export default function Home() {
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
               Все страны
             </h2>
-            <div className="rounded-[22px] bg-gradient-to-b from-[#f7b35f] to-[#f29b41] p-2.5 shadow-[0_10px_24px_rgba(242,155,65,0.32)]">
-              <div className="grid grid-cols-2 gap-3">
-                {countryGroups.map((group, index) => (
-                  <CountryCard key={group.country} group={group} index={index} />
-                ))}
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              {countryGroups.map((group, index) => (
+                <CountryCard key={group.country} group={group} index={index} />
+              ))}
             </div>
           </div>
         </>
