@@ -452,10 +452,12 @@ export default function Home() {
               <p className="text-gray-400 text-sm mt-1">Мульти-страны в разработке</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {multiGroups.map((group, index) => (
-                <CountryCard key={group.country} group={group} index={index} />
-              ))}
+            <div className="rounded-[22px] bg-gradient-to-b from-[#f7b35f] to-[#f7741d] p-2.5 shadow-[0_10px_24px_rgba(247,116,29,0.32)]">
+              <div className="grid grid-cols-2 gap-3">
+                {multiGroups.map((group, index) => (
+                  <CountryCard key={group.country} group={group} index={index} />
+                ))}
+              </div>
             </div>
           )}
         </>
@@ -472,10 +474,12 @@ export default function Home() {
               <p className="text-gray-400 text-sm mt-1">Глобальные тарифы в разработке</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {globalGroups.map((group, index) => (
-                <CountryCard key={group.country} group={group} index={index} />
-              ))}
+            <div className="rounded-[22px] bg-gradient-to-b from-[#f7b35f] to-[#f7741d] p-2.5 shadow-[0_10px_24px_rgba(247,116,29,0.32)]">
+              <div className="grid grid-cols-2 gap-3">
+                {globalGroups.map((group, index) => (
+                  <CountryCard key={group.country} group={group} index={index} />
+                ))}
+              </div>
             </div>
           )}
         </>
