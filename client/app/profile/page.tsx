@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { 
   DollarSign, Smartphone, ShoppingBag, Globe, Moon, Bell, Sun, Monitor,
-  ChevronRight, Gift, HelpCircle, FileText, MessageCircle, X, Check
+  ChevronRight, Gift, HelpCircle, FileText, MessageCircle, X, Check, LogOut
 } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 
@@ -149,9 +149,19 @@ export default function ProfilePage() {
     }
   }
 
+  const handleLogout = async () => {
+    const { isTelegramWebApp, clearToken } = await import('@/lib/auth')
+    if (isTelegramWebApp()) {
+      alert('В Telegram Mini App выход не требуется. Для смены аккаунта используйте другой Telegram аккаунт.')
+      return
+    }
+    clearToken()
+    window.location.href = '/login'
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+      <div className="min-h-screen bg-[#f4f5f7] pb-20">
         <div className="px-4 py-6">
           <div className="skeleton h-8 w-32 mb-6" />
           <div className="skeleton h-20 w-full rounded-2xl mb-4" />
@@ -164,26 +174,35 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <div className="min-h-screen bg-[#f4f5f7] pb-20">
       <div className="px-4 py-6 max-w-lg mx-auto">
         
         {/* Header */}
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-          Аккаунт
-        </h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">
+            Аккаунт
+          </h1>
+          <button
+            onClick={handleLogout}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-gray-200 text-[#f2622a] hover:bg-orange-50 transition-colors text-sm font-medium"
+          >
+            <LogOut size={16} />
+            Выйти
+          </button>
+        </div>
 
         {/* Deposit / Balance */}
         <section className="mb-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 px-1">Депозит</p>
+          <p className="text-sm text-gray-500 mb-2 px-1">Депозит</p>
           <Link href="/balance">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+            <div className="card-neutral p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <DollarSign className="text-green-600 dark:text-green-400" size={24} />
+                <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
+                  <DollarSign className="text-[#f77430]" size={24} />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Баланс:</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  <p className="text-sm text-gray-500">Баланс:</p>
+                  <p className="text-xl font-bold text-gray-900">
                     ₽ {user?.balance || 0}
                   </p>
                 </div>
@@ -195,14 +214,14 @@ export default function ProfilePage() {
 
         {/* Promo Code */}
         <section className="mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm">
+          <div className="card-neutral p-4">
             <div className="flex gap-2">
               <input
                 type="text"
                 value={promoCode}
                 onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                 placeholder="Промокод"
-                className="flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#f77430]"
+                className="flex-1 px-4 py-3 rounded-xl soft-input text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#f77430]"
               />
               <button
                 onClick={applyPromoCode}
@@ -216,12 +235,7 @@ export default function ProfilePage() {
 
         {/* Referral Banner */}
         <section className="mb-6">
-          <div 
-            className="relative overflow-hidden rounded-2xl p-5"
-            style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)'
-            }}
-          >
+          <div className="relative overflow-hidden card-accent p-5">
             <div className="relative z-10">
               <p className="text-white font-semibold text-lg mb-3">
                 Получи бонус ₽300, и дай другу скидку 20%!
@@ -242,39 +256,39 @@ export default function ProfilePage() {
 
         {/* Profile Section */}
         <section className="mb-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 px-1">Профиль</p>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
+          <p className="text-sm text-gray-500 mb-2 px-1">Профиль</p>
+          <div className="card-neutral overflow-hidden">
             
             <Link href="/my-esim">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <Smartphone className="text-green-600 dark:text-green-400" size={20} />
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                  <Smartphone className="text-[#f77430]" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900 dark:text-white">Мои eSIM</span>
+                <span className="flex-1 font-medium text-gray-900">Мои eSIM</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </Link>
             
-            <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4" />
+            <div className="h-px bg-gray-100 mx-4" />
             
             <Link href="/orders">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                  <ShoppingBag className="text-orange-600 dark:text-orange-400" size={20} />
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                  <ShoppingBag className="text-[#f77430]" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900 dark:text-white">Заказы</span>
+                <span className="flex-1 font-medium text-gray-900">Заказы</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </Link>
 
-            <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4" />
+            <div className="h-px bg-gray-100 mx-4" />
             
             <Link href="/referrals">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                  <Gift className="text-[#f77430] dark:text-[#f29b41]" size={20} />
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                  <Gift className="text-[#f77430]" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900 dark:text-white">Реферальная программа</span>
+                <span className="flex-1 font-medium text-gray-900">Реферальная программа</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </Link>
@@ -284,51 +298,51 @@ export default function ProfilePage() {
 
         {/* Settings Section */}
         <section className="mb-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 px-1">Настройки</p>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
+          <p className="text-sm text-gray-500 mb-2 px-1">Настройки</p>
+          <div className="card-neutral overflow-hidden">
             
             <button 
               onClick={() => setShowLanguageModal(true)}
-              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors"
             >
-              <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                <Globe className="text-[#f77430] dark:text-[#f29b41]" size={20} />
+              <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                <Globe className="text-[#f77430]" size={20} />
               </div>
-              <span className="flex-1 font-medium text-gray-900 dark:text-white text-left">Язык</span>
+              <span className="flex-1 font-medium text-gray-900 text-left">Язык</span>
               <span className="text-gray-400 text-sm mr-1">
                 {language === 'ru' ? 'Русский' : 'English'}
               </span>
               <ChevronRight className="text-gray-400" size={20} />
             </button>
             
-            <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4" />
+            <div className="h-px bg-gray-100 mx-4" />
             
             <button 
               onClick={() => setShowThemeModal(true)}
-              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors"
             >
-              <div className="w-10 h-10 rounded-xl bg-gray-800 dark:bg-gray-600 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-gray-800 flex items-center justify-center">
                 {theme === 'dark' ? <Moon className="text-white" size={20} /> : 
                  theme === 'light' ? <Sun className="text-white" size={20} /> :
                  <Monitor className="text-white" size={20} />}
               </div>
-              <span className="flex-1 font-medium text-gray-900 dark:text-white text-left">Тема</span>
+              <span className="flex-1 font-medium text-gray-900 text-left">Тема</span>
               <span className="text-gray-400 text-sm mr-1">
                 {theme === 'light' ? 'Светлая' : theme === 'dark' ? 'Тёмная' : 'Авто'}
               </span>
               <ChevronRight className="text-gray-400" size={20} />
             </button>
             
-            <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4" />
+            <div className="h-px bg-gray-100 mx-4" />
             
             <button 
               onClick={() => setShowNotificationsModal(true)}
-              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors"
             >
-              <div className="w-10 h-10 rounded-xl bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
-                <Bell className="text-pink-600 dark:text-pink-400" size={20} />
+              <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                <Bell className="text-[#f77430]" size={20} />
               </div>
-              <span className="flex-1 font-medium text-gray-900 dark:text-white text-left">Уведомления</span>
+              <span className="flex-1 font-medium text-gray-900 text-left">Уведомления</span>
               <span className={`text-sm mr-1 ${notifications ? 'text-green-500' : 'text-gray-400'}`}>
                 {notifications ? 'Вкл' : 'Выкл'}
               </span>
@@ -340,39 +354,39 @@ export default function ProfilePage() {
 
         {/* Other Section */}
         <section className="mb-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 px-1">Другое</p>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
+          <p className="text-sm text-gray-500 mb-2 px-1">Другое</p>
+          <div className="card-neutral overflow-hidden">
             
             <Link href="/help">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
-                  <HelpCircle className="text-cyan-600 dark:text-cyan-400" size={20} />
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                  <HelpCircle className="text-[#f77430]" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900 dark:text-white">Помощь</span>
+                <span className="flex-1 font-medium text-gray-900">Помощь</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </Link>
             
-            <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4" />
+            <div className="h-px bg-gray-100 mx-4" />
             
             <a href="https://t.me/support" target="_blank" rel="noopener noreferrer">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                  <MessageCircle className="text-[#f77430] dark:text-[#f29b41]" size={20} />
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                  <MessageCircle className="text-[#f77430]" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900 dark:text-white">Поддержка</span>
+                <span className="flex-1 font-medium text-gray-900">Поддержка</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </a>
             
-            <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4" />
+            <div className="h-px bg-gray-100 mx-4" />
             
             <Link href="/offer">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer">
-                <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                  <FileText className="text-gray-600 dark:text-gray-400" size={20} />
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors cursor-pointer">
+                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                  <FileText className="text-gray-600" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900 dark:text-white">Публичная оферта</span>
+                <span className="flex-1 font-medium text-gray-900">Публичная оферта</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </Link>
@@ -391,11 +405,11 @@ export default function ProfilePage() {
       {showLanguageModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowLanguageModal(false)}>
           <div 
-            className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-t-3xl p-6 animate-slide-up"
+            className="w-full max-w-lg bg-white rounded-t-3xl p-6 animate-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Выбор языка</h3>
+              <h3 className="text-xl font-bold text-gray-900">Выбор языка</h3>
               <button onClick={() => setShowLanguageModal(false)} className="p-2">
                 <X className="text-gray-400" size={24} />
               </button>
@@ -404,24 +418,24 @@ export default function ProfilePage() {
               <button 
                 onClick={() => changeLanguage('ru')}
                 className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
-                  language === 'ru' ? 'bg-orange-50 dark:bg-orange-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  language === 'ru' ? 'bg-orange-50' : 'hover:bg-gray-50'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🇷🇺</span>
-                  <span className="font-medium text-gray-900 dark:text-white">Русский</span>
+                  <span className="font-medium text-gray-900">Русский</span>
                 </div>
                 {language === 'ru' && <Check className="text-[#f77430]" size={20} />}
               </button>
               <button 
                 onClick={() => changeLanguage('en')}
                 className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
-                  language === 'en' ? 'bg-orange-50 dark:bg-orange-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  language === 'en' ? 'bg-orange-50' : 'hover:bg-gray-50'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🇬🇧</span>
-                  <span className="font-medium text-gray-900 dark:text-white">English</span>
+                  <span className="font-medium text-gray-900">English</span>
                 </div>
                 {language === 'en' && <Check className="text-[#f77430]" size={20} />}
               </button>
@@ -434,11 +448,11 @@ export default function ProfilePage() {
       {showThemeModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowThemeModal(false)}>
           <div 
-            className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-t-3xl p-6 animate-slide-up"
+            className="w-full max-w-lg bg-white rounded-t-3xl p-6 animate-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Выбор темы</h3>
+              <h3 className="text-xl font-bold text-gray-900">Выбор темы</h3>
               <button onClick={() => setShowThemeModal(false)} className="p-2">
                 <X className="text-gray-400" size={24} />
               </button>
@@ -447,36 +461,36 @@ export default function ProfilePage() {
               <button 
                 onClick={() => changeTheme('light')}
                 className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
-                  theme === 'light' ? 'bg-orange-50 dark:bg-orange-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  theme === 'light' ? 'bg-orange-50' : 'hover:bg-gray-50'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <Sun className="text-yellow-500" size={24} />
-                  <span className="font-medium text-gray-900 dark:text-white">Светлая</span>
+                  <span className="font-medium text-gray-900">Светлая</span>
                 </div>
                 {theme === 'light' && <Check className="text-[#f77430]" size={20} />}
               </button>
               <button 
                 onClick={() => changeTheme('dark')}
                 className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
-                  theme === 'dark' ? 'bg-orange-50 dark:bg-orange-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  theme === 'dark' ? 'bg-orange-50' : 'hover:bg-gray-50'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <Moon className="text-[#f29b41]" size={24} />
-                  <span className="font-medium text-gray-900 dark:text-white">Тёмная</span>
+                  <span className="font-medium text-gray-900">Тёмная</span>
                 </div>
                 {theme === 'dark' && <Check className="text-[#f77430]" size={20} />}
               </button>
               <button 
                 onClick={() => changeTheme('system')}
                 className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
-                  theme === 'system' ? 'bg-orange-50 dark:bg-orange-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  theme === 'system' ? 'bg-orange-50' : 'hover:bg-gray-50'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <Monitor className="text-gray-500" size={24} />
-                  <span className="font-medium text-gray-900 dark:text-white">Как в системе</span>
+                  <span className="font-medium text-gray-900">Как в системе</span>
                 </div>
                 {theme === 'system' && <Check className="text-[#f77430]" size={20} />}
               </button>
@@ -489,25 +503,25 @@ export default function ProfilePage() {
       {showNotificationsModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowNotificationsModal(false)}>
           <div 
-            className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-t-3xl p-6 animate-slide-up"
+            className="w-full max-w-lg bg-white rounded-t-3xl p-6 animate-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Уведомления</h3>
+              <h3 className="text-xl font-bold text-gray-900">Уведомления</h3>
               <button onClick={() => setShowNotificationsModal(false)} className="p-2">
                 <X className="text-gray-400" size={24} />
               </button>
             </div>
             <div className="space-y-4">
-              <div className="flex items-center justify-between px-4 py-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+              <div className="flex items-center justify-between px-4 py-4 bg-gray-50 rounded-xl">
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Push-уведомления</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Статус заказов, акции</p>
+                  <p className="font-medium text-gray-900">Push-уведомления</p>
+                  <p className="text-sm text-gray-500">Статус заказов, акции</p>
                 </div>
                 <button
                   onClick={toggleNotifications}
                   className={`w-14 h-8 rounded-full transition-colors relative ${
-                    notifications ? 'bg-[#f77430]' : 'bg-gray-300 dark:bg-gray-600'
+                    notifications ? 'bg-[#f77430]' : 'bg-gray-300'
                   }`}
                 >
                   <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${
@@ -515,7 +529,7 @@ export default function ProfilePage() {
                   }`} />
                 </button>
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+              <p className="text-sm text-gray-500 text-center">
                 Мы будем отправлять только важные уведомления о ваших заказах и специальных предложениях
               </p>
             </div>

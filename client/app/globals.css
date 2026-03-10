@@ -29,13 +29,34 @@ html, body {
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
-  background: var(--bg-gradient);
+  background: #f4f5f7;
   background-attachment: fixed;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   min-height: 100vh;
+}
+
+.card-neutral {
+  background: #ffffff;
+  border: 1px solid #eceef2;
+  border-radius: 18px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+.card-accent {
+  background: linear-gradient(135deg, #f77430 0%, #f29b41 48%, #f7b64f 100%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgba(247, 116, 48, 0.28);
+  color: #fff;
+}
+
+.soft-input {
+  background: #eef1f4;
+  border: 1px solid #e5e9ef;
+  border-radius: 14px;
 }
 
 /* Liquid Glass Card */

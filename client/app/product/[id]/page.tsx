@@ -152,7 +152,7 @@ export default function ProductPage() {
   }
 
   return (
-    <div className="container">
+    <div className="container bg-[#f4f5f7]">
       {/* Back Button */}
       <button 
         onClick={() => router.back()}
@@ -163,7 +163,7 @@ export default function ProductPage() {
       </button>
 
       {/* Product Header */}
-      <div className="glass-card text-center mb-6 animate-slide-up">
+      <div className="card-neutral p-5 text-center mb-6 animate-slide-up">
         <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-5xl mx-auto mb-4 shadow-sm">
           {getCountryEmoji(product.country)}
         </div>
@@ -176,12 +176,12 @@ export default function ProductPage() {
 
       {/* Features */}
       <div className="grid grid-cols-2 gap-3 mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-        <div className="glass-card-flat text-center">
+        <div className="card-neutral p-4 text-center">
           <Wifi className="mx-auto mb-2 text-accent" size={28} />
           <p className="text-lg font-bold text-primary">{formatDataAmount(product.dataAmount)}</p>
           <p className="text-xs text-muted">Трафик</p>
         </div>
-        <div className="glass-card-flat text-center">
+        <div className="card-neutral p-4 text-center">
           <Clock className="mx-auto mb-2 text-accent" size={28} />
           <p className="text-lg font-bold text-primary">{product.validityDays} дней</p>
           <p className="text-xs text-muted">Срок действия</p>
@@ -189,7 +189,7 @@ export default function ProductPage() {
       </div>
 
       {/* Benefits */}
-      <div className="glass-card mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+      <div className="card-neutral p-5 mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
         <h3 className="font-semibold text-primary mb-4">Преимущества</h3>
         <div className="space-y-3">
           <div className="flex items-center gap-3">
@@ -223,7 +223,7 @@ export default function ProductPage() {
       </div>
 
       {/* How it works */}
-      <div className="glass-card mb-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+      <div className="card-neutral p-5 mb-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
         <h3 className="font-semibold text-primary mb-4">Как это работает</h3>
         <div className="space-y-3">
           {[
@@ -243,13 +243,13 @@ export default function ProductPage() {
       </div>
 
       {/* Purchase Section */}
-      <div className="glass-card animate-slide-up" style={{ animationDelay: '0.25s' }}>
+      <div className="card-accent p-5 animate-slide-up" style={{ animationDelay: '0.25s' }}>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-muted text-sm">Стоимость</p>
-            <p className="price-tag text-3xl">₽{formatPrice(product.ourPrice)}</p>
+            <p className="text-white/80 text-sm">Стоимость</p>
+            <p className="text-3xl font-bold text-white">₽{formatPrice(product.ourPrice)}</p>
           </div>
-          <div className="badge badge-success">
+          <div className="badge bg-white/20 text-white">
             <CheckCircle2 size={14} className="mr-1" />
             В наличии
           </div>
@@ -258,7 +258,7 @@ export default function ProductPage() {
         <button
           onClick={handlePurchase}
           disabled={purchasing}
-          className="glass-button flex items-center justify-center gap-2"
+          className="w-full rounded-xl bg-white text-[#f77430] py-3.5 font-semibold flex items-center justify-center gap-2"
         >
           {purchasing ? (
             <>

@@ -61,13 +61,13 @@ export default function CountryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-[#f4f5f7]">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
+      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-gray-200/70">
         <div className="flex items-center justify-between px-4 py-3">
           <button 
             onClick={() => router.back()}
-            className="p-2 -ml-2 text-gray-600 dark:text-gray-300"
+            className="p-2 -ml-2 text-gray-600"
           >
             <ArrowLeft size={24} />
           </button>
@@ -81,7 +81,7 @@ export default function CountryPage() {
           </div>
           <button 
             onClick={handleShare}
-            className="p-2 -mr-2 text-gray-600 dark:text-gray-300"
+            className="p-2 -mr-2 text-gray-600"
           >
             <Share2 size={20} />
           </button>
@@ -95,8 +95,8 @@ export default function CountryPage() {
             onClick={() => setActiveTab('standard')}
             className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
               activeTab === 'standard'
-                ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                : 'bg-white dark:bg-white/10 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-white/20'
+                ? 'bg-[#f77430] text-white shadow-md shadow-orange-200'
+                : 'bg-white text-gray-600 border border-gray-200'
             }`}
           >
             Стандартные
@@ -105,8 +105,8 @@ export default function CountryPage() {
             onClick={() => setActiveTab('unlimited')}
             className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
               activeTab === 'unlimited'
-                ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                : 'bg-white dark:bg-white/10 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-white/20'
+                ? 'bg-[#f77430] text-white shadow-md shadow-orange-200'
+                : 'bg-white text-gray-600 border border-gray-200'
             }`}
           >
             Безлимитные
@@ -117,7 +117,7 @@ export default function CountryPage() {
         {loading ? (
           <div className="space-y-2">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="rounded-xl bg-white dark:bg-white/10 p-4">
+              <div key={i} className="card-neutral p-4">
                 <div className="flex justify-between items-center">
                   <div className="skeleton h-5 w-24" />
                   <div className="skeleton h-5 w-16" />
@@ -126,31 +126,31 @@ export default function CountryPage() {
             ))}
           </div>
         ) : products.length === 0 ? (
-          <div className="rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-xl text-center py-10">
+          <div className="card-neutral text-center py-10">
             <div className="text-4xl mb-3">📭</div>
-            <p className="text-gray-600 dark:text-gray-300 font-medium">Тарифы не найдены</p>
+            <p className="text-gray-600 font-medium">Тарифы не найдены</p>
           </div>
         ) : (
-          <div className="rounded-2xl bg-white dark:bg-white/10 overflow-hidden">
+          <div className="card-neutral overflow-hidden">
             {products.map((product, index) => (
               <div
                 key={product.id}
                 onClick={() => setSelectedProduct(product.id)}
                 className={`
                   flex items-center justify-between px-4 py-4 cursor-pointer transition-all
-                  ${index !== products.length - 1 ? 'border-b border-gray-100 dark:border-white/10' : ''}
+                  ${index !== products.length - 1 ? 'border-b border-gray-100' : ''}
                   ${selectedProduct === product.id 
-                    ? 'bg-orange-50 dark:bg-orange-500/20 border-l-4 border-l-[#f77430]'
-                    : 'hover:bg-gray-50 dark:hover:bg-white/5 border-l-4 border-l-transparent'
+                    ? 'bg-orange-50 border-l-4 border-l-[#f77430]'
+                    : 'hover:bg-gray-50 border-l-4 border-l-transparent'
                   }
                 `}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-gray-900 dark:text-white">
+                    <span className="font-semibold text-gray-900">
                       {formatDataAmount(product.dataAmount)}
                     </span>
-                    <span className="text-gray-500 dark:text-gray-400 text-sm">
+                    <span className="text-gray-500 text-sm">
                       {product.isUnlimited 
                         ? `в день, на ${product.validityDays} дн.`
                         : `на ${product.validityDays} дн.`
@@ -178,14 +178,14 @@ export default function CountryPage() {
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  <span className="font-bold text-gray-900 dark:text-white">
+                  <span className="font-bold text-gray-900">
                     {formatPrice(product.ourPrice)} ₽
                   </span>
                   <div className={`
                     w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
                     ${selectedProduct === product.id 
                       ? 'border-[#f77430] bg-[#f77430]'
-                      : 'border-gray-300 dark:border-gray-600'
+                      : 'border-gray-300'
                     }
                   `}>
                     {selectedProduct === product.id && (
@@ -208,14 +208,14 @@ export default function CountryPage() {
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
                 Особенности тарифа
               </h3>
-              <div className="rounded-2xl bg-white dark:bg-white/10 divide-y divide-gray-100 dark:divide-white/10">
+              <div className="card-neutral divide-y divide-gray-100">
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
                     <span className="text-lg">📶</span>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 uppercase">Скорость сети</p>
-                    <p className="font-medium text-gray-900 dark:text-white">
+                    <p className="font-medium text-gray-900">
                       {selectedProd?.isUnlimited && selectedProd?.speed 
                         ? `3G/4G/5G (после лимита: ${selectedProd.speed})`
                         : '3G/4G/5G'
@@ -225,33 +225,33 @@ export default function CountryPage() {
                 </div>
                 {selectedProd?.isUnlimited && (
                   <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
                       <span className="text-lg">📅</span>
                     </div>
                     <div>
                       <p className="text-xs text-gray-400 uppercase">Тип тарифа</p>
-                      <p className="font-medium text-gray-900 dark:text-white">
+                      <p className="font-medium text-gray-900">
                         {formatDataAmount(selectedProd.dataAmount)} в день на {selectedProd.validityDays} дней
                       </p>
                     </div>
                   </div>
                 )}
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-10 h-10 rounded-xl bg-green-100 dark:bg-green-500/20 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
                     <span className="text-lg">🔄</span>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 uppercase">Пополнение</p>
-                    <p className="font-medium text-gray-900 dark:text-white">Можно продлить</p>
+                    <p className="font-medium text-gray-900">Можно продлить</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
                     <span className="text-lg">📡</span>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 uppercase">Тип подключения</p>
-                    <p className="font-medium text-gray-900 dark:text-white">Только данные</p>
+                    <p className="font-medium text-gray-900">Только данные</p>
                   </div>
                 </div>
               </div>
@@ -264,8 +264,8 @@ export default function CountryPage() {
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
             Важно про eSIM
           </h3>
-          <div className="rounded-2xl bg-amber-50 dark:bg-amber-500/10 p-4">
-            <p className="text-sm text-amber-800 dark:text-amber-200">
+          <div className="rounded-2xl bg-amber-50 p-4 border border-amber-100">
+            <p className="text-sm text-amber-800">
               ⚠️ Только мобильный интернет. Звонки и SMS не поддерживаются.
             </p>
           </div>

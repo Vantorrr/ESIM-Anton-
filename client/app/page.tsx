@@ -110,15 +110,11 @@ function CountryCard({ group, index }: { group: CountryGroup; index: number }) {
   
   return (
     <Link href={`/country/${encodeURIComponent(group.country)}`}>
-      <div 
+      <div
         className="
           relative overflow-hidden cursor-pointer
           py-4 px-3
-          rounded-2xl
-          bg-white/70 dark:bg-white/10
-          backdrop-blur-xl
-          border border-white/50 dark:border-white/20
-          shadow-sm
+          card-neutral
           transition-all duration-200
           active:scale-[0.98]
           animate-slide-up
@@ -138,7 +134,7 @@ function CountryCard({ group, index }: { group: CountryGroup; index: number }) {
               <img src="/logo-mark.png" alt="Mojo mobile" className="w-9 h-9 rounded-lg object-contain" />
             )}
           </div>
-          <p className="font-medium text-sm text-gray-900 dark:text-white mb-0.5 truncate">
+          <p className="font-medium text-sm text-gray-900 mb-0.5 truncate">
             {countryName}
           </p>
           <p className="text-sm font-semibold text-[#f2622a]">
@@ -333,7 +329,7 @@ export default function Home() {
   }
 
   return (
-    <div className="container animate-fade-in">
+    <div className="container animate-fade-in bg-[#f4f5f7]">
       {/* Header */}
       <header className="mb-6">
         <div className="flex items-center gap-3">
@@ -353,7 +349,7 @@ export default function Home() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
-            className="w-full py-3 pl-11 pr-10 rounded-xl bg-gray-100/80 dark:bg-white/10 backdrop-blur-sm border-0 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#f77430]/30"
+            className="w-full py-3 pl-11 pr-10 soft-input text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#f77430]/25"
             placeholder="Поиск страны..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -382,8 +378,8 @@ export default function Home() {
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
               activeTab === tab.id
-                ? 'bg-[#f77430] text-white'
-                : 'bg-white text-gray-600 border border-gray-200 hover:border-[#f29b41]/50'
+                ? 'bg-[#f77430] text-white shadow-md shadow-orange-200'
+                : 'bg-white text-gray-600 border border-gray-200'
             }`}
           >
             {tab.label}
@@ -394,7 +390,7 @@ export default function Home() {
       {loading ? (
         <div className="grid grid-cols-2 gap-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="rounded-2xl bg-white/50 dark:bg-white/10 backdrop-blur p-4">
+            <div key={i} className="card-neutral p-4">
               <div className="skeleton w-10 h-10 rounded-xl mx-auto mb-2" />
               <div className="skeleton h-3 w-16 mx-auto mb-1" />
               <div className="skeleton h-3 w-12 mx-auto" />
@@ -408,13 +404,13 @@ export default function Home() {
             Страны
           </h2>
           {filteredCountries.length === 0 ? (
-            <div className="rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-xl text-center py-10">
+            <div className="card-neutral text-center py-10">
               <div className="text-4xl mb-3">🔍</div>
-              <p className="text-gray-600 dark:text-gray-300 font-medium">Ничего не найдено</p>
+              <p className="text-gray-600 font-medium">Ничего не найдено</p>
               <p className="text-gray-400 text-sm mt-1">Попробуйте другой запрос</p>
             </div>
           ) : (
-            <div className="rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-xl overflow-hidden">
+            <div className="card-neutral overflow-hidden">
               {filteredCountries.map((group, index) => {
                 const flagUrl = getFlagUrl(group.country);
                 const countryName = getCountryName(group.country);
@@ -422,7 +418,7 @@ export default function Home() {
                   <Link key={group.country} href={`/country/${encodeURIComponent(group.country)}`}>
                     <div 
                       className={`flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-black/5 active:bg-black/10 transition-colors ${
-                        index !== filteredCountries.length - 1 ? 'border-b border-gray-200/50 dark:border-white/10' : ''
+                        index !== filteredCountries.length - 1 ? 'border-b border-gray-200/60' : ''
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -431,7 +427,7 @@ export default function Home() {
                         ) : (
                           <img src="/logo-mark.png" alt="Mojo mobile" className="w-8 h-8 rounded-lg object-contain" />
                         )}
-                        <span className="font-medium text-gray-900 dark:text-white">{countryName}</span>
+                        <span className="font-medium text-gray-900">{countryName}</span>
                       </div>
                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -450,9 +446,9 @@ export default function Home() {
             Региональные пакеты
           </h2>
           {multiGroups.length === 0 ? (
-            <div className="rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-xl text-center py-10">
+            <div className="card-neutral text-center py-10">
               <img src="/logo-mark.png" alt="Mojo mobile" className="w-12 h-12 mx-auto mb-3 rounded-xl object-contain" />
-              <p className="text-gray-600 dark:text-gray-300 font-medium">Скоро появятся</p>
+              <p className="text-gray-600 font-medium">Скоро появятся</p>
               <p className="text-gray-400 text-sm mt-1">Мульти-страны в разработке</p>
             </div>
           ) : (
@@ -470,9 +466,9 @@ export default function Home() {
             Глобальные пакеты
           </h2>
           {globalGroups.length === 0 ? (
-            <div className="rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-xl text-center py-10">
+            <div className="card-neutral text-center py-10">
               <img src="/logo-mark.png" alt="Mojo mobile" className="w-12 h-12 mx-auto mb-3 rounded-xl object-contain" />
-              <p className="text-gray-600 dark:text-gray-300 font-medium">Скоро появятся</p>
+              <p className="text-gray-600 font-medium">Скоро появятся</p>
               <p className="text-gray-400 text-sm mt-1">Глобальные тарифы в разработке</p>
             </div>
           ) : (

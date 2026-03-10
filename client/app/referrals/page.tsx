@@ -105,7 +105,7 @@ export default function ReferralsPage() {
   }
 
   return (
-    <div className="container">
+    <div className="container bg-[#f4f5f7]">
       {/* Header */}
       <header className="mb-6 animate-fade-in">
         <h1 className="text-2xl font-bold text-primary">Пригласи друзей</h1>
@@ -113,7 +113,7 @@ export default function ReferralsPage() {
       </header>
 
       {/* Hero Card */}
-      <div className="glass-card mb-6 animate-slide-up overflow-hidden relative">
+      <div className="card-accent p-5 mb-6 animate-slide-up overflow-hidden relative">
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#f77430]/25 to-[#f9d17f]/25 rounded-full blur-2xl" />
         
         <div className="relative">
@@ -122,22 +122,22 @@ export default function ReferralsPage() {
               <Gift className="text-white" size={32} />
             </div>
             <div>
-              <p className="text-3xl font-bold text-accent">{stats?.referralPercent}%</p>
-              <p className="text-sm text-muted">с каждой покупки друга</p>
+              <p className="text-3xl font-bold text-white">{stats?.referralPercent}%</p>
+              <p className="text-sm text-white/85">с каждой покупки друга</p>
             </div>
           </div>
           
-          <p className="text-secondary mb-4">
-            Приглашай друзей и получай <span className="font-semibold text-accent">{stats?.referralPercent}%</span> от суммы их покупок на свой бонусный счёт!
+          <p className="text-white/90 mb-4">
+            Приглашай друзей и получай <span className="font-semibold text-white">{stats?.referralPercent}%</span> от суммы их покупок на свой бонусный счёт!
           </p>
         </div>
       </div>
 
       {/* Referral Link */}
-      <div className="glass-card mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+      <div className="card-neutral p-5 mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
         <p className="text-sm text-muted mb-3">Ваша реферальная ссылка</p>
         
-        <div className="glass-card-flat flex items-center gap-3 mb-4">
+        <div className="soft-input flex items-center gap-3 mb-4 px-4 py-3">
           <p className="flex-1 text-sm text-primary truncate font-mono">
             {stats?.referralLink}
           </p>
@@ -146,7 +146,7 @@ export default function ReferralsPage() {
         <div className="grid grid-cols-2 gap-3">
           <button 
             onClick={copyLink}
-            className={`glass-button-secondary flex items-center justify-center gap-2 py-3 rounded-xl ${copied ? 'bg-green-50 text-green-600 border-green-200' : ''}`}
+            className={`flex items-center justify-center gap-2 py-3 rounded-xl border border-gray-200 bg-white text-[#f77430] ${copied ? 'bg-green-50 text-green-600 border-green-200' : ''}`}
             style={{ background: copied ? 'rgba(34, 197, 94, 0.1)' : undefined }}
           >
             {copied ? (
@@ -164,7 +164,7 @@ export default function ReferralsPage() {
           
           <button 
             onClick={shareLink}
-            className="glass-button flex items-center justify-center gap-2 py-3"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#f77430] text-white font-medium shadow-md shadow-orange-200"
           >
             <Share2 size={18} />
             <span>Поделиться</span>
@@ -174,12 +174,12 @@ export default function ReferralsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
-        <div className="glass-card text-center">
+        <div className="card-neutral p-4 text-center">
           <Users className="mx-auto mb-2 text-accent" size={28} />
           <p className="text-2xl font-bold text-primary">{stats?.referralsCount}</p>
           <p className="text-xs text-muted">Приглашено</p>
         </div>
-        <div className="glass-card text-center">
+        <div className="card-neutral p-4 text-center">
           <TrendingUp className="mx-auto mb-2 text-accent" size={28} />
           <p className="text-2xl font-bold text-primary">₽{stats?.totalEarned}</p>
           <p className="text-xs text-muted">Заработано</p>
@@ -187,7 +187,7 @@ export default function ReferralsPage() {
       </div>
 
       {/* How it works */}
-      <div className="glass-card animate-slide-up" style={{ animationDelay: '0.2s' }}>
+      <div className="card-neutral p-5 animate-slide-up" style={{ animationDelay: '0.2s' }}>
         <h3 className="font-semibold text-primary mb-4">Как это работает</h3>
         <div className="space-y-4">
           {[

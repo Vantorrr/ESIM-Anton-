@@ -55,17 +55,17 @@ export default function HelpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <div className="min-h-screen bg-[#f4f5f7] pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
+      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-gray-200/70">
         <div className="flex items-center justify-between px-4 py-3">
           <button 
             onClick={() => router.back()}
-            className="p-2 -ml-2 text-gray-600 dark:text-gray-300"
+            className="p-2 -ml-2 text-gray-600"
           >
             <ArrowLeft size={24} />
           </button>
-          <h1 className="font-semibold text-lg text-gray-900 dark:text-white">Помощь</h1>
+          <h1 className="font-semibold text-lg text-gray-900">Помощь</h1>
           <div className="w-10" />
         </div>
       </div>
@@ -75,7 +75,7 @@ export default function HelpPage() {
         {/* Check Device Support */}
         <section className="mb-6">
           <Link href="/devices">
-            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-5 text-white">
+            <div className="card-accent p-5">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
                   <Smartphone size={28} />
@@ -91,23 +91,23 @@ export default function HelpPage() {
 
         {/* Contact Cards */}
         <section className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Свяжитесь с нами
           </h2>
           <div className="grid grid-cols-2 gap-3">
-            <a 
+            <a
               href="https://t.me/support" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="bg-gradient-to-br from-[#f77430] to-[#f2622a] rounded-2xl p-4 text-white"
+              className="card-accent p-4"
             >
               <MessageCircle size={28} className="mb-2" />
               <p className="font-semibold">Telegram</p>
               <p className="text-sm text-white/80">Быстрый ответ</p>
             </a>
-            <a 
+            <a
               href="mailto:support@esim.travel"
-              className="bg-gradient-to-br from-[#f29b41] to-[#f9d17f] rounded-2xl p-4 text-white"
+              className="card-accent p-4"
             >
               <Mail size={28} className="mb-2" />
               <p className="font-semibold">Email</p>
@@ -118,20 +118,20 @@ export default function HelpPage() {
 
         {/* FAQ */}
         <section>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Частые вопросы
           </h2>
           <div className="space-y-3">
             {faqs.map((faq, index) => (
               <div 
                 key={index}
-                className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm"
+                className="card-neutral overflow-hidden"
               >
                 <button
                   onClick={() => toggleFAQ(index)}
                   className="w-full flex items-center justify-between px-4 py-4 text-left"
                 >
-                  <span className="font-medium text-gray-900 dark:text-white pr-4">
+                  <span className="font-medium text-gray-900 pr-4">
                     {faq.question}
                   </span>
                   {openIndex === index ? (
@@ -142,7 +142,7 @@ export default function HelpPage() {
                 </button>
                 {openIndex === index && (
                   <div className="px-4 pb-4 pt-0">
-                    <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+                    <p className="text-gray-600 text-sm leading-relaxed">
                       {faq.answer}
                     </p>
                   </div>
