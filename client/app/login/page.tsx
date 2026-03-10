@@ -15,7 +15,6 @@ const BOT_USERNAME = process.env.NEXT_PUBLIC_BOT_USERNAME || 'mojo_mobile_bot'
 const OAUTH_PROVIDERS = [
   { id: 'google', label: 'Google', color: '#EA4335', bg: '#EA433515', icon: GoogleIcon },
   { id: 'yandex', label: 'Яндекс', color: '#FC3F1D', bg: '#FC3F1D15', icon: YandexIcon },
-  { id: 'vk', label: 'ВКонтакте', color: '#0077FF', bg: '#0077FF15', icon: VKIcon },
 ]
 
 function LoginInner() {
@@ -273,6 +272,7 @@ function LoginInner() {
 function TelegramLoginButton({ botUsername }: { botUsername: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [isLocalhost, setIsLocalhost] = useState(false)
+  const [widgetFailed, setWidgetFailed] = useState(false)
 
   useEffect(() => {
     setIsLocalhost(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -282,6 +282,7 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
     if (!containerRef.current) return
     if (isLocalhost) return
     containerRef.current.innerHTML = ''
+    setWidgetFailed(false)
 
     const script = document.createElement('script')
     script.src = 'https://telegram.org/js/telegram-widget.js?22'
@@ -290,8 +291,18 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
     script.setAttribute('data-onauth', 'onTelegramAuth(user)')
     script.setAttribute('data-request-access', 'write')
     script.setAttribute('data-radius', '12')
+    script.onerror = () => setWidgetFailed(true)
     script.async = true
     containerRef.current.appendChild(script)
+
+    // Safari/adblock/network conditions may block widget rendering silently.
+    // If widget iframe does not appear, show clear fallback.
+    const t = setTimeout(() => {
+      const hasIframe = !!containerRef.current?.querySelector('iframe')
+      if (!hasIframe) setWidgetFailed(true)
+    }, 3500)
+
+    return () => clearTimeout(t)
   }, [botUsername, isLocalhost])
 
   if (isLocalhost) {
@@ -303,7 +314,30 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
     )
   }
 
-  return <div ref={containerRef} />
+  return (
+    <div className="w-full">
+      <div className="rounded-2xl border border-gray-200 bg-white/70 px-4 py-3">
+        <p className="text-xs text-gray-500 mb-2 text-center">Вход через Telegram</p>
+        <div ref={containerRef} className="min-h-[44px] flex items-center justify-center" />
+      </div>
+
+      {widgetFailed && (
+        <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+          <p className="text-[11px] text-amber-800 text-center">
+            Виджет Telegram не загрузился. Проверь домен бота в BotFather и попробуй снова.
+          </p>
+          <a
+            href={`https://t.me/${botUsername}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 block w-full rounded-lg bg-[#f77430] py-2 text-center text-xs font-semibold text-white"
+          >
+            Открыть бота в Telegram
+          </a>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ─── SVG Icons ─────────────────────────────────────────────────────────────
@@ -322,14 +356,6 @@ function YandexIcon({ color: c }: { color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill={c}>
       <path d="M14.341 21h-2.744V8.215H10.32c-2.047 0-3.123 1.023-3.123 2.537 0 1.74.755 2.55 2.336 3.598L11.2 15.59 8.217 21H5.27l3.28-5.191c-1.906-1.348-2.985-2.67-2.985-4.972C5.285 7.898 7.16 6 10.293 6H14.34V21h.001z"/>
-    </svg>
-  )
-}
-
-function VKIcon({ color: c }: { color: string }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill={c}>
-      <path d="M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0zm3.692 17.123h-1.744c-.66 0-.862-.525-2.049-1.713-1.033-1.032-1.49-.902-1.49 0v1.535c0 .441-.14.713-1.299.713-1.922 0-4.054-1.168-5.55-3.349C5.326 11.658 4.58 9.137 4.58 8.682c0-.193.065-.377.374-.377h1.744c.298 0 .41.134.512.443.567 1.64 1.514 3.078 1.906 3.078.147 0 .215-.068.215-.44V9.256c-.047-.79-.457-.857-.457-1.135 0-.161.135-.322.35-.322h2.742c.244 0 .33.13.33.404v3.176c0 .244.107.33.174.33.147 0 .269-.086.538-.355 1.033-1.165 1.767-2.965 1.767-2.965.097-.216.268-.417.604-.417h1.744c.527 0 .644.27.527.604-.215.78-2.314 3.964-2.314 3.964-.188.296-.254.43 0 .763.188.253.804.782 1.214 1.255.755.862 1.335 1.59 1.49 2.09.163.497-.09.75-.54.75z"/>
     </svg>
   )
 }
