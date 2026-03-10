@@ -186,7 +186,10 @@ export class AuthController {
 
   private getCallbackUrl(provider: string): string {
     const backendUrl = this.configService.get('BACKEND_URL') || 'http://localhost:3000';
-    return `${backendUrl}/auth/oauth/${provider}/callback`;
+    const normalized = backendUrl.replace(/\/+$/, '');
+    // BACKEND_URL can be set with or without /api; normalize both cases.
+    const apiBase = normalized.endsWith('/api') ? normalized : `${normalized}/api`;
+    return `${apiBase}/auth/oauth/${provider}/callback`;
   }
 
   private getFrontendUrl(): string {
