@@ -127,6 +127,7 @@ export default function ProfilePage() {
     } catch (e) {
       console.error('Profile load error:', e)
       redirectedToLogin = true
+      const { clearToken } = await import('@/lib/auth')
       clearToken()
       window.location.replace('/login')
     } finally {
