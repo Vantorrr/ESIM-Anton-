@@ -8,8 +8,33 @@ import InstallBanner from '@/components/InstallBanner'
 const inter = Inter({ subsets: ['latin', 'cyrillic'], weight: ['500', '700'] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://mojomobile.ru'),
   title: 'Mojo mobile - Мобильный интернет по всему миру',
   description: 'Покупайте eSIM для путешествий в более чем 100 странах мира через Mojo mobile',
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: 'website',
+    url: 'https://mojomobile.ru',
+    title: 'Mojo mobile - Мобильный интернет по всему миру',
+    description: 'Покупайте eSIM для путешествий в более чем 100 странах мира через Mojo mobile',
+    siteName: 'Mojo mobile',
+    images: [
+      {
+        url: '/opengraph-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Mojo mobile eSIM',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Mojo mobile - Мобильный интернет по всему миру',
+    description: 'Покупайте eSIM для путешествий в более чем 100 странах мира через Mojo mobile',
+    images: ['/opengraph-image.png'],
+  },
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
