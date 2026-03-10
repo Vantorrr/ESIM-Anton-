@@ -54,7 +54,10 @@ export default function InstallBanner() {
   const isIOS = typeof navigator !== 'undefined' && /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase())
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-slide-up">
+    <div
+      className="fixed left-0 right-0 z-[70] px-4 animate-slide-up"
+      style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
+    >
       <div className="glass-card flex items-center gap-3 shadow-2xl border border-white/20">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#f2622a] to-[#f9d17f] flex items-center justify-center shrink-0 p-1.5">
           <img src="/logo-mark.png" alt="Mojo mobile" className="w-full h-full object-contain rounded-xl" />
