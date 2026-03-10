@@ -21,21 +21,12 @@ export default function OpenGraphImage() {
       >
         <div
           style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.22) 0, rgba(255,255,255,0) 45%), radial-gradient(circle at 80% 85%, rgba(255,255,255,0.18) 0, rgba(255,255,255,0) 50%)',
-          }}
-        />
-
-        <div
-          style={{
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
             padding: '62px 74px',
             width: '100%',
-            zIndex: 1,
+            zIndex: '1',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>

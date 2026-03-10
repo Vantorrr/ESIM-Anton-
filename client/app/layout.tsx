@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     siteName: 'Mojo mobile',
     images: [
       {
-        url: '/opengraph-image.png',
+        url: '/opengraph-image',
         width: 1200,
         height: 630,
         alt: 'Mojo mobile eSIM',
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Mojo mobile - Мобильный интернет по всему миру',
     description: 'Покупайте eSIM для путешествий в более чем 100 странах мира через Mojo mobile',
-    images: ['/opengraph-image.png'],
+    images: ['/opengraph-image'],
   },
   manifest: '/manifest.json',
   appleWebApp: {
