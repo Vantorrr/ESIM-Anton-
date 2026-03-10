@@ -192,12 +192,23 @@ export class AuthController {
     const envBackendUrl = this.configService.get('BACKEND_URL');
     const configuredBase = this.withApiBase(envBackendUrl);
 
-    // Prefer request host/proto to avoid stale env (localhost) breaking OAuth in production.
-    // Falls back to BACKEND_URL, then localhost.
+    // In production we prefer stable BACKEND_URL to avoid provider callback mismatch
+    // when requests arrive through alternate hosts/proxies.
     const requestBase = req ? this.withApiBase(this.getRequestBaseUrl(req)) : null;
-    const base = requestBase || configuredBase || 'http://localhost:3000/api';
+    const shouldUseConfiguredBase =
+      Boolean(configuredBase) && !this.isLocalhostUrl(configuredBase as string);
+
+    const base =
+      (shouldUseConfiguredBase ? configuredBase : null) ||
+      requestBase ||
+      configuredBase ||
+      'http://localhost:3000/api';
 
     return `${base}/auth/oauth/${provider}/callback`;
+  }
+
+  private isLocalhostUrl(url: string): boolean {
+    return /localhost|127\.0\.0\.1/.test(url);
   }
 
   private withApiBase(url?: string | null): string | null {

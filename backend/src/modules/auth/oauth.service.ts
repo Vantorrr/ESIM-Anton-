@@ -113,7 +113,6 @@ export class OAuthService {
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
-      scope: '4194304', // email
       v: '5.199',
     });
     return `https://oauth.vk.com/authorize?${params}`;
