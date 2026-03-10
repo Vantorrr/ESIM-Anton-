@@ -287,7 +287,7 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
     const script = document.createElement('script')
     script.src = 'https://telegram.org/js/telegram-widget.js?22'
     script.setAttribute('data-telegram-login', botUsername)
-    script.setAttribute('data-size', 'large')
+    script.setAttribute('data-size', 'medium')
     script.setAttribute('data-onauth', 'onTelegramAuth(user)')
     script.setAttribute('data-request-access', 'write')
     script.setAttribute('data-radius', '12')
@@ -316,9 +316,13 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
 
   return (
     <div className="w-full">
-      <div className="rounded-2xl border border-gray-200 bg-white/70 px-4 py-3">
-        <p className="text-xs text-gray-500 mb-2 text-center">Вход через Telegram</p>
-        <div ref={containerRef} className="min-h-[44px] flex items-center justify-center" />
+      <div className="pt-1">
+        <p className="text-[11px] text-gray-500 mb-1.5 text-center">Вход через Telegram</p>
+        <div
+          ref={containerRef}
+          className="min-h-[38px] flex items-center justify-center"
+          style={{ filter: 'saturate(0.85) contrast(0.95)' }}
+        />
       </div>
 
       {widgetFailed && (
