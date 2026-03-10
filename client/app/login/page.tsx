@@ -273,6 +273,7 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [isLocalhost, setIsLocalhost] = useState(false)
   const [widgetFailed, setWidgetFailed] = useState(false)
+  const [widgetReady, setWidgetReady] = useState(false)
 
   useEffect(() => {
     setIsLocalhost(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -283,6 +284,7 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
     if (isLocalhost) return
     containerRef.current.innerHTML = ''
     setWidgetFailed(false)
+    setWidgetReady(false)
 
     const script = document.createElement('script')
     script.src = 'https://telegram.org/js/telegram-widget.js?22'
@@ -299,7 +301,11 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
     // If widget iframe does not appear, show clear fallback.
     const t = setTimeout(() => {
       const hasIframe = !!containerRef.current?.querySelector('iframe')
-      if (!hasIframe) setWidgetFailed(true)
+      if (!hasIframe) {
+        setWidgetFailed(true)
+      } else {
+        setWidgetReady(true)
+      }
     }, 3500)
 
     return () => clearTimeout(t)
@@ -317,12 +323,28 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
   return (
     <div className="w-full">
       <div className="pt-1">
-        <p className="text-[11px] text-gray-500 mb-1.5 text-center">Вход через Telegram</p>
-        <div
-          ref={containerRef}
-          className="min-h-[38px] flex items-center justify-center"
-          style={{ filter: 'saturate(0.85) contrast(0.95)' }}
-        />
+        <div className="relative">
+          <div className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-gray-200 bg-white/60">
+            <div className="w-10 h-10 rounded-xl bg-[#E9F4FF] flex items-center justify-center shrink-0">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="#2AABEE" aria-hidden="true">
+                <path d="M9.9 15.2 9.5 20c.6 0 .9-.3 1.3-.6l3.1-3 6.4 4.7c1.2.7 2 .3 2.3-1.1l4.1-19.3c.4-1.7-.6-2.4-1.8-2L1.2 8.8C-.4 9.4-.4 10.3.9 10.7l6.5 2 15-9.5c.7-.4 1.3-.2.8.3"/>
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-primary text-sm">Telegram</p>
+              <p className="text-xs text-secondary">
+                {widgetReady ? 'Войти через Telegram' : 'Подключение кнопки...'}
+              </p>
+            </div>
+            <ArrowRight size={16} className="text-muted" />
+          </div>
+
+          <div
+            ref={containerRef}
+            className={`absolute inset-0 flex items-center justify-center ${widgetReady ? 'opacity-0 cursor-pointer' : 'opacity-0 pointer-events-none'}`}
+            aria-hidden="true"
+          />
+        </div>
       </div>
 
       {widgetFailed && (
