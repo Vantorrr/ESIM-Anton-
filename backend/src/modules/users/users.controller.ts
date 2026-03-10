@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Param, Query, Body } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Query, Body, Headers, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
+import { PushService } from '../notifications/push.service';
 
 // Хелпер для сериализации BigInt в JSON
 function serializeUser(user: any): any {
@@ -13,7 +14,10 @@ function serializeUser(user: any): any {
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly pushService: PushService,
+  ) {}
 
   @Get()
   @ApiBearerAuth()
@@ -52,7 +56,6 @@ export class UsersController {
     username?: string;
     firstName?: string;
     lastName?: string;
-    // UTM метки для аналитики
     utmSource?: string;
     utmMedium?: string;
     utmCampaign?: string;
@@ -63,5 +66,33 @@ export class UsersController {
       userData
     );
     return serializeUser(user);
+  }
+
+  @Get('push/vapid-public-key')
+  @ApiOperation({ summary: 'Получить VAPID публичный ключ для web push' })
+  getVapidPublicKey() {
+    return { publicKey: this.pushService.getPublicKey() };
+  }
+
+  @Post(':id/push/subscribe')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Подписаться на web push уведомления' })
+  async subscribePush(
+    @Param('id') userId: string,
+    @Body() dto: { endpoint: string; p256dh: string; auth: string },
+  ) {
+    await this.pushService.subscribe(userId, dto);
+    return { success: true };
+  }
+
+  @Delete(':id/push/unsubscribe')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Отписаться от web push уведомлений' })
+  async unsubscribePush(
+    @Param('id') userId: string,
+    @Body() dto: { endpoint: string },
+  ) {
+    await this.pushService.unsubscribe(dto.endpoint);
+    return { success: true };
   }
 }

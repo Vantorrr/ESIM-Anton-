@@ -75,7 +75,7 @@ export default function CountryPage() {
             {getFlagUrl(country) ? (
               <img src={getFlagUrl(country)} alt={getCountryName(country)} className="w-8 h-auto rounded shadow-sm" />
             ) : (
-              <span className="text-2xl">🌍</span>
+              <img src="/logo-mark.png" alt="Mojo mobile" className="w-8 h-8 rounded-lg object-contain" />
             )}
             <span className="font-semibold text-lg">{getCountryName(country)}</span>
           </div>
@@ -140,7 +140,7 @@ export default function CountryPage() {
                   flex items-center justify-between px-4 py-4 cursor-pointer transition-all
                   ${index !== products.length - 1 ? 'border-b border-gray-100 dark:border-white/10' : ''}
                   ${selectedProduct === product.id 
-                    ? 'bg-blue-50 dark:bg-blue-500/20 border-l-4 border-l-blue-500' 
+                    ? 'bg-orange-50 dark:bg-orange-500/20 border-l-4 border-l-[#f77430]'
                     : 'hover:bg-gray-50 dark:hover:bg-white/5 border-l-4 border-l-transparent'
                   }
                 `}
@@ -161,9 +161,9 @@ export default function CountryPage() {
                       <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${
                         product.badgeColor === 'red' ? 'bg-red-500' :
                         product.badgeColor === 'green' ? 'bg-green-500' :
-                        product.badgeColor === 'blue' ? 'bg-blue-500' :
+                        product.badgeColor === 'blue' ? 'bg-[#f77430]' :
                         product.badgeColor === 'orange' ? 'bg-orange-500' :
-                        'bg-purple-500'
+                        'bg-[#f29b41]'
                       }`}>
                         {product.badge}
                       </span>
@@ -184,7 +184,7 @@ export default function CountryPage() {
                   <div className={`
                     w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
                     ${selectedProduct === product.id 
-                      ? 'border-blue-500 bg-blue-500' 
+                      ? 'border-[#f77430] bg-[#f77430]'
                       : 'border-gray-300 dark:border-gray-600'
                     }
                   `}>
@@ -210,7 +210,7 @@ export default function CountryPage() {
               </h3>
               <div className="rounded-2xl bg-white dark:bg-white/10 divide-y divide-gray-100 dark:divide-white/10">
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center">
                     <span className="text-lg">📶</span>
                   </div>
                   <div>
@@ -246,7 +246,7 @@ export default function CountryPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-500/20 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center">
                     <span className="text-lg">📡</span>
                   </div>
                   <div>
@@ -275,7 +275,7 @@ export default function CountryPage() {
         {selectedProduct && (
           <div className="mt-6 pb-24">
             <Link href={`/product/${selectedProduct}`}>
-              <button className="w-full py-4 rounded-2xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-lg transition-colors shadow-lg shadow-blue-500/30">
+              <button className="w-full py-4 rounded-2xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold text-lg transition-colors shadow-lg shadow-orange-500/30">
                 Купить eSIM
               </button>
             </Link>

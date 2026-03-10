@@ -83,31 +83,50 @@ export default function ProfilePage() {
   }
 
   const loadUserData = async () => {
-    const tg = (window as any).Telegram?.WebApp
-    
-    if (tg?.initDataUnsafe?.user) {
-      const tgUser = tg.initDataUnsafe.user
-      setUser({
-        id: String(tgUser.id),
-        firstName: tgUser.first_name || 'Пользователь',
-        lastName: tgUser.last_name,
-        username: tgUser.username,
-        photoUrl: tgUser.photo_url,
-        balance: 0,
-        bonusBalance: 150,
-        referralCode: 'ESIM' + String(tgUser.id).slice(-6),
-      })
-    } else {
-      setUser({
-        id: '123456',
-        firstName: 'Гость',
-        balance: 0,
-        bonusBalance: 0,
-        referralCode: 'ESIM123456',
-      })
+    try {
+      const { isTelegramWebApp, getToken } = await import('@/lib/auth')
+
+      if (isTelegramWebApp()) {
+        const tg = (window as any).Telegram?.WebApp
+        const tgUser = tg?.initDataUnsafe?.user
+        if (tgUser) {
+          const { userApi: profileUserApi } = await import('@/lib/api')
+          const dbUser = await profileUserApi.getMe(String(tgUser.id))
+          setUser({
+            id: dbUser.id,
+            firstName: tgUser.first_name || 'Пользователь',
+            lastName: tgUser.last_name,
+            username: tgUser.username,
+            photoUrl: tgUser.photo_url,
+            balance: Number(dbUser.balance) || 0,
+            bonusBalance: Number(dbUser.bonusBalance) || 0,
+            referralCode: dbUser.referralCode,
+          })
+        }
+      } else {
+        const token = getToken()
+        if (token) {
+          const { api } = await import('@/lib/api')
+          const { data } = await api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+          setUser({
+            id: data.id,
+            firstName: data.firstName || 'Пользователь',
+            lastName: data.lastName,
+            username: data.username,
+            balance: Number(data.balance) || 0,
+            bonusBalance: Number(data.bonusBalance) || 0,
+            referralCode: data.referralCode,
+          })
+        } else {
+          window.location.href = '/login'
+          return
+        }
+      }
+    } catch (e) {
+      console.error('Profile load error:', e)
+    } finally {
+      setLoading(false)
     }
-    
-    setLoading(false)
   }
 
   const applyPromoCode = () => {
@@ -118,13 +137,15 @@ export default function ProfilePage() {
   }
 
   const shareReferral = () => {
-    const tg = (window as any).Telegram?.WebApp
     const shareText = `🎁 Дарю тебе скидку 20% на первую покупку в Mojo mobile!\n\nИспользуй мой код: ${user?.referralCode}\n\nПереходи: https://t.me/mojo_mobile_bot`
-    
+    const tg = (window as any).Telegram?.WebApp
     if (tg?.openTelegramLink) {
       tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareText)}`)
+    } else if (navigator.share) {
+      navigator.share({ text: shareText })
     } else {
-      navigator.share?.({ text: shareText })
+      navigator.clipboard?.writeText(shareText)
+      alert('Ссылка скопирована!')
     }
   }
 
@@ -181,11 +202,11 @@ export default function ProfilePage() {
                 value={promoCode}
                 onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                 placeholder="Промокод"
-                className="flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#f77430]"
               />
               <button
                 onClick={applyPromoCode}
-                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-xl transition-colors"
+                className="px-6 py-3 bg-[#f77430] hover:bg-[#f2622a] text-white font-medium rounded-xl transition-colors"
               >
                 Ok
               </button>
@@ -207,7 +228,7 @@ export default function ProfilePage() {
               </p>
               <button
                 onClick={shareReferral}
-                className="px-5 py-2.5 bg-white text-purple-600 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-shadow"
+                className="px-5 py-2.5 bg-white text-[#f77430] font-semibold rounded-xl shadow-lg hover:shadow-xl transition-shadow"
               >
                 Пригласить друга
               </button>
@@ -250,8 +271,8 @@ export default function ProfilePage() {
             
             <Link href="/referrals">
               <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                  <Gift className="text-purple-600 dark:text-purple-400" size={20} />
+                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                  <Gift className="text-[#f77430] dark:text-[#f29b41]" size={20} />
                 </div>
                 <span className="flex-1 font-medium text-gray-900 dark:text-white">Реферальная программа</span>
                 <ChevronRight className="text-gray-400" size={20} />
@@ -270,8 +291,8 @@ export default function ProfilePage() {
               onClick={() => setShowLanguageModal(true)}
               className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
-              <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <Globe className="text-blue-600 dark:text-blue-400" size={20} />
+              <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                <Globe className="text-[#f77430] dark:text-[#f29b41]" size={20} />
               </div>
               <span className="flex-1 font-medium text-gray-900 dark:text-white text-left">Язык</span>
               <span className="text-gray-400 text-sm mr-1">
@@ -336,8 +357,8 @@ export default function ProfilePage() {
             
             <a href="https://t.me/support" target="_blank" rel="noopener noreferrer">
               <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
-                  <MessageCircle className="text-indigo-600 dark:text-indigo-400" size={20} />
+                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                  <MessageCircle className="text-[#f77430] dark:text-[#f29b41]" size={20} />
                 </div>
                 <span className="flex-1 font-medium text-gray-900 dark:text-white">Поддержка</span>
                 <ChevronRight className="text-gray-400" size={20} />
@@ -383,26 +404,26 @@ export default function ProfilePage() {
               <button 
                 onClick={() => changeLanguage('ru')}
                 className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
-                  language === 'ru' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  language === 'ru' ? 'bg-orange-50 dark:bg-orange-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🇷🇺</span>
                   <span className="font-medium text-gray-900 dark:text-white">Русский</span>
                 </div>
-                {language === 'ru' && <Check className="text-blue-500" size={20} />}
+                {language === 'ru' && <Check className="text-[#f77430]" size={20} />}
               </button>
               <button 
                 onClick={() => changeLanguage('en')}
                 className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
-                  language === 'en' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  language === 'en' ? 'bg-orange-50 dark:bg-orange-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🇬🇧</span>
                   <span className="font-medium text-gray-900 dark:text-white">English</span>
                 </div>
-                {language === 'en' && <Check className="text-blue-500" size={20} />}
+                {language === 'en' && <Check className="text-[#f77430]" size={20} />}
               </button>
             </div>
           </div>
@@ -426,38 +447,38 @@ export default function ProfilePage() {
               <button 
                 onClick={() => changeTheme('light')}
                 className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
-                  theme === 'light' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  theme === 'light' ? 'bg-orange-50 dark:bg-orange-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <Sun className="text-yellow-500" size={24} />
                   <span className="font-medium text-gray-900 dark:text-white">Светлая</span>
                 </div>
-                {theme === 'light' && <Check className="text-blue-500" size={20} />}
+                {theme === 'light' && <Check className="text-[#f77430]" size={20} />}
               </button>
               <button 
                 onClick={() => changeTheme('dark')}
                 className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
-                  theme === 'dark' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  theme === 'dark' ? 'bg-orange-50 dark:bg-orange-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Moon className="text-indigo-500" size={24} />
+                  <Moon className="text-[#f29b41]" size={24} />
                   <span className="font-medium text-gray-900 dark:text-white">Тёмная</span>
                 </div>
-                {theme === 'dark' && <Check className="text-blue-500" size={20} />}
+                {theme === 'dark' && <Check className="text-[#f77430]" size={20} />}
               </button>
               <button 
                 onClick={() => changeTheme('system')}
                 className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
-                  theme === 'system' ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  theme === 'system' ? 'bg-orange-50 dark:bg-orange-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <Monitor className="text-gray-500" size={24} />
                   <span className="font-medium text-gray-900 dark:text-white">Как в системе</span>
                 </div>
-                {theme === 'system' && <Check className="text-blue-500" size={20} />}
+                {theme === 'system' && <Check className="text-[#f77430]" size={20} />}
               </button>
             </div>
           </div>
@@ -486,7 +507,7 @@ export default function ProfilePage() {
                 <button
                   onClick={toggleNotifications}
                   className={`w-14 h-8 rounded-full transition-colors relative ${
-                    notifications ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
+                    notifications ? 'bg-[#f77430]' : 'bg-gray-300 dark:bg-gray-600'
                   }`}
                 >
                   <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${

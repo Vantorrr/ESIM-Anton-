@@ -23,21 +23,40 @@ export default function ReferralsPage() {
   }, [])
 
   const loadStats = async () => {
-    // Получаем данные из Telegram
-    const tg = (window as any).Telegram?.WebApp
-    const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'mojo_mobile_bot'
-    const refCode = tg?.initDataUnsafe?.user?.id || '123456'
-    
-    setStats({
-      referralCode: `REF${refCode}`,
-      referralLink: `https://t.me/${botUsername}?start=ref_${refCode}`,
-      referralsCount: 0,
-      totalEarned: 0,
-      pendingEarnings: 0,
-      referralPercent: 5,
-    })
-    
-    setLoading(false)
+    try {
+      const { isTelegramWebApp, getTelegramUserId, getToken } = await import('@/lib/auth')
+      const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'mojo_mobile_bot'
+      let referralCode = 'REF000000'
+
+      if (isTelegramWebApp()) {
+        const telegramId = getTelegramUserId()
+        if (telegramId) {
+          const { userApi } = await import('@/lib/api')
+          const user = await userApi.getMe(telegramId)
+          referralCode = user.referralCode
+        }
+      } else {
+        const token = getToken()
+        if (token) {
+          const { api } = await import('@/lib/api')
+          const { data } = await api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+          referralCode = data.referralCode
+        }
+      }
+      
+      setStats({
+        referralCode,
+        referralLink: `https://t.me/${botUsername}?start=ref_${referralCode}`,
+        referralsCount: 0,
+        totalEarned: 0,
+        pendingEarnings: 0,
+        referralPercent: 5,
+      })
+    } catch (e) {
+      console.error('Referrals load error:', e)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const copyLink = async () => {
@@ -95,11 +114,11 @@ export default function ReferralsPage() {
 
       {/* Hero Card */}
       <div className="glass-card mb-6 animate-slide-up overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-2xl" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#f77430]/25 to-[#f9d17f]/25 rounded-full blur-2xl" />
         
         <div className="relative">
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#f77430] to-[#f29b41] flex items-center justify-center shadow-lg">
               <Gift className="text-white" size={32} />
             </div>
             <div>

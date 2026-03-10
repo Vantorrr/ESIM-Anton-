@@ -31,16 +31,31 @@ export default function OrdersPage() {
 
   const loadOrders = async () => {
     try {
-      // Получаем Telegram user ID
-      const tg = (window as any).Telegram?.WebApp;
-      const telegramId = tg?.initDataUnsafe?.user?.id || 316662303; // fallback для теста
-      
-      // Получаем пользователя
-      const user = await userApi.getMe(String(telegramId));
-      
-      // Получаем заказы
-      const userOrders = await ordersApi.getMy(user.id);
-      setOrders(userOrders as any);
+      const { isTelegramWebApp, getTelegramUserId, getToken } = await import('@/lib/auth')
+      let userId: string | null = null
+
+      if (isTelegramWebApp()) {
+        const telegramId = getTelegramUserId()
+        if (telegramId) {
+          const user = await userApi.getMe(telegramId)
+          userId = user.id
+        }
+      } else {
+        const token = getToken()
+        if (token) {
+          const { api } = await import('@/lib/api')
+          const { data } = await api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+          userId = data.id
+        } else {
+          window.location.href = '/login'
+          return
+        }
+      }
+
+      if (userId) {
+        const userOrders = await ordersApi.getMy(userId)
+        setOrders(userOrders as any)
+      }
     } catch (error) {
       console.error('Ошибка загрузки заказов:', error);
     } finally {
@@ -51,8 +66,8 @@ export default function OrdersPage() {
   const getStatusConfig = (status: Order['status']) => {
     const configs = {
       PENDING: { label: 'Ожидает оплаты', icon: Clock, color: 'text-yellow-500', bg: 'bg-yellow-50' },
-      PAID: { label: 'Оплачен', icon: CheckCircle, color: 'text-blue-500', bg: 'bg-blue-50' },
-      PROCESSING: { label: 'Обработка', icon: Clock, color: 'text-blue-500', bg: 'bg-blue-50' },
+      PAID: { label: 'Оплачен', icon: CheckCircle, color: 'text-[#f77430]', bg: 'bg-orange-50' },
+      PROCESSING: { label: 'Обработка', icon: Clock, color: 'text-[#f77430]', bg: 'bg-orange-50' },
       COMPLETED: { label: 'Выполнен', icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' },
       FAILED: { label: 'Ошибка', icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
       REFUNDED: { label: 'Возврат', icon: AlertCircle, color: 'text-orange-500', bg: 'bg-orange-50' },
@@ -136,7 +151,7 @@ export default function OrdersPage() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span className="text-2xl">🌍</span>
+                        <img src="/logo-mark.png" alt="Mojo mobile" className="w-8 h-8 rounded-lg object-contain" />
                       )}
                     </div>
 
@@ -163,10 +178,10 @@ export default function OrdersPage() {
                     <Link 
                       href={`/product/${order.productId}`}
                       onClick={(e) => e.stopPropagation()}
-                      className="shrink-0 p-2 rounded-xl bg-blue-50 hover:bg-blue-100 transition-colors"
+                      className="shrink-0 p-2 rounded-xl bg-orange-50 hover:bg-orange-100 transition-colors"
                       title="Повторить заказ"
                     >
-                      <RefreshCw className="text-blue-500" size={18} />
+                      <RefreshCw className="text-[#f77430]" size={18} />
                     </Link>
                     
                     <ChevronRight className="text-muted shrink-0" size={18} />

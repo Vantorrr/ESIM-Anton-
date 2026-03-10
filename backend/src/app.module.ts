@@ -15,6 +15,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { EsimProviderModule } from './modules/esim-provider/esim-provider.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 import { TelegramModule } from './modules/telegram/telegram.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { TelegramModule } from './modules/telegram/telegram.module';
     EsimProviderModule,
     SystemSettingsModule,
     TelegramModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

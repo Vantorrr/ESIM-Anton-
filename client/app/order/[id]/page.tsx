@@ -126,8 +126,11 @@ export default function OrderDetailPage() {
           <button
             onClick={() => {
               // Открываем QR-код в полном размере
-              if (window.Telegram?.WebApp) {
-                window.Telegram.WebApp.openLink(order.qrCode!)
+              const tg = (window as any).Telegram?.WebApp
+              if (tg?.openLink) {
+                tg.openLink(order.qrCode!)
+              } else {
+                window.open(order.qrCode!, '_blank')
               }
             }}
             className="tg-button-outline flex items-center justify-center gap-2 mx-auto"

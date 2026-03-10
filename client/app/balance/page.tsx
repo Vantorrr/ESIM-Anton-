@@ -65,21 +65,21 @@ export default function BalancePage() {
             <p className="text-sm opacity-80 mb-1">Основной баланс</p>
             <p className="text-3xl font-bold">₽ {balance}</p>
           </div>
-          <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-5 text-white">
+          <div className="bg-gradient-to-br from-[#f77430] to-[#f29b41] rounded-2xl p-5 text-white">
             <p className="text-sm opacity-80 mb-1">Бонусы</p>
             <p className="text-3xl font-bold">₽ {bonusBalance}</p>
           </div>
         </div>
 
         {/* Top Up Button */}
-        <button className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-2xl transition-colors mb-8 shadow-lg shadow-blue-500/30">
+        <button className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold rounded-2xl transition-colors mb-8 shadow-lg shadow-orange-500/30">
           <span className="text-xl">➕</span>
           Пополнить баланс
         </button>
 
         {/* Info */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-4 mb-6">
-          <p className="text-sm text-blue-800 dark:text-blue-200">
+        <div className="bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-4 mb-6">
+          <p className="text-sm text-orange-800 dark:text-orange-200">
             💡 Бонусами можно оплатить до 50% стоимости заказа. 1 бонус = 1 рубль.
           </p>
         </div>

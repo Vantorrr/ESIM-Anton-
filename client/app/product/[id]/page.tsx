@@ -34,12 +34,28 @@ export default function ProductPage() {
     setPurchasing(true)
     
     try {
-      // Получаем Telegram user ID
-      const tg = (window as any).Telegram?.WebApp;
-      const telegramId = tg?.initDataUnsafe?.user?.id || 316662303; // fallback для теста
-      
-      // Создаем/получаем пользователя
-      const user = await userApi.getMe(String(telegramId));
+      // Универсальное получение пользователя (Telegram + PWA)
+      const { isTelegramWebApp, getTelegramUserId, getToken } = await import('@/lib/auth')
+      let user: any = null
+
+      if (isTelegramWebApp()) {
+        const telegramId = getTelegramUserId()
+        if (telegramId) {
+          user = await userApi.getMe(telegramId)
+        }
+      } else {
+        const token = getToken()
+        if (token) {
+          const { api } = await import('@/lib/api')
+          const { data } = await api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+          user = data
+        } else {
+          router.push('/login')
+          return
+        }
+      }
+
+      if (!user) throw new Error('Пользователь не найден')
       
       // Проверяем есть ли уже PENDING заказ на этот продукт (чтобы не создавать дубли)
       let order;
@@ -55,6 +71,7 @@ export default function ProductPage() {
       
       // Инициализируем виджет CloudPayments
       const widget = new (window as any).cp.CloudPayments();
+      const tg = (window as any).Telegram?.WebApp
 
       widget.pay('charge', {
         publicId: process.env.NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID,
@@ -65,8 +82,6 @@ export default function ProductPage() {
         accountId: user.id,
       }, {
         onSuccess: function (options: any) {
-          // Действие при успешной оплате
-          // Можно перенаправить на страницу успеха или показать сообщение
           if (tg?.showAlert) {
             tg.showAlert('Оплата прошла успешно!', () => {
                router.push('/my-esim');
@@ -187,8 +202,8 @@ export default function ProductPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Globe className="text-blue-500" size={20} />
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+              <Globe className="text-[#f77430]" size={20} />
             </div>
             <div>
               <p className="font-medium text-primary">Работает везде</p>
@@ -196,8 +211,8 @@ export default function ProductPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
-              <Shield className="text-purple-500" size={20} />
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+              <Shield className="text-[#f29b41]" size={20} />
             </div>
             <div>
               <p className="font-medium text-primary">Безопасно</p>

@@ -1,0 +1,347 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Phone, ArrowRight, ChevronLeft, Loader2, Shield, AlertCircle } from 'lucide-react'
+import { api } from '@/lib/api'
+import { setToken, setStoredUser, isTelegramWebApp } from '@/lib/auth'
+import { Suspense } from 'react'
+
+type Step = 'choose' | 'phone' | 'code'
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+const BOT_USERNAME = process.env.NEXT_PUBLIC_BOT_USERNAME || 'mojo_mobile_bot'
+
+const OAUTH_PROVIDERS = [
+  { id: 'google', label: 'Google', color: '#EA4335', bg: '#EA433515', icon: GoogleIcon },
+  { id: 'yandex', label: 'Яндекс', color: '#FC3F1D', bg: '#FC3F1D15', icon: YandexIcon },
+  { id: 'vk', label: 'ВКонтакте', color: '#0077FF', bg: '#0077FF15', icon: VKIcon },
+]
+
+function LoginInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [step, setStep] = useState<Step>('choose')
+  const [phone, setPhone] = useState('')
+  const [code, setCode] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [countdown, setCountdown] = useState(0)
+  const codeInputRef = useRef<HTMLInputElement>(null)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    // Если уже в Telegram Mini App — пропускаем логин
+    if (isTelegramWebApp()) { router.replace('/'); return }
+
+    // Показываем ошибку из URL (после неудачного OAuth)
+    const err = searchParams.get('error')
+    if (err) setError(decodeURIComponent(err))
+  }, [router, searchParams])
+
+  useEffect(() => {
+    if (step === 'code') {
+      codeInputRef.current?.focus()
+      startCountdown()
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [step])
+
+  // Telegram Login Widget callback — вызывается виджетом Telegram
+  useEffect(() => {
+    (window as any).onTelegramAuth = async (userData: Record<string, string>) => {
+      setLoading(true)
+      setError('')
+      try {
+        const { data } = await api.post('/auth/telegram', userData)
+        setToken(data.access_token)
+        const { data: user } = await api.get('/auth/me', {
+          headers: { Authorization: `Bearer ${data.access_token}` }
+        })
+        setStoredUser(user)
+        router.replace('/')
+      } catch (e: any) {
+        setError(e.response?.data?.message || 'Ошибка входа через Telegram')
+        setLoading(false)
+      }
+    }
+    return () => { delete (window as any).onTelegramAuth }
+  }, [router])
+
+  const startCountdown = () => {
+    setCountdown(60)
+    timerRef.current = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) { clearInterval(timerRef.current!); return 0 }
+        return c - 1
+      })
+    }, 1000)
+  }
+
+  const handleSendCode = async () => {
+    if (!phone || phone.replace(/\D/g, '').length < 10) {
+      setError('Введите корректный номер телефона'); return
+    }
+    setError(''); setLoading(true)
+    try {
+      await api.post('/auth/phone/send-code', { phone })
+      setStep('code')
+    } catch (e: any) {
+      setError(e.response?.data?.message || 'Не удалось отправить код')
+    } finally { setLoading(false) }
+  }
+
+  const handleVerifyCode = async () => {
+    if (code.length !== 6) { setError('Введите 6-значный код'); return }
+    setError(''); setLoading(true)
+    try {
+      const { data } = await api.post('/auth/phone/verify', { phone, code })
+      setToken(data.access_token)
+      const { data: user } = await api.get('/auth/me', {
+        headers: { Authorization: `Bearer ${data.access_token}` }
+      })
+      setStoredUser(user)
+      router.replace('/')
+    } catch (e: any) {
+      setError(e.response?.data?.message || 'Неверный код')
+    } finally { setLoading(false) }
+  }
+
+  const handleOAuth = (provider: string) => {
+    // Редирект на бэкенд → бэкенд редиректит на провайдера → провайдер возвращает на /login/callback
+    const state = encodeURIComponent('/')
+    window.location.href = `${BACKEND_URL}/auth/oauth/${provider}/redirect?state=${state}`
+  }
+
+  const formatPhone = (value: string) => {
+    const digits = value.replace(/\D/g, '')
+    if (!digits.length) return ''
+    let f = '+7'
+    if (digits.length > 1) f += ' (' + digits.slice(1, 4)
+    if (digits.length > 4) f += ') ' + digits.slice(4, 7)
+    if (digits.length > 7) f += '-' + digits.slice(7, 9)
+    if (digits.length > 9) f += '-' + digits.slice(9, 11)
+    return f
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: 'var(--bg-gradient)' }}>
+      <div className="w-full max-w-sm">
+
+        {/* Лого */}
+        <div className="text-center mb-8">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#f2622a] to-[#f7b64f] mx-auto mb-4 flex items-center justify-center shadow-2xl overflow-hidden">
+            <img src="/logo-mark.png" alt="Mojo mobile" className="w-full h-full object-cover rounded-2xl scale-110" />
+          </div>
+          <h1 className="text-2xl font-bold text-primary">Mojo mobile</h1>
+          <p className="text-secondary text-sm mt-1">eSIM для путешествий по всему миру</p>
+        </div>
+
+        {/* Шаг 1: выбор способа */}
+        {step === 'choose' && (
+          <div className="glass-card space-y-3">
+            <h2 className="text-lg font-semibold text-primary mb-4">Войти или создать аккаунт</h2>
+
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-red-600 text-sm">
+                <AlertCircle size={16} />{error}
+              </div>
+            )}
+
+            {/* Телефон */}
+            <button onClick={() => { setError(''); setStep('phone') }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-gray-200 bg-white/60 hover:bg-white/80 transition-all text-left">
+              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
+                <Phone size={20} className="text-green-600" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-primary text-sm">По номеру телефона</p>
+                <p className="text-xs text-secondary">Код придёт в SMS</p>
+              </div>
+              <ArrowRight size={16} className="text-muted" />
+            </button>
+
+            <div className="relative my-1">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+              <div className="relative flex justify-center text-xs text-muted"><span className="bg-white/80 px-3 rounded">или войти через</span></div>
+            </div>
+
+            {/* OAuth кнопки */}
+            {OAUTH_PROVIDERS.map(({ id, label, color, bg, icon: Icon }) => (
+              <button key={id} onClick={() => handleOAuth(id)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-gray-200 bg-white/60 hover:bg-white/80 transition-all">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: bg }}>
+                  <Icon color={color} />
+                </div>
+                <span className="font-medium text-primary text-sm flex-1 text-left">{label}</span>
+                <ArrowRight size={16} className="text-muted" />
+              </button>
+            ))}
+
+            {/* Telegram Login Widget */}
+            <div className="flex justify-center pt-1">
+              <TelegramLoginButton botUsername={BOT_USERNAME} />
+            </div>
+
+            {loading && (
+              <div className="flex justify-center pt-2">
+                <Loader2 size={20} className="animate-spin text-accent" />
+              </div>
+            )}
+
+            <p className="text-xs text-center text-muted pt-2">
+              Продолжая, вы принимаете <a href="/offer" className="text-accent underline">публичную оферту</a>
+            </p>
+          </div>
+        )}
+
+        {/* Шаг 2: ввод телефона */}
+        {step === 'phone' && (
+          <div className="glass-card">
+            <button onClick={() => { setError(''); setStep('choose') }}
+              className="flex items-center gap-1 text-accent text-sm mb-5">
+              <ChevronLeft size={18} /> Назад
+            </button>
+            <h2 className="text-lg font-semibold text-primary mb-1">Введите номер</h2>
+            <p className="text-secondary text-sm mb-5">Отправим SMS с кодом подтверждения</p>
+
+            <input type="tel"
+              value={formatPhone(phone)}
+              onChange={(e) => { const d = e.target.value.replace(/\D/g, ''); setPhone(d.slice(0, 11)) }}
+              placeholder="+7 (999) 000-00-00"
+              className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 bg-white/80 text-primary placeholder-gray-400 focus:outline-none focus:border-[#f29b41] text-lg font-medium mb-3"
+            />
+
+            {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+
+            <button onClick={handleSendCode}
+              disabled={loading || phone.replace(/\D/g, '').length < 10}
+              className="w-full py-3.5 rounded-2xl bg-[#f77430] text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50 hover:bg-[#f2622a] transition-colors">
+              {loading ? <Loader2 size={18} className="animate-spin" /> : 'Получить код →'}
+            </button>
+          </div>
+        )}
+
+        {/* Шаг 3: ввод кода */}
+        {step === 'code' && (
+          <div className="glass-card">
+            <button onClick={() => { setError(''); setStep('phone') }}
+              className="flex items-center gap-1 text-accent text-sm mb-5">
+              <ChevronLeft size={18} /> Назад
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center shrink-0">
+                <Shield size={22} className="text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-primary">Введите код из SMS</h2>
+                <p className="text-secondary text-xs">Отправили на {formatPhone(phone)}</p>
+              </div>
+            </div>
+
+            <input ref={codeInputRef}
+              type="text" inputMode="numeric" maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="• • • • • •"
+              className="w-full text-center text-3xl font-bold tracking-[0.4em] px-4 py-4 rounded-2xl border border-gray-200 bg-white/80 text-primary placeholder-gray-300 focus:outline-none focus:border-[#f29b41] mb-3"
+            />
+
+            {error && <p className="text-red-500 text-xs mb-3 text-center">{error}</p>}
+
+            <button onClick={handleVerifyCode}
+              disabled={loading || code.length !== 6}
+              className="w-full py-3.5 rounded-2xl bg-[#f77430] text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50 hover:bg-[#f2622a] transition-colors mb-3">
+              {loading ? <Loader2 size={18} className="animate-spin" /> : 'Войти →'}
+            </button>
+
+            <div className="text-center">
+              {countdown > 0
+                ? <p className="text-secondary text-sm">Повторить через {countdown} сек</p>
+                : <button onClick={handleSendCode} className="text-accent text-sm font-medium hover:underline">Отправить снова</button>
+              }
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Telegram Login Widget ────────────────────────────────────────────────────
+function TelegramLoginButton({ botUsername }: { botUsername: string }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isLocalhost, setIsLocalhost] = useState(false)
+
+  useEffect(() => {
+    setIsLocalhost(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  }, [])
+
+  useEffect(() => {
+    if (!containerRef.current) return
+    if (isLocalhost) return
+    containerRef.current.innerHTML = ''
+
+    const script = document.createElement('script')
+    script.src = 'https://telegram.org/js/telegram-widget.js?22'
+    script.setAttribute('data-telegram-login', botUsername)
+    script.setAttribute('data-size', 'large')
+    script.setAttribute('data-onauth', 'onTelegramAuth(user)')
+    script.setAttribute('data-request-access', 'write')
+    script.setAttribute('data-radius', '12')
+    script.async = true
+    containerRef.current.appendChild(script)
+  }, [botUsername, isLocalhost])
+
+  if (isLocalhost) {
+    return (
+      <div className="w-full rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-center">
+        <p className="text-xs font-medium text-[#f2622a]">Telegram вход работает на домене, не на localhost</p>
+        <p className="mt-1 text-[11px] text-orange-700">Открой `https://www.mojomobile.ru/login` после деплоя</p>
+      </div>
+    )
+  }
+
+  return <div ref={containerRef} />
+}
+
+// ─── SVG Icons ─────────────────────────────────────────────────────────────
+function GoogleIcon({ color }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+  )
+}
+
+function YandexIcon({ color: c }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill={c}>
+      <path d="M14.341 21h-2.744V8.215H10.32c-2.047 0-3.123 1.023-3.123 2.537 0 1.74.755 2.55 2.336 3.598L11.2 15.59 8.217 21H5.27l3.28-5.191c-1.906-1.348-2.985-2.67-2.985-4.972C5.285 7.898 7.16 6 10.293 6H14.34V21h.001z"/>
+    </svg>
+  )
+}
+
+function VKIcon({ color: c }: { color: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill={c}>
+      <path d="M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0zm3.692 17.123h-1.744c-.66 0-.862-.525-2.049-1.713-1.033-1.032-1.49-.902-1.49 0v1.535c0 .441-.14.713-1.299.713-1.922 0-4.054-1.168-5.55-3.349C5.326 11.658 4.58 9.137 4.58 8.682c0-.193.065-.377.374-.377h1.744c.298 0 .41.134.512.443.567 1.64 1.514 3.078 1.906 3.078.147 0 .215-.068.215-.44V9.256c-.047-.79-.457-.857-.457-1.135 0-.161.135-.322.35-.322h2.742c.244 0 .33.13.33.404v3.176c0 .244.107.33.174.33.147 0 .269-.086.538-.355 1.033-1.165 1.767-2.965 1.767-2.965.097-.216.268-.417.604-.417h1.744c.527 0 .644.27.527.604-.215.78-2.314 3.964-2.314 3.964-.188.296-.254.43 0 .763.188.253.804.782 1.214 1.255.755.862 1.335 1.59 1.49 2.09.163.497-.09.75-.54.75z"/>
+    </svg>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 size={48} className="animate-spin text-[#f77430]" />
+      </div>
+    }>
+      <LoginInner />
+    </Suspense>
+  )
+}

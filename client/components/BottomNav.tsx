@@ -31,7 +31,7 @@ export default function BottomNav() {
               href={item.href}
               className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                 isActive 
-                  ? 'text-blue-500' 
+                  ? 'text-[#f77430]' 
                   : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
               }`}
             >

@@ -3,17 +3,17 @@
 @tailwind utilities;
 
 :root {
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.62);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  --text-primary: #1a1a1a;
-  --text-secondary: #6b7280;
-  --text-muted: #9ca3af;
-  --accent: #007AFF;
-  --accent-light: rgba(0, 122, 255, 0.1);
-  --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+  --text-primary: #2f2f2f;
+  --text-secondary: #636567;
+  --text-muted: #8f9599;
+  --accent: #f77430;
+  --accent-light: rgba(247, 116, 48, 0.14);
+  --bg-gradient: linear-gradient(135deg, #f6f7f8 0%, #eceff1 100%);
   --success: #34C759;
-  --warning: #FF9500;
+  --warning: #f29b41;
   --error: #FF3B30;
 }
 
@@ -77,12 +77,12 @@ body {
   transition: all 0.3s ease;
   width: 100%;
   text-align: center;
-  box-shadow: 0 4px 16px rgba(0, 122, 255, 0.3);
+  box-shadow: 0 4px 16px rgba(247, 116, 48, 0.35);
 }
 
 .glass-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 122, 255, 0.4);
+  box-shadow: 0 6px 20px rgba(247, 116, 48, 0.45);
 }
 
 .glass-button:active {
@@ -342,7 +342,7 @@ body {
 .price-tag {
   font-size: 24px;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--accent) 0%, #5856D6 100%);
+  background: linear-gradient(135deg, #f2622a 0%, #f7b64f 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

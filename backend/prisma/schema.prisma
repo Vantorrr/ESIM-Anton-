@@ -8,35 +8,62 @@ datasource db {
 }
 
 model User {
-  id             String         @id @default(cuid())
-  telegramId     BigInt         @unique
+  id             String              @id @default(cuid())
+  telegramId     BigInt?             @unique
   username       String?
   firstName      String?
   lastName       String?
-  phone          String?
-  email          String?
-  balance        Decimal        @default(0) @db.Decimal(10, 2)
-  bonusBalance   Decimal        @default(0) @db.Decimal(10, 2)
-  referralCode   String         @unique @default(cuid())
+  phone          String?             @unique
+  email          String?             @unique
+  authProvider   String?             // 'telegram' | 'phone' | 'google' | 'yandex' | 'vk'
+  providerId     String?             // provider-specific ID
+  balance        Decimal             @default(0) @db.Decimal(10, 2)
+  bonusBalance   Decimal             @default(0) @db.Decimal(10, 2)
+  referralCode   String              @unique @default(cuid())
   referredById   String?
   loyaltyLevelId String?
-  totalSpent     Decimal        @default(0) @db.Decimal(10, 2)
-  isBlocked      Boolean        @default(false)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  totalSpent     Decimal             @default(0) @db.Decimal(10, 2)
+  isBlocked      Boolean             @default(false)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
   utmCampaign    String?
   utmMedium      String?
   utmSource      String?
   notifications  Notification[]
   orders         Order[]
   transactions   Transaction[]
-  loyaltyLevel   LoyaltyLevel?  @relation(fields: [loyaltyLevelId], references: [id])
-  referredBy     User?          @relation("Referrals", fields: [referredById], references: [id])
-  referrals      User[]         @relation("Referrals")
+  pushSubs       PushSubscription[]
+  loyaltyLevel   LoyaltyLevel?       @relation(fields: [loyaltyLevelId], references: [id])
+  referredBy     User?               @relation("Referrals", fields: [referredById], references: [id])
+  referrals      User[]              @relation("Referrals")
 
   @@index([telegramId])
   @@index([referralCode])
+  @@index([authProvider, providerId])
   @@map("users")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+model SmsCode {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("sms_codes")
 }
 
 model LoyaltyLevel {

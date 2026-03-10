@@ -99,7 +99,7 @@ export default function HelpPage() {
               href="https://t.me/support" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 text-white"
+              className="bg-gradient-to-br from-[#f77430] to-[#f2622a] rounded-2xl p-4 text-white"
             >
               <MessageCircle size={28} className="mb-2" />
               <p className="font-semibold">Telegram</p>
@@ -107,7 +107,7 @@ export default function HelpPage() {
             </a>
             <a 
               href="mailto:support@esim.travel"
-              className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-4 text-white"
+              className="bg-gradient-to-br from-[#f29b41] to-[#f9d17f] rounded-2xl p-4 text-white"
             >
               <Mail size={28} className="mb-2" />
               <p className="font-semibold">Email</p>

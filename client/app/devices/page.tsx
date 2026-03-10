@@ -184,7 +184,7 @@ export default function DevicesPage() {
       <div className="px-4 py-6 max-w-lg mx-auto">
         
         {/* Check eSIM Support Card */}
-        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 mb-6 text-white">
+        <div className="bg-gradient-to-br from-[#f77430] to-[#f2622a] rounded-2xl p-5 mb-6 text-white">
           <div className="flex items-start gap-3 mb-4">
             <Info size={24} />
             <div>
@@ -199,7 +199,7 @@ export default function DevicesPage() {
             <code className="text-2xl font-mono font-bold">*#06#</code>
             <button
               onClick={copyCode}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg font-medium text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-white text-[#f77430] rounded-lg font-medium text-sm"
             >
               {copied ? <Check size={18} /> : <Copy size={18} />}
               {copied ? 'Скопировано!' : 'Копировать'}
@@ -225,7 +225,7 @@ export default function DevicesPage() {
                 onClick={() => setSelectedCategory(key)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl whitespace-nowrap transition-colors ${
                   selectedCategory === key
-                    ? 'bg-blue-500 text-white'
+                    ? 'bg-[#f77430] text-white'
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
                 }`}
               >

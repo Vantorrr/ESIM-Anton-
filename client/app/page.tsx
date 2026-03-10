@@ -2,73 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Search, Globe } from 'lucide-react'
+import { Search } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
 import { formatPrice, getFlagUrl, getCountryName, getCountryCode } from '@/lib/utils'
-
-// Animated Network Lines Component
-function NetworkLines() {
-  return (
-    <svg className="absolute inset-0 w-full h-full" style={{ opacity: 0.3 }}>
-      <defs>
-        <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#60a5fa" stopOpacity="0" />
-          <stop offset="50%" stopColor="#60a5fa" stopOpacity="1" />
-          <stop offset="100%" stopColor="#c084fc" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {/* Animated connection lines */}
-      {[...Array(6)].map((_, i) => (
-        <line
-          key={i}
-          x1={`${20 + i * 15}%`}
-          y1={`${30 + (i % 3) * 20}%`}
-          x2={`${50 + (i % 4) * 10}%`}
-          y2={`${40 + (i % 2) * 30}%`}
-          stroke="url(#lineGrad)"
-          strokeWidth="1"
-          className="animate-pulse"
-          style={{ animationDelay: `${i * 0.3}s`, animationDuration: '2s' }}
-        />
-      ))}
-    </svg>
-  )
-}
-
-// Floating Particles Component
-function FloatingParticles() {
-  const particles = [
-    { size: 4, x: 15, y: 20, delay: 0, duration: 3 },
-    { size: 6, x: 85, y: 30, delay: 0.5, duration: 4 },
-    { size: 3, x: 25, y: 70, delay: 1, duration: 3.5 },
-    { size: 5, x: 75, y: 80, delay: 1.5, duration: 2.5 },
-    { size: 4, x: 50, y: 15, delay: 2, duration: 3 },
-    { size: 3, x: 10, y: 50, delay: 0.3, duration: 4 },
-    { size: 5, x: 90, y: 60, delay: 0.8, duration: 3 },
-    { size: 4, x: 40, y: 85, delay: 1.2, duration: 3.5 },
-  ]
-
-  return (
-    <>
-      {particles.map((p, i) => (
-        <div
-          key={i}
-          className="absolute rounded-full bg-white animate-float"
-          style={{
-            width: p.size,
-            height: p.size,
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            animationDelay: `${p.delay}s`,
-            animationDuration: `${p.duration}s`,
-            opacity: 0.4,
-          }}
-        />
-      ))}
-    </>
-  )
-}
 
 // Liquid Glass Splash Screen
 function SplashScreen({ progress }: { progress: number }) {
@@ -79,200 +16,56 @@ function SplashScreen({ progress }: { progress: number }) {
   }, [])
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden">
-      {/* Animated mesh gradient background */}
-      <div className="absolute inset-0 bg-[#0a0a1a]">
-        {/* Mesh gradient layers */}
-        <div 
-          className="absolute inset-0 opacity-80"
-          style={{
-            background: `
-              radial-gradient(ellipse 80% 50% at 20% 40%, rgba(56, 189, 248, 0.25) 0%, transparent 50%),
-              radial-gradient(ellipse 60% 80% at 80% 50%, rgba(168, 85, 247, 0.25) 0%, transparent 50%),
-              radial-gradient(ellipse 50% 60% at 50% 80%, rgba(34, 197, 94, 0.15) 0%, transparent 50%)
-            `
-          }}
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden">
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(180deg, #f2622a 0%, #f77430 64%, #f7b64f 100%)',
+        }}
+      />
+
+      {/* Watermark pattern in background */}
+      <img
+        src="/logo-white.png"
+        alt=""
+        aria-hidden="true"
+        className="absolute -top-20 -left-8 w-[420px] max-w-none opacity-10"
+      />
+      <img
+        src="/logo-white.png"
+        alt=""
+        aria-hidden="true"
+        className="absolute -top-14 right-[-140px] w-[360px] max-w-none opacity-10"
+      />
+      <img
+        src="/logo-white.png"
+        alt=""
+        aria-hidden="true"
+        className="absolute bottom-[-120px] left-[-80px] w-[340px] max-w-none opacity-[0.08]"
+      />
+
+      <div className={`relative z-10 w-full px-8 flex flex-col items-center transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
+        <img
+          src="/logo-white.png"
+          alt="Mojo mobile"
+          className="w-44 h-44 object-contain drop-shadow-[0_4px_20px_rgba(255,255,255,0.3)]"
+          style={{ animation: 'logo-float 2.6s ease-in-out infinite' }}
         />
-        
-        {/* Aurora effect */}
-        <div 
-          className={`absolute inset-0 transition-opacity duration-1000 ${mounted ? 'opacity-100' : 'opacity-0'}`}
-          style={{
-            background: `
-              radial-gradient(ellipse 100% 40% at 50% 0%, rgba(56, 189, 248, 0.3) 0%, transparent 70%)
-            `,
-            animation: 'aurora 8s ease-in-out infinite',
-          }}
-        />
-        
-        {/* Network lines */}
-        <NetworkLines />
-        
-        {/* Floating particles */}
-        <FloatingParticles />
-        
-        {/* Animated gradient orbs */}
-        <div 
-          className="absolute w-[600px] h-[600px] rounded-full"
-          style={{
-            background: 'radial-gradient(circle, rgba(96, 165, 250, 0.3) 0%, transparent 70%)',
-            top: '20%',
-            left: '-20%',
-            animation: 'float 6s ease-in-out infinite',
-          }}
-        />
-        <div 
-          className="absolute w-[500px] h-[500px] rounded-full"
-          style={{
-            background: 'radial-gradient(circle, rgba(192, 132, 252, 0.3) 0%, transparent 70%)',
-            bottom: '10%',
-            right: '-15%',
-            animation: 'float 8s ease-in-out infinite reverse',
-          }}
-        />
-      </div>
 
-      {/* Glass container */}
-      <div className={`relative z-10 flex flex-col items-center transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-        {/* Animated Logo */}
-        <div className="relative mb-10">
-          {/* Outer ring */}
-          <div 
-            className="absolute -inset-4 rounded-full border border-white/10"
-            style={{ animation: 'spin 20s linear infinite' }}
+        <p className="mt-12 text-white/85 text-sm tracking-wide">Подключение к сети</p>
+
+        <div className="mt-3 w-56 h-[3px] bg-white/40 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-white rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${Math.max(8, progress)}%` }}
           />
-          <div 
-            className="absolute -inset-8 rounded-full border border-white/5"
-            style={{ animation: 'spin 30s linear infinite reverse' }}
-          />
-          
-          {/* Main logo container */}
-          <div className="relative w-32 h-32 rounded-[2rem] bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-2xl border border-white/20 flex items-center justify-center shadow-2xl overflow-hidden">
-            {/* Inner glow */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-transparent to-purple-500/20" />
-            
-            {/* Globe icon with pulse effect */}
-            <div className="relative">
-              <Globe 
-                className="w-16 h-16 text-white" 
-                style={{ animation: 'pulse-scale 2s ease-in-out infinite' }}
-              />
-              {/* Signal waves */}
-              <div className="absolute -inset-4 border-2 border-white/20 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
-              <div className="absolute -inset-8 border border-white/10 rounded-full animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }} />
-            </div>
-          </div>
-          
-          {/* Ambient glow */}
-          <div 
-            className="absolute inset-0 w-32 h-32 rounded-[2rem] blur-3xl -z-10"
-            style={{
-              background: 'linear-gradient(135deg, rgba(96, 165, 250, 0.5), rgba(192, 132, 252, 0.5))',
-              animation: 'pulse 3s ease-in-out infinite',
-            }}
-          />
-        </div>
-
-        {/* Title with gradient */}
-        <h1 
-          className="text-5xl font-bold mb-3 tracking-tight bg-clip-text text-transparent"
-          style={{
-            backgroundImage: 'linear-gradient(135deg, #ffffff 0%, #a5b4fc 50%, #ffffff 100%)',
-            backgroundSize: '200% 200%',
-            animation: 'gradient-shift 3s ease-in-out infinite',
-          }}
-        >
-          Mojo mobile
-        </h1>
-        <p className="text-white/50 text-lg mb-10 font-light tracking-wide">
-          Интернет по всему миру
-        </p>
-
-        {/* Progress bar with glow */}
-        <div className="relative w-72">
-          <div className="h-1 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm">
-            <div 
-              className="h-full rounded-full transition-all duration-500 ease-out relative overflow-hidden"
-              style={{ 
-                width: `${progress}%`,
-                background: 'linear-gradient(90deg, #38bdf8, #a78bfa, #34d399)',
-              }}
-            >
-              {/* Shimmer effect */}
-              <div 
-                className="absolute inset-0"
-                style={{
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
-                  animation: 'shimmer 1.5s infinite',
-                }}
-              />
-            </div>
-          </div>
-          {/* Progress glow */}
-          <div 
-            className="absolute top-0 left-0 h-1 rounded-full blur-sm transition-all duration-500"
-            style={{ 
-              width: `${progress}%`,
-              background: 'linear-gradient(90deg, #38bdf8, #a78bfa, #34d399)',
-              opacity: 0.5,
-            }}
-          />
-        </div>
-
-        {/* Loading status */}
-        <div className="mt-6 flex items-center gap-3 text-white/40 text-sm">
-          <div className="flex gap-1">
-            {[0, 1, 2].map(i => (
-              <div 
-                key={i}
-                className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce"
-                style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.6s' }}
-              />
-            ))}
-          </div>
-          <span>Подключение к сети</span>
-        </div>
-
-        {/* Features badges with stagger animation */}
-        <div className="mt-14 flex gap-4">
-          {[
-            { icon: '🌍', text: '100+ стран' },
-            { icon: '⚡', text: 'Мгновенно' },
-            { icon: '🛡️', text: '24/7' },
-          ].map((item, i) => (
-            <div 
-              key={item.text}
-              className={`px-5 py-2.5 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 text-white/70 text-sm flex items-center gap-2 transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-              style={{ transitionDelay: `${0.3 + i * 0.1}s` }}
-            >
-              <span>{item.icon}</span>
-              <span>{item.text}</span>
-            </div>
-          ))}
         </div>
       </div>
 
-      {/* Custom animations */}
       <style jsx>{`
-        @keyframes aurora {
-          0%, 100% { transform: translateX(-10%) rotate(0deg); opacity: 0.3; }
-          50% { transform: translateX(10%) rotate(5deg); opacity: 0.6; }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-20px) scale(1.05); }
-        }
-        @keyframes pulse-scale {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.05); }
-        }
-        @keyframes gradient-shift {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
+        @keyframes logo-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
         }
       `}</style>
     </div>
@@ -342,13 +135,13 @@ function CountryCard({ group, index }: { group: CountryGroup; index: number }) {
                 loading="lazy"
               />
             ) : (
-              <span className="text-3xl">🌍</span>
+              <img src="/logo-mark.png" alt="Mojo mobile" className="w-9 h-9 rounded-lg object-contain" />
             )}
           </div>
           <p className="font-medium text-sm text-gray-900 dark:text-white mb-0.5 truncate">
             {countryName}
           </p>
-          <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+          <p className="text-sm font-semibold text-[#f2622a]">
             от ₽{formatPrice(group.minPrice)}
           </p>
         </div>
@@ -544,8 +337,8 @@ export default function Home() {
       {/* Header */}
       <header className="mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-            <Globe className="text-white" size={24} />
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#f2622a] to-[#f9d17f] flex items-center justify-center shadow-lg p-1.5">
+            <img src="/logo-mark.png" alt="Mojo mobile" className="w-full h-full object-contain rounded-xl" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-primary">Mojo mobile</h1>
@@ -560,7 +353,7 @@ export default function Home() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
-            className="w-full py-3 pl-11 pr-10 rounded-xl bg-gray-100/80 dark:bg-white/10 backdrop-blur-sm border-0 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            className="w-full py-3 pl-11 pr-10 rounded-xl bg-gray-100/80 dark:bg-white/10 backdrop-blur-sm border-0 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#f77430]/30"
             placeholder="Поиск страны..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -589,8 +382,8 @@ export default function Home() {
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
               activeTab === tab.id
-                ? 'bg-gray-900 text-white'
-                : 'bg-white text-gray-600 border border-gray-200'
+                ? 'bg-[#f77430] text-white'
+                : 'bg-white text-gray-600 border border-gray-200 hover:border-[#f29b41]/50'
             }`}
           >
             {tab.label}
@@ -636,7 +429,7 @@ export default function Home() {
                         {flagUrl ? (
                           <img src={flagUrl} alt={countryName} className="w-8 h-auto rounded shadow-sm" loading="lazy" />
                         ) : (
-                          <span className="text-3xl">🌍</span>
+                          <img src="/logo-mark.png" alt="Mojo mobile" className="w-8 h-8 rounded-lg object-contain" />
                         )}
                         <span className="font-medium text-gray-900 dark:text-white">{countryName}</span>
                       </div>
@@ -658,7 +451,7 @@ export default function Home() {
           </h2>
           {multiGroups.length === 0 ? (
             <div className="rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-xl text-center py-10">
-              <div className="text-4xl mb-3">🌍</div>
+              <img src="/logo-mark.png" alt="Mojo mobile" className="w-12 h-12 mx-auto mb-3 rounded-xl object-contain" />
               <p className="text-gray-600 dark:text-gray-300 font-medium">Скоро появятся</p>
               <p className="text-gray-400 text-sm mt-1">Мульти-страны в разработке</p>
             </div>
@@ -678,7 +471,7 @@ export default function Home() {
           </h2>
           {globalGroups.length === 0 ? (
             <div className="rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-xl text-center py-10">
-              <div className="text-4xl mb-3">🌐</div>
+              <img src="/logo-mark.png" alt="Mojo mobile" className="w-12 h-12 mx-auto mb-3 rounded-xl object-contain" />
               <p className="text-gray-600 dark:text-gray-300 font-medium">Скоро появятся</p>
               <p className="text-gray-400 text-sm mt-1">Глобальные тарифы в разработке</p>
             </div>

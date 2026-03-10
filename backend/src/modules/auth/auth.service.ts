@@ -1,10 +1,13 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
+import { OAuthProfile } from './oauth.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -92,5 +95,109 @@ export class AuthService {
     } catch (error) {
       throw new UnauthorizedException('Невалидный токен');
     }
+  }
+
+  /**
+   * Найти или создать пользователя по номеру телефона (после SMS верификации)
+   */
+  async loginWithPhone(phone: string) {
+    let user = await this.prisma.user.findUnique({ where: { phone } });
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          phone,
+          authProvider: 'phone',
+          providerId: phone,
+          firstName: 'Пользователь',
+        },
+      });
+      this.logger.log(`✅ New user created via phone: ${phone}`);
+    }
+
+    return this.generateUserToken(user);
+  }
+
+  /**
+   * Найти или создать пользователя через OAuth
+   */
+  async loginWithOAuth(profile: OAuthProfile) {
+    // Try by providerId first
+    let user = await this.prisma.user.findFirst({
+      where: { authProvider: profile.provider, providerId: profile.providerId },
+    });
+
+    // Try by email if provider is google/yandex
+    if (!user && profile.email) {
+      user = await this.prisma.user.findUnique({ where: { email: profile.email } });
+    }
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          authProvider: profile.provider,
+          providerId: profile.providerId,
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          email: profile.email,
+          username: profile.username,
+          phone: profile.phone,
+          // Telegram OAuth widget users get telegramId set
+          ...(profile.provider === 'telegram'
+            ? { telegramId: BigInt(profile.providerId) }
+            : {}),
+        },
+      });
+      this.logger.log(`✅ New user created via ${profile.provider}: ${profile.providerId}`);
+    } else if (!user.authProvider) {
+      // Link existing user to OAuth provider
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { authProvider: profile.provider, providerId: profile.providerId },
+      });
+    }
+
+    return this.generateUserToken(user);
+  }
+
+  /**
+   * Получить текущего пользователя по JWT payload
+   */
+  async getMe(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        telegramId: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        email: true,
+        authProvider: true,
+        balance: true,
+        bonusBalance: true,
+        referralCode: true,
+        totalSpent: true,
+        isBlocked: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) throw new UnauthorizedException('Пользователь не найден');
+
+    return {
+      ...user,
+      telegramId: user.telegramId ? user.telegramId.toString() : null,
+      balance: Number(user.balance),
+      bonusBalance: Number(user.bonusBalance),
+      totalSpent: Number(user.totalSpent),
+    };
+  }
+
+  private generateUserToken(user: { id: string; authProvider?: string | null }) {
+    const payload = { sub: user.id, type: 'user', provider: user.authProvider };
+    const access_token = this.jwtService.sign(payload, { expiresIn: '30d' });
+    return { access_token, userId: user.id };
   }
 }

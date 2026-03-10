@@ -1,0 +1,228 @@
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
+import * as crypto from 'crypto';
+
+export interface OAuthProfile {
+  providerId: string;
+  provider: 'google' | 'yandex' | 'vk' | 'telegram';
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  username?: string;
+  phone?: string;
+}
+
+@Injectable()
+export class OAuthService {
+  private readonly logger = new Logger(OAuthService.name);
+
+  constructor(private configService: ConfigService) {}
+
+  // ─── Google ──────────────────────────────────────────────────
+
+  getGoogleRedirectUrl(redirectUri: string): string {
+    const clientId = this.configService.get('GOOGLE_CLIENT_ID');
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'openid email profile',
+      access_type: 'offline',
+      prompt: 'select_account',
+    });
+    return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+  }
+
+  async exchangeGoogleCode(code: string, redirectUri: string): Promise<OAuthProfile> {
+    const clientId = this.configService.get('GOOGLE_CLIENT_ID');
+    const clientSecret = this.configService.get('GOOGLE_CLIENT_SECRET');
+
+    // Exchange code for tokens
+    const { data: tokens } = await axios.post('https://oauth2.googleapis.com/token', {
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+      grant_type: 'authorization_code',
+    });
+
+    // Get user profile
+    const { data: profile } = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    });
+
+    return {
+      providerId: profile.sub,
+      provider: 'google',
+      firstName: profile.given_name,
+      lastName: profile.family_name,
+      email: profile.email,
+    };
+  }
+
+  // ─── Yandex ──────────────────────────────────────────────────
+
+  getYandexRedirectUrl(redirectUri: string): string {
+    const clientId = this.configService.get('YANDEX_CLIENT_ID');
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+    });
+    return `https://oauth.yandex.ru/authorize?${params}`;
+  }
+
+  async exchangeYandexCode(code: string, redirectUri: string): Promise<OAuthProfile> {
+    const clientId = this.configService.get('YANDEX_CLIENT_ID');
+    const clientSecret = this.configService.get('YANDEX_CLIENT_SECRET');
+
+    // Exchange code for token
+    const { data: tokens } = await axios.post(
+      'https://oauth.yandex.ru/token',
+      new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+    );
+
+    // Get user profile
+    const { data: profile } = await axios.get('https://login.yandex.ru/info', {
+      headers: { Authorization: `OAuth ${tokens.access_token}` },
+    });
+
+    return {
+      providerId: String(profile.id),
+      provider: 'yandex',
+      firstName: profile.first_name,
+      lastName: profile.last_name,
+      email: profile.default_email,
+      username: profile.login,
+    };
+  }
+
+  // ─── VK ──────────────────────────────────────────────────────
+
+  getVkRedirectUrl(redirectUri: string): string {
+    const clientId = this.configService.get('VK_CLIENT_ID');
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: '4194304', // email
+      v: '5.199',
+    });
+    return `https://oauth.vk.com/authorize?${params}`;
+  }
+
+  async exchangeVkCode(code: string, redirectUri: string): Promise<OAuthProfile> {
+    const clientId = this.configService.get('VK_CLIENT_ID');
+    const clientSecret = this.configService.get('VK_CLIENT_SECRET');
+
+    // Exchange code for token
+    const { data: tokens } = await axios.get('https://oauth.vk.com/access_token', {
+      params: {
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        code,
+      },
+    });
+
+    if (tokens.error) throw new UnauthorizedException(tokens.error_description);
+
+    // Get user profile
+    const { data: profileData } = await axios.get('https://api.vk.com/method/users.get', {
+      params: {
+        access_token: tokens.access_token,
+        user_ids: tokens.user_id,
+        fields: 'first_name,last_name,screen_name',
+        v: '5.199',
+      },
+    });
+
+    const user = profileData.response?.[0];
+    if (!user) throw new UnauthorizedException('VK user not found');
+
+    return {
+      providerId: String(user.id),
+      provider: 'vk',
+      firstName: user.first_name,
+      lastName: user.last_name,
+      username: user.screen_name,
+      email: tokens.email, // VK returns email in token response if scope includes it
+    };
+  }
+
+  // ─── Telegram Login Widget ────────────────────────────────────
+
+  verifyTelegramWidget(data: Record<string, string>): OAuthProfile {
+    const botToken = this.configService.get('TELEGRAM_BOT_TOKEN') || '';
+    const { hash, ...checkData } = data;
+
+    if (!hash) throw new UnauthorizedException('hash required');
+
+    const dataCheckString = Object.keys(checkData)
+      .sort()
+      .map((k) => `${k}=${checkData[k]}`)
+      .join('\n');
+
+    const secretKey = crypto.createHash('sha256').update(botToken).digest();
+    const computedHash = crypto
+      .createHmac('sha256', secretKey)
+      .update(dataCheckString)
+      .digest('hex');
+
+    if (computedHash !== hash) {
+      throw new UnauthorizedException('Telegram signature invalid');
+    }
+
+    const authDate = parseInt(checkData.auth_date);
+    if (Date.now() / 1000 - authDate > 86400) {
+      throw new UnauthorizedException('Telegram auth data expired');
+    }
+
+    return {
+      providerId: checkData.id,
+      provider: 'telegram',
+      firstName: checkData.first_name,
+      lastName: checkData.last_name,
+      username: checkData.username,
+    };
+  }
+
+  // ─── Helpers (token-based, for backward compat) ───────────────
+
+  async verifyGoogle(idToken: string): Promise<OAuthProfile> {
+    const { data } = await axios.get(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`,
+    );
+    if (!data.sub) throw new UnauthorizedException('Invalid Google token');
+    return {
+      providerId: data.sub,
+      provider: 'google',
+      firstName: data.given_name,
+      lastName: data.family_name,
+      email: data.email,
+    };
+  }
+
+  async verifyYandex(oauthToken: string): Promise<OAuthProfile> {
+    const { data } = await axios.get('https://login.yandex.ru/info', {
+      headers: { Authorization: `OAuth ${oauthToken}` },
+    });
+    if (!data.id) throw new UnauthorizedException('Invalid Yandex token');
+    return {
+      providerId: String(data.id),
+      provider: 'yandex',
+      firstName: data.first_name,
+      lastName: data.last_name,
+      email: data.default_email,
+      username: data.login,
+    };
+  }
+}

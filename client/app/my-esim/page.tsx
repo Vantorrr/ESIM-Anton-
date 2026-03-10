@@ -32,12 +32,29 @@ export default function MyEsimPage() {
 
   const loadEsims = async () => {
     try {
-      // Получаем Telegram user ID
-      const tg = (window as any).Telegram?.WebApp;
-      const telegramId = tg?.initDataUnsafe?.user?.id || 316662303; // fallback
-      
-      const user = await userApi.getMe(String(telegramId));
-      const orders = await ordersApi.getMy(user.id);
+      const { isTelegramWebApp, getTelegramUserId, getToken } = await import('@/lib/auth')
+      let userId: string | null = null
+
+      if (isTelegramWebApp()) {
+        const telegramId = getTelegramUserId()
+        if (telegramId) {
+          const user = await userApi.getMe(telegramId)
+          userId = user.id
+        }
+      } else {
+        const token = getToken()
+        if (token) {
+          const { api } = await import('@/lib/api')
+          const { data } = await api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+          userId = data.id
+        } else {
+          window.location.href = '/login'
+          return
+        }
+      }
+
+      if (!userId) { setLoading(false); return }
+      const orders = await ordersApi.getMy(userId);
       
       // Фильтруем только оплаченные и завершенные заказы
       const activeOrders = orders.filter(o => 
@@ -133,7 +150,7 @@ export default function MyEsimPage() {
               Купите ваш первый eSIM и он появится здесь
             </p>
             <Link href="/">
-              <button className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-xl transition-colors">
+              <button className="inline-flex items-center gap-2 px-6 py-3 bg-[#f77430] hover:bg-[#f2622a] text-white font-medium rounded-xl transition-colors">
                 <Plus size={20} />
                 Купить eSIM
               </button>
@@ -184,7 +201,7 @@ export default function MyEsimPage() {
                       </div>
                       <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-blue-500 rounded-full"
+                          className="h-full bg-[#f77430] rounded-full"
                           style={{ width: '30%' }}
                         />
                       </div>
@@ -206,7 +223,7 @@ export default function MyEsimPage() {
                       </button>
                     )}
                     {esim.canTopup && esim.status === 'active' && (
-                      <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium text-sm transition-colors">
+                      <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#f77430] hover:bg-[#f2622a] text-white rounded-xl font-medium text-sm transition-colors">
                         <RefreshCw size={18} />
                         Пополнить
                       </button>
@@ -218,7 +235,7 @@ export default function MyEsimPage() {
             
             {/* Add More */}
             <Link href="/">
-              <div className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl p-6 text-center hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors cursor-pointer">
+              <div className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl p-6 text-center hover:border-[#f77430] hover:bg-orange-50/50 dark:hover:bg-orange-900/10 transition-colors cursor-pointer">
                 <Plus className="mx-auto text-gray-400 mb-2" size={32} />
                 <p className="font-medium text-gray-600 dark:text-gray-300">Добавить eSIM</p>
               </div>

@@ -1,4 +1,27 @@
 const path = require('path');
+const withPWA = require('next-pwa')({
+  dest: 'public',
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === 'development',
+  runtimeCaching: [
+    {
+      urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+      handler: 'CacheFirst',
+      options: { cacheName: 'google-fonts', expiration: { maxEntries: 4, maxAgeSeconds: 365 * 24 * 60 * 60 } },
+    },
+    {
+      urlPattern: /^https:\/\/api\.qrserver\.com\/.*/i,
+      handler: 'CacheFirst',
+      options: { cacheName: 'qr-codes', expiration: { maxEntries: 50, maxAgeSeconds: 7 * 24 * 60 * 60 } },
+    },
+    {
+      urlPattern: /\/api\/products.*/i,
+      handler: 'StaleWhileRevalidate',
+      options: { cacheName: 'api-products', expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 } },
+    },
+  ],
+});
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -9,6 +32,6 @@ const nextConfig = {
     };
     return config;
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = withPWA(nextConfig);

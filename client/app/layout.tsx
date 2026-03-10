@@ -1,10 +1,18 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import TelegramRedirectHandler from '@/components/TelegramRedirectHandler'
+import { AuthProvider } from '@/components/AuthProvider'
+import InstallBanner from '@/components/InstallBanner'
 
 export const metadata: Metadata = {
   title: 'Mojo mobile - Мобильный интернет по всему миру',
   description: 'Покупайте eSIM для путешествий в более чем 100 странах мира через Mojo mobile',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Mojo mobile',
+  },
 }
 
 export const viewport: Viewport = {
@@ -12,6 +20,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: '#f77430',
 }
 
 export default function RootLayout({
@@ -22,17 +31,16 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <head>
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                // Telegram WebApp initialization
                 if (window.Telegram && window.Telegram.WebApp) {
                   const tg = window.Telegram.WebApp;
                   tg.ready();
                   tg.expand();
-                  
-                  // Apply Telegram theme colors
                   if (tg.themeParams) {
                     const root = document.documentElement;
                     root.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
@@ -52,8 +60,11 @@ export default function RootLayout({
         <script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js" async />
       </head>
       <body>
-        <TelegramRedirectHandler />
-        {children}
+        <AuthProvider>
+          <TelegramRedirectHandler />
+          <InstallBanner />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )

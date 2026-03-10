@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { OrdersService } from '../orders/orders.service';
 import { TelegramNotificationService } from '../telegram/telegram-notification.service';
+import { PushService } from '../notifications/push.service';
 import { TransactionType, TransactionStatus, OrderStatus } from '@prisma/client';
 import * as crypto from 'crypto';
 
@@ -17,6 +18,7 @@ export class CloudPaymentsService {
     private configService: ConfigService,
     private ordersService: OrdersService,
     private telegramNotification: TelegramNotificationService,
+    private pushService: PushService,
   ) {
     this.publicId = this.configService.get('CLOUDPAYMENTS_PUBLIC_ID') || '';
     this.apiSecret = this.configService.get('CLOUDPAYMENTS_API_SECRET') || '';
@@ -167,27 +169,36 @@ export class CloudPaymentsService {
         this.logger.error(`❌ Failed to issue eSIM: ${error.message}`);
       }
 
-      // Send notification
-      try {
-        if (order.user) {
-          const tgId = String(order.user.telegramId);
-          this.logger.log(`📤 Sending notification to telegramId: ${tgId}`);
-          await this.telegramNotification.sendPaymentSuccessNotification(
-            tgId,
-            {
-              orderId: order.id,
-              productName: order.product.name,
-              country: order.product.country,
-              dataAmount: order.product.dataAmount,
-              price: Number(order.totalAmount),
-            }
-          );
-          this.logger.log(`✅ Notification sent to ${tgId}`);
-        } else {
-          this.logger.warn(`⚠️ No user found on order ${order.id}`);
+      // Send notifications (Telegram + Web Push)
+      const notifDetails = {
+        orderId: order.id,
+        productName: order.product.name,
+        country: order.product.country,
+        dataAmount: order.product.dataAmount,
+        price: Number(order.totalAmount),
+      };
+
+      if (order.user) {
+        // Telegram notification
+        if (order.user.telegramId) {
+          try {
+            const tgId = String(order.user.telegramId);
+            this.logger.log(`📤 Sending Telegram notification to: ${tgId}`);
+            await this.telegramNotification.sendPaymentSuccessNotification(tgId, notifDetails);
+            this.logger.log(`✅ Telegram notification sent to ${tgId}`);
+          } catch (error) {
+            this.logger.error(`❌ Telegram notification error: ${error.message}`);
+          }
         }
-      } catch (error) {
-        this.logger.error(`❌ Notification error: ${error.message}`, error.stack);
+
+        // Web Push notification
+        try {
+          await this.pushService.sendPaymentSuccess(order.userId, notifDetails);
+        } catch (error) {
+          this.logger.error(`❌ Push notification error: ${error.message}`);
+        }
+      } else {
+        this.logger.warn(`⚠️ No user found on order ${order.id}`);
       }
     }
 

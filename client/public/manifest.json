@@ -1,0 +1,39 @@
+{
+  "name": "Mojo mobile",
+  "short_name": "Mojo",
+  "description": "eSIM для путешествий в 100+ странах. Моментальная активация.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f77430",
+  "theme_color": "#f77430",
+  "orientation": "portrait",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "categories": ["travel", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Каталог",
+      "url": "/",
+      "description": "Выбрать eSIM тариф"
+    },
+    {
+      "name": "Мои eSIM",
+      "url": "/my-esim",
+      "description": "Активные eSIM карты"
+    }
+  ]
+}
