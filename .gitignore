@@ -39,3 +39,8 @@ prisma/.env
 # Temp API data files
 backend/*_packages.json
 backend/std_*.json
+
+# next-pwa generated (regenerated at build time)
+client/public/sw.js
+client/public/workbox-*.js
+client/public/sw.js.map

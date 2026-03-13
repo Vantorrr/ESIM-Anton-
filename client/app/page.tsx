@@ -94,6 +94,7 @@ function CountryCard({ group, index }: { group: CountryGroup; index: number }) {
                 alt={countryName}
                 className="w-14 h-auto rounded-md shadow-sm object-cover"
                 loading="lazy"
+                onError={(e) => { (e.target as HTMLImageElement).src = '/logo-mark.png'; (e.target as HTMLImageElement).className = 'w-10 h-10 rounded-lg object-contain'; }}
               />
             ) : (
               <img src="/logo-mark.png" alt="Mojo mobile" className="w-10 h-10 rounded-lg object-contain" />
@@ -390,7 +391,7 @@ export default function Home() {
                     >
                       <div className="flex items-center gap-3">
                         {flagUrl ? (
-                          <img src={flagUrl} alt={countryName} className="w-8 h-auto rounded shadow-sm" loading="lazy" />
+                          <img src={flagUrl} alt={countryName} className="w-8 h-auto rounded shadow-sm" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).src = '/logo-mark.png'; (e.target as HTMLImageElement).className = 'w-8 h-8 rounded-lg object-contain'; }} />
                         ) : (
                           <img src="/logo-mark.png" alt="Mojo mobile" className="w-8 h-8 rounded-lg object-contain" />
                         )}

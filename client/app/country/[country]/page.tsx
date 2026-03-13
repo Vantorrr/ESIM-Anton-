@@ -73,7 +73,7 @@ export default function CountryPage() {
           </button>
           <div className="flex items-center gap-2">
             {getFlagUrl(country) ? (
-              <img src={getFlagUrl(country)} alt={getCountryName(country)} className="w-8 h-auto rounded shadow-sm" />
+              <img src={getFlagUrl(country)} alt={getCountryName(country)} className="w-8 h-auto rounded shadow-sm" onError={(e) => { (e.target as HTMLImageElement).src = '/logo-mark.png'; (e.target as HTMLImageElement).className = 'w-8 h-8 rounded-lg object-contain'; }} />
             ) : (
               <img src="/logo-mark.png" alt="Mojo mobile" className="w-8 h-8 rounded-lg object-contain" />
             )}

@@ -183,6 +183,7 @@ export default function ProductPage() {
                 src={getFlagUrl(product.country)}
                 alt={getCountryName(product.country)}
                 className="w-10 h-auto rounded object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).src = '/logo-mark.png'; (e.target as HTMLImageElement).className = 'w-9 h-9 rounded-lg object-contain'; }}
               />
             ) : (
               <img src="/logo-mark.png" alt="Mojo mobile" className="w-9 h-9 rounded-lg object-contain" />
