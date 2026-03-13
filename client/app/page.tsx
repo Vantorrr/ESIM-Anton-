@@ -7,50 +7,17 @@ import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
 import { formatPrice, getFlagUrl, getCountryName, getCountryCode } from '@/lib/utils'
 
-// Brand splash screen
+// Brand splash screen — plays the original MOJO animation video
 function SplashScreen({ progress }: { progress: number }) {
-  const [mounted, setMounted] = useState(false)
-  
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden">
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(180deg, #f77430 0%, #f79440 100%)',
-        }}
+    <div className="fixed inset-0 z-50 overflow-hidden bg-[#e96a25]">
+      <video
+        src="/MOJO anim_2.mp4"
+        autoPlay
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
       />
-
-      {/* Single large watermark shape to mimic the curve */}
-      <div 
-        className="absolute -top-[10%] -left-[10%] w-[120%] h-[60%] opacity-[0.15] pointer-events-none"
-        style={{
-          backgroundImage: 'url(/logo-mark.png)',
-          backgroundRepeat: 'no-repeat',
-          backgroundSize: 'contain',
-          transform: 'rotate(-15deg) scale(1.5)',
-          filter: 'brightness(0) invert(1)'
-        }}
-      />
-
-      <div className={`relative z-10 w-full px-8 flex flex-col items-center transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
-        <img
-          src="/logo-white.png"
-          alt="Mojo mobile"
-          className="w-48 h-48 object-contain drop-shadow-lg"
-          style={{ animation: 'logo-pulse 3s ease-in-out infinite' }}
-        />
-      </div>
-
-      <style jsx>{`
-        @keyframes logo-pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.05); opacity: 0.9; }
-        }
-      `}</style>
     </div>
   )
 }
