@@ -55,8 +55,10 @@ export const getCountryCode = (country: string): string => {
     return country.toUpperCase();
   }
   
-  // Убираем суффиксы типа AS-12, AF-29
-  const match = country.match(/^([A-Za-z]{2})/);
+  // Убираем суффиксы типа AS-12, AF_29, EU 5GB.
+  // Важно: не используем просто первые 2 буквы, чтобы не ловить
+  // ложные коды из полных названий (например "Austria" -> "AU").
+  const match = country.match(/^([A-Za-z]{2})(?:[-_\s].*)$/);
   if (match) {
     return match[1].toUpperCase();
   }
@@ -65,15 +67,16 @@ export const getCountryCode = (country: string): string => {
 };
 
 /**
- * URL картинки флага через CDN (работает на всех устройствах!)
- * Используем GitHub hosted флаги - максимально надёжно
+ * URL картинки флага через CDN (работает на всех устройствах).
+ * На Android/WebView SVG с некоторых CDN может отображаться некорректно,
+ * поэтому используем PNG-версии.
  */
 export const getFlagUrl = (country: string): string => {
   const code = getCountryCode(country).toLowerCase();
   if (code === 'xx') return '';
   
-  // GitHub hosted флаги - работают везде, не блокируются
-  return `https://hatscripts.github.io/circle-flags/flags/${code}.svg`;
+  // 64x64 PNG достаточно чёткий и стабилен в мобильных webview.
+  return `https://flagcdn.com/64x48/${code}.png`;
 };
 
 /**

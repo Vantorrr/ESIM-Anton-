@@ -7,7 +7,7 @@ import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
 import { formatPrice, getFlagUrl, getCountryName, getCountryCode } from '@/lib/utils'
 
-// Liquid Glass Splash Screen
+// Brand splash screen
 function SplashScreen({ progress }: { progress: number }) {
   const [mounted, setMounted] = useState(false)
   
@@ -20,41 +20,42 @@ function SplashScreen({ progress }: { progress: number }) {
       <div
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(180deg, #f2622a 0%, #f77430 64%, #f7b64f 100%)',
+          background: 'linear-gradient(180deg, #f5671a 0%, #f77d2a 45%, #f8b14f 100%)',
         }}
       />
 
-      {/* Watermark pattern in background */}
+      {/* Large watermark shapes like in brand reference */}
       <img
         src="/logo-white.png"
         alt=""
         aria-hidden="true"
-        className="absolute -top-20 -left-8 w-[420px] max-w-none opacity-10"
+        className="absolute -top-32 -left-20 w-[560px] max-w-none opacity-[0.14]"
+        style={{ animation: 'watermark-drift 9s ease-in-out infinite' }}
       />
       <img
         src="/logo-white.png"
         alt=""
         aria-hidden="true"
-        className="absolute -top-14 right-[-140px] w-[360px] max-w-none opacity-10"
+        className="absolute -top-20 right-[-190px] w-[500px] max-w-none opacity-[0.11]"
+        style={{ animation: 'watermark-drift 10s ease-in-out infinite reverse' }}
       />
       <img
         src="/logo-white.png"
         alt=""
         aria-hidden="true"
-        className="absolute bottom-[-120px] left-[-80px] w-[340px] max-w-none opacity-[0.08]"
+        className="absolute bottom-[-180px] right-[-90px] w-[460px] max-w-none opacity-[0.09]"
+        style={{ animation: 'watermark-drift 8s ease-in-out infinite' }}
       />
 
       <div className={`relative z-10 w-full px-8 flex flex-col items-center transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
         <img
           src="/logo-white.png"
           alt="Mojo mobile"
-          className="w-44 h-44 object-contain drop-shadow-[0_4px_20px_rgba(255,255,255,0.3)]"
-          style={{ animation: 'logo-float 2.6s ease-in-out infinite' }}
+          className="w-56 h-56 object-contain drop-shadow-[0_8px_28px_rgba(255,255,255,0.3)]"
+          style={{ animation: 'logo-breathe 2.8s ease-in-out infinite' }}
         />
 
-        <p className="mt-12 text-white/85 text-sm tracking-wide">Подключение к сети</p>
-
-        <div className="mt-3 w-56 h-[3px] bg-white/40 rounded-full overflow-hidden">
+        <div className="mt-8 w-44 h-[2px] bg-white/40 rounded-full overflow-hidden">
           <div
             className="h-full bg-white rounded-full transition-all duration-500 ease-out"
             style={{ width: `${Math.max(8, progress)}%` }}
@@ -63,9 +64,13 @@ function SplashScreen({ progress }: { progress: number }) {
       </div>
 
       <style jsx>{`
-        @keyframes logo-float {
+        @keyframes logo-breathe {
           0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-6px); }
+          50% { transform: translateY(-5px) scale(1.02); }
+        }
+        @keyframes watermark-drift {
+          0%, 100% { transform: translate3d(0, 0, 0); }
+          50% { transform: translate3d(0, -10px, 0); }
         }
       `}</style>
     </div>
@@ -122,22 +127,22 @@ function CountryCard({ group, index }: { group: CountryGroup; index: number }) {
         style={{ animationDelay: `${0.03 * index}s` }}
       >
         <div className="text-center">
-          <div className="w-12 h-8 mx-auto mb-2 flex items-center justify-center">
+          <div className="w-14 h-10 mx-auto mb-2.5 flex items-center justify-center">
             {flagUrl ? (
               <img
                 src={flagUrl}
                 alt={countryName}
-                className="w-12 h-auto rounded shadow-sm object-cover"
+                className="w-14 h-auto rounded-md shadow-sm object-cover"
                 loading="lazy"
               />
             ) : (
-              <img src="/logo-mark.png" alt="Mojo mobile" className="w-9 h-9 rounded-lg object-contain" />
+              <img src="/logo-mark.png" alt="Mojo mobile" className="w-10 h-10 rounded-lg object-contain" />
             )}
           </div>
-          <p className="font-medium text-sm text-gray-900 mb-0.5 truncate">
+          <p className="font-semibold text-base leading-tight text-gray-900 mb-1 truncate">
             {countryName}
           </p>
-          <p className="text-sm font-semibold text-[#f7741d]">
+          <p className="text-xs font-semibold text-[#f7741d]/85">
             от ₽{formatPrice(group.minPrice)}
           </p>
         </div>
@@ -367,7 +372,8 @@ export default function Home() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+      <div className="mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <div className="w-full rounded-full bg-white/75 border border-gray-200 p-1 flex gap-1.5">
         {[
           { id: 'countries' as const, label: 'Страны' },
           { id: 'multi' as const, label: 'Мульти-страны' },
@@ -376,7 +382,7 @@ export default function Home() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            className={`flex-1 py-2.5 rounded-full text-sm font-medium text-center transition-all ${
               activeTab === tab.id
                 ? 'bg-[#f77430] text-white shadow-md shadow-orange-200'
                 : 'bg-white text-gray-600 border border-gray-200'
@@ -385,6 +391,7 @@ export default function Home() {
             {tab.label}
           </button>
         ))}
+        </div>
       </div>
 
       {loading ? (
