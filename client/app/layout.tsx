@@ -64,6 +64,27 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              (function(){
+                var SW_VER = 'v2';
+                if ('serviceWorker' in navigator && !sessionStorage.getItem('sw_reset_'+SW_VER)) {
+                  caches.keys().then(function(names){
+                    names.forEach(function(n){ caches.delete(n); });
+                  });
+                  navigator.serviceWorker.getRegistrations().then(function(regs){
+                    regs.forEach(function(r){ r.unregister(); });
+                  });
+                  sessionStorage.setItem('sw_reset_'+SW_VER, '1');
+                  if (navigator.serviceWorker.controller) {
+                    location.reload();
+                  }
+                }
+              })();
+            `,
+          }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
               (function() {
                 if (window.Telegram && window.Telegram.WebApp) {
                   const tg = window.Telegram.WebApp;
