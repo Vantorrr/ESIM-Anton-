@@ -44,25 +44,77 @@ export const formatDataAmount = (amount: string): string => {
   return amount;
 };
 
-/**
- * Получить ISO код страны (2 буквы)
- */
+const NAME_TO_ISO: Record<string, string> = {
+  'afghanistan':'AF','albania':'AL','algeria':'DZ','andorra':'AD','angola':'AO',
+  'antigua':'AG','argentina':'AR','armenia':'AM','australia':'AU','austria':'AT',
+  'azerbaijan':'AZ','bahamas':'BS','bahrain':'BH','bangladesh':'BD','barbados':'BB',
+  'belarus':'BY','belgium':'BE','belize':'BZ','benin':'BJ','bermuda':'BM',
+  'bhutan':'BT','bolivia':'BO','bosnia':'BA','botswana':'BW','brazil':'BR',
+  'brunei':'BN','bulgaria':'BG','burkina':'BF','burkina faso':'BF','burundi':'BI',
+  'cambodia':'KH','cameroon':'CM','canada':'CA','cape verde':'CV','chad':'TD',
+  'chile':'CL','china':'CN','colombia':'CO','comoros':'KM','congo':'CG',
+  'costa rica':'CR','croatia':'HR','cuba':'CU','curacao':'CW','cyprus':'CY',
+  'czech':'CZ','czechia':'CZ','denmark':'DK','djibouti':'DJ','dominica':'DM',
+  'dominican':'DO','dominican republic':'DO','ecuador':'EC','egypt':'EG',
+  'el salvador':'SV','equatorial guinea':'GQ','eritrea':'ER','estonia':'EE',
+  'eswatini':'SZ','ethiopia':'ET','fiji':'FJ','finland':'FI','france':'FR',
+  'gabon':'GA','gambia':'GM','georgia':'GE','germany':'DE','ghana':'GH',
+  'gibraltar':'GI','greece':'GR','greenland':'GL','grenada':'GD','guadeloupe':'GP',
+  'guam':'GU','guatemala':'GT','guernsey':'GG','guinea':'GN','guinea-bissau':'GW',
+  'guyana':'GY','haiti':'HT','honduras':'HN','hong kong':'HK','hungary':'HU',
+  'iceland':'IS','india':'IN','indonesia':'ID','iran':'IR','iraq':'IQ',
+  'ireland':'IE','isle of man':'IM','israel':'IL','italy':'IT','ivory coast':'CI',
+  'jamaica':'JM','japan':'JP','jersey':'JE','jordan':'JO','kazakhstan':'KZ',
+  'kenya':'KE','kiribati':'KI','korea':'KR','south korea':'KR','north korea':'KP',
+  'kosovo':'XK','kuwait':'KW','kyrgyzstan':'KG','laos':'LA','latvia':'LV',
+  'lebanon':'LB','lesotho':'LS','liberia':'LR','libya':'LY','liechtenstein':'LI',
+  'lithuania':'LT','luxembourg':'LU','macao':'MO','macau':'MO','madagascar':'MG',
+  'malawi':'MW','malaysia':'MY','maldives':'MV','mali':'ML','malta':'MT',
+  'marshall':'MH','martinique':'MQ','mauritania':'MR','mauritius':'MU',
+  'mexico':'MX','micronesia':'FM','moldova':'MD','monaco':'MC','mongolia':'MN',
+  'montenegro':'ME','montserrat':'MS','morocco':'MA','mozambique':'MZ',
+  'myanmar':'MM','namibia':'NA','nauru':'NR','nepal':'NP','netherlands':'NL',
+  'new caledonia':'NC','new zealand':'NZ','nicaragua':'NI','niger':'NE',
+  'nigeria':'NG','north macedonia':'MK','macedonia':'MK','norway':'NO',
+  'oman':'OM','pakistan':'PK','palau':'PW','palestine':'PS','panama':'PA',
+  'papua':'PG','papua new guinea':'PG','paraguay':'PY','peru':'PE',
+  'philippines':'PH','poland':'PL','portugal':'PT','puerto rico':'PR',
+  'qatar':'QA','reunion':'RE','romania':'RO','russia':'RU','rwanda':'RW',
+  'saint kitts':'KN','saint lucia':'LC','saint vincent':'VC','samoa':'WS',
+  'san marino':'SM','saudi arabia':'SA','senegal':'SN','serbia':'RS',
+  'seychelles':'SC','sierra leone':'SL','singapore':'SG','sint maarten':'SX',
+  'slovakia':'SK','slovenia':'SI','solomon':'SB','somalia':'SO','south africa':'ZA',
+  'south sudan':'SS','spain':'ES','sri lanka':'LK','sudan':'SD','suriname':'SR',
+  'sweden':'SE','switzerland':'CH','syria':'SY','taiwan':'TW','tajikistan':'TJ',
+  'tanzania':'TZ','thailand':'TH','timor':'TL','togo':'TG','tonga':'TO',
+  'trinidad':'TT','trinidad and tobago':'TT','tunisia':'TN','turkey':'TR',
+  'turkiye':'TR','turkmenistan':'TM','turks':'TC','tuvalu':'TV','uganda':'UG',
+  'ukraine':'UA','united arab emirates':'AE','uae':'AE','united kingdom':'GB',
+  'uk':'GB','united states':'US','usa':'US','uruguay':'UY','uzbekistan':'UZ',
+  'vanuatu':'VU','vatican':'VA','venezuela':'VE','vietnam':'VN','viet nam':'VN',
+  'yemen':'YE','zambia':'ZM','zimbabwe':'ZW',
+  'europe':'EU','asia':'AS','africa':'AF','global':'XX','world':'XX','worldwide':'XX',
+};
+
 export const getCountryCode = (country: string): string => {
   if (!country) return 'XX';
-  
-  // Уже ISO код
+
   if (/^[A-Za-z]{2}$/.test(country)) {
     return country.toUpperCase();
   }
-  
-  // Убираем суффиксы типа AS-12, AF_29, EU 5GB.
-  // Важно: не используем просто первые 2 буквы, чтобы не ловить
-  // ложные коды из полных названий (например "Austria" -> "AU").
+
   const match = country.match(/^([A-Za-z]{2})(?:[-_\s].*)$/);
   if (match) {
     return match[1].toUpperCase();
   }
-  
+
+  const key = country.trim().toLowerCase();
+  if (NAME_TO_ISO[key]) return NAME_TO_ISO[key];
+
+  for (const [name, code] of Object.entries(NAME_TO_ISO)) {
+    if (key.includes(name) || name.includes(key)) return code;
+  }
+
   return 'XX';
 };
 
