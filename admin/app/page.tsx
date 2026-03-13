@@ -87,9 +87,6 @@ export default function Home() {
             >
               Войти
             </button>
-            <p className="text-xs text-slate-500">
-              Для прода задай `NEXT_PUBLIC_ADMIN_PIN` в переменных окружения админ-сервиса.
-            </p>
           </form>
         </div>
       </div>
