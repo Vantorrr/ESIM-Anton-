@@ -20,57 +20,35 @@ function SplashScreen({ progress }: { progress: number }) {
       <div
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(180deg, #f5671a 0%, #f77d2a 45%, #f8b14f 100%)',
+          background: 'linear-gradient(180deg, #f77430 0%, #f79440 100%)',
         }}
       />
 
-      {/* Large watermark shapes like in brand reference */}
-      <img
-        src="/logo-white.png"
-        alt=""
-        aria-hidden="true"
-        className="absolute -top-32 -left-20 w-[560px] max-w-none opacity-[0.14]"
-        style={{ animation: 'watermark-drift 9s ease-in-out infinite' }}
-      />
-      <img
-        src="/logo-white.png"
-        alt=""
-        aria-hidden="true"
-        className="absolute -top-20 right-[-190px] w-[500px] max-w-none opacity-[0.11]"
-        style={{ animation: 'watermark-drift 10s ease-in-out infinite reverse' }}
-      />
-      <img
-        src="/logo-white.png"
-        alt=""
-        aria-hidden="true"
-        className="absolute bottom-[-180px] right-[-90px] w-[460px] max-w-none opacity-[0.09]"
-        style={{ animation: 'watermark-drift 8s ease-in-out infinite' }}
+      {/* Single large watermark shape to mimic the curve */}
+      <div 
+        className="absolute -top-[10%] -left-[10%] w-[120%] h-[60%] opacity-[0.15] pointer-events-none"
+        style={{
+          backgroundImage: 'url(/logo-mark.png)',
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: 'contain',
+          transform: 'rotate(-15deg) scale(1.5)',
+          filter: 'brightness(0) invert(1)'
+        }}
       />
 
       <div className={`relative z-10 w-full px-8 flex flex-col items-center transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
         <img
           src="/logo-white.png"
           alt="Mojo mobile"
-          className="w-56 h-56 object-contain drop-shadow-[0_8px_28px_rgba(255,255,255,0.3)]"
-          style={{ animation: 'logo-breathe 2.8s ease-in-out infinite' }}
+          className="w-48 h-48 object-contain drop-shadow-lg"
+          style={{ animation: 'logo-pulse 3s ease-in-out infinite' }}
         />
-
-        <div className="mt-8 w-44 h-[2px] bg-white/40 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-white rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${Math.max(8, progress)}%` }}
-          />
-        </div>
       </div>
 
       <style jsx>{`
-        @keyframes logo-breathe {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-5px) scale(1.02); }
-        }
-        @keyframes watermark-drift {
-          0%, 100% { transform: translate3d(0, 0, 0); }
-          50% { transform: translate3d(0, -10px, 0); }
+        @keyframes logo-pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.05); opacity: 0.9; }
         }
       `}</style>
     </div>
