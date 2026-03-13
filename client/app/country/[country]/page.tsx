@@ -282,7 +282,7 @@ export default function CountryPage() {
               <div className="max-w-lg mx-auto">
                 <Link href={`/product/${selectedProduct}`}>
                   <button className="w-full py-4 rounded-2xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold text-lg transition-colors shadow-lg shadow-orange-500/30">
-                    Купить eSIM
+                    Далее
                   </button>
                 </Link>
               </div>

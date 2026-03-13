@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Wifi, Clock, CheckCircle2, Zap, Shield, Globe } from 'lucide-react'
+import { ArrowLeft, Wifi, Clock, Tag, CreditCard, ChevronRight } from 'lucide-react'
 import { productsApi, Product, userApi, ordersApi, paymentsApi } from '@/lib/api'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
 
@@ -12,6 +12,8 @@ export default function ProductPage() {
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState(false)
+  const [promoCode, setPromoCode] = useState('')
+  const [promoApplied, setPromoApplied] = useState(false)
 
   useEffect(() => {
     loadProduct()
@@ -185,71 +187,60 @@ export default function ProductPage() {
         </div>
       </div>
 
-      {/* Features */}
-      <div className="grid grid-cols-2 gap-3 mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-        <div className="card-neutral p-4 text-center">
-          <Wifi className="mx-auto mb-2 text-accent" size={28} />
-          <p className="text-lg font-bold text-primary">{formatDataAmount(product.dataAmount)}</p>
-          <p className="text-xs text-muted">Трафик</p>
+      {/* Order summary */}
+      <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <div className="flex items-center justify-between py-2 border-b border-gray-100">
+          <div className="flex items-center gap-2 text-secondary">
+            <Wifi size={16} />
+            <span className="text-sm">Трафик</span>
+          </div>
+          <span className="font-semibold text-primary">{formatDataAmount(product.dataAmount)}</span>
         </div>
-        <div className="card-neutral p-4 text-center">
-          <Clock className="mx-auto mb-2 text-accent" size={28} />
-          <p className="text-lg font-bold text-primary">{product.validityDays} дней</p>
-          <p className="text-xs text-muted">Срок действия</p>
-        </div>
-      </div>
-
-      {/* Benefits */}
-      <div className="card-neutral p-5 mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
-        <h3 className="font-semibold text-primary mb-4">Преимущества</h3>
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
-              <Zap className="text-green-500" size={20} />
-            </div>
-            <div>
-              <p className="font-medium text-primary">Мгновенная активация</p>
-              <p className="text-xs text-muted">Получите eSIM за 2 минуты</p>
-            </div>
+        <div className="flex items-center justify-between py-2">
+          <div className="flex items-center gap-2 text-secondary">
+            <Clock size={16} />
+            <span className="text-sm">Срок действия</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
-              <Globe className="text-[#f77430]" size={20} />
-            </div>
-            <div>
-              <p className="font-medium text-primary">Работает везде</p>
-              <p className="text-xs text-muted">Стабильное покрытие</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
-              <Shield className="text-[#f29b41]" size={20} />
-            </div>
-            <div>
-              <p className="font-medium text-primary">Безопасно</p>
-              <p className="text-xs text-muted">Защищённое соединение</p>
-            </div>
-          </div>
+          <span className="font-semibold text-primary">{product.validityDays} дней</span>
         </div>
       </div>
 
-      {/* How it works */}
-      <div className="card-neutral p-5 mb-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-        <h3 className="font-semibold text-primary mb-4">Как это работает</h3>
-        <div className="space-y-3">
-          {[
-            'Оплатите eSIM',
-            'Получите QR-код',
-            'Отсканируйте в настройках',
-            'Пользуйтесь интернетом',
-          ].map((step, index) => (
-            <div key={index} className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-sm font-bold shrink-0">
-                {index + 1}
-              </div>
-              <p className="text-secondary">{step}</p>
-            </div>
-          ))}
+      {/* Promo code */}
+      <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Промокод</h3>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={promoCode}
+              onChange={(e) => { setPromoCode(e.target.value.toUpperCase()); setPromoApplied(false) }}
+              placeholder="Введите промокод"
+              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#f77430]/25"
+            />
+          </div>
+          <button
+            onClick={() => { if (promoCode.trim()) setPromoApplied(true) }}
+            disabled={!promoCode.trim()}
+            className="px-4 py-2.5 rounded-xl bg-[#f77430] text-white text-sm font-medium disabled:opacity-40 transition-opacity"
+          >
+            Применить
+          </button>
+        </div>
+        {promoApplied && (
+          <p className="text-xs text-gray-500 mt-2">Промокод будет проверен при оплате</p>
+        )}
+      </div>
+
+      {/* Payment method */}
+      <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Способ оплаты</h3>
+        <div className="flex items-center justify-between py-2 px-3 rounded-xl border border-gray-200 bg-white cursor-pointer hover:bg-gray-50 transition-colors">
+          <div className="flex items-center gap-3">
+            <CreditCard size={20} className="text-[#f77430]" />
+            <span className="text-sm font-medium text-primary">Банковская карта</span>
+          </div>
+          <ChevronRight size={18} className="text-gray-400" />
         </div>
       </div>
 
@@ -271,7 +262,7 @@ export default function ProductPage() {
                 <span>Обработка...</span>
               </>
             ) : (
-              <span>Купить eSIM за ₽{formatPrice(product.ourPrice)}</span>
+              <span>Оплатить ₽{formatPrice(product.ourPrice)}</span>
             )}
           </button>
         </div>
