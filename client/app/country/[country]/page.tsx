@@ -271,15 +271,23 @@ export default function CountryPage() {
           </div>
         </div>
 
-        {/* Buy Button */}
+        {/* Buy Button - fixed above bottom nav */}
         {selectedProduct && (
-          <div className="mt-6 pb-24">
-            <Link href={`/product/${selectedProduct}`}>
-              <button className="w-full py-4 rounded-2xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold text-lg transition-colors shadow-lg shadow-orange-500/30">
-                Купить eSIM
-              </button>
-            </Link>
-          </div>
+          <>
+            <div className="h-28" />
+            <div
+              className="fixed left-0 right-0 z-[60] px-4"
+              style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
+            >
+              <div className="max-w-lg mx-auto">
+                <Link href={`/product/${selectedProduct}`}>
+                  <button className="w-full py-4 rounded-2xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold text-lg transition-colors shadow-lg shadow-orange-500/30">
+                    Купить eSIM
+                  </button>
+                </Link>
+              </div>
+            </div>
+          </>
         )}
       </div>
 

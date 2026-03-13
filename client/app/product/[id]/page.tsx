@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Wifi, Clock, CheckCircle2, Zap, Shield, Globe } from 'lucide-react'
 import { productsApi, Product, userApi, ordersApi, paymentsApi } from '@/lib/api'
-import { formatPrice, formatDataAmount, getCountryEmoji } from '@/lib/utils'
+import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
 
 export default function ProductPage() {
   const params = useParams()
@@ -153,25 +153,36 @@ export default function ProductPage() {
 
   return (
     <div className="container bg-[#f4f5f7]">
-      {/* Back Button */}
-      <button 
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-accent font-medium mb-6 animate-fade-in"
-      >
-        <ArrowLeft size={20} />
-        <span>Назад</span>
-      </button>
+      {/* Sticky Back Header */}
+      <div className="sticky top-0 z-40 bg-[#f4f5f7]/95 backdrop-blur-sm -mx-5 px-5 pt-2 pb-3 mb-4">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-accent font-medium"
+        >
+          <ArrowLeft size={20} />
+          <span>Назад</span>
+        </button>
+      </div>
 
-      {/* Product Header */}
-      <div className="card-neutral p-5 text-center mb-6 animate-slide-up">
-        <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-5xl mx-auto mb-4 shadow-sm">
-          {getCountryEmoji(product.country)}
+      {/* Compact Product Header */}
+      <div className="card-neutral p-4 mb-4 animate-slide-up">
+        <div className="flex items-center gap-3">
+          <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center border border-gray-100">
+            {getFlagUrl(product.country) ? (
+              <img
+                src={getFlagUrl(product.country)}
+                alt={getCountryName(product.country)}
+                className="w-10 h-auto rounded object-cover"
+              />
+            ) : (
+              <img src="/logo-mark.png" alt="Mojo mobile" className="w-9 h-9 rounded-lg object-contain" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-primary leading-tight truncate">{getCountryName(product.country)}</h1>
+            <p className="text-sm text-secondary truncate">{product.name}</p>
+          </div>
         </div>
-        <h1 className="text-2xl font-bold text-primary mb-1">{product.country}</h1>
-        <p className="text-secondary">{product.name}</p>
-        {product.region && (
-          <p className="text-muted text-sm mt-1">{product.region}</p>
-        )}
       </div>
 
       {/* Features */}
@@ -242,39 +253,29 @@ export default function ProductPage() {
         </div>
       </div>
 
-      {/* Purchase Section */}
-      <div className="card-accent p-5 animate-slide-up" style={{ animationDelay: '0.25s' }}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-white/80 text-sm">Стоимость</p>
-            <p className="text-3xl font-bold text-white">₽{formatPrice(product.ourPrice)}</p>
-          </div>
-          <div className="badge bg-white/20 text-white">
-            <CheckCircle2 size={14} className="mr-1" />
-            В наличии
-          </div>
+      {/* Bottom fixed purchase CTA */}
+      <div className="h-28" />
+      <div
+        className="fixed left-0 right-0 z-[60] px-4"
+        style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
+      >
+        <div className="max-w-lg mx-auto">
+          <button
+            onClick={handlePurchase}
+            disabled={purchasing}
+            className="w-full py-4 rounded-2xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold text-lg transition-colors shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2"
+          >
+            {purchasing ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Обработка...</span>
+              </>
+            ) : (
+              <span>Купить eSIM за ₽{formatPrice(product.ourPrice)}</span>
+            )}
+          </button>
         </div>
-        
-        <button
-          onClick={handlePurchase}
-          disabled={purchasing}
-          className="w-full rounded-xl bg-white text-[#f77430] py-3.5 font-semibold flex items-center justify-center gap-2"
-        >
-          {purchasing ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Обработка...</span>
-            </>
-          ) : (
-            <>
-              <span>Купить eSIM</span>
-            </>
-          )}
-        </button>
       </div>
-
-      {/* Bottom padding for safe area */}
-      <div className="h-8" />
     </div>
   )
 }
