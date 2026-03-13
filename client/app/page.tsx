@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
@@ -8,14 +8,29 @@ import { productsApi, Product } from '@/lib/api'
 import { formatPrice, getFlagUrl, getCountryName, getCountryCode } from '@/lib/utils'
 
 // Brand splash screen — plays the original MOJO animation video
-function SplashScreen({ progress }: { progress: number }) {
+function SplashScreen({ onFinished }: { onFinished: () => void }) {
+  const [fading, setFading] = useState(false)
+
+  const handleVideoEnd = () => {
+    setFading(true)
+    setTimeout(onFinished, 600)
+  }
+
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-[#e96a25]">
+    <div
+      className="fixed inset-0 z-50 overflow-hidden bg-[#e96a25]"
+      style={{
+        opacity: fading ? 0 : 1,
+        transition: 'opacity 0.6s ease-out',
+      }}
+    >
       <video
         src="/MOJO anim_2.mp4"
         autoPlay
         muted
         playsInline
+        preload="auto"
+        onEnded={handleVideoEnd}
         className="absolute inset-0 w-full h-full object-cover"
       />
     </div>
@@ -146,14 +161,12 @@ function saveSearch(query: string) {
 }
 
 export default function Home() {
-  // Проверяем кэш при инициализации
   const cachedData = getCachedProducts()
   const hasCachedData = cachedData && cachedData.length > 0
   
   const [products, setProducts] = useState<Product[]>(cachedData || [])
   const [loading, setLoading] = useState(!hasCachedData)
   const [showSplash, setShowSplash] = useState(!hasCachedData)
-  const [loadProgress, setLoadProgress] = useState(hasCachedData ? 100 : 0)
   const [searchQuery, setSearchQuery] = useState(getSavedSearch())
   const [activeTab, setActiveTab] = useState<'countries' | 'multi' | 'global'>('countries')
   const [countryGroups, setCountryGroups] = useState<CountryGroup[]>([])
@@ -161,8 +174,22 @@ export default function Home() {
   const [globalGroups, setGlobalGroups] = useState<CountryGroup[]>([])
   const [popularCountries, setPopularCountries] = useState<CountryGroup[]>([])
 
+  const dataReadyRef = React.useRef(hasCachedData)
+  const videoEndedRef = React.useRef(false)
+
+  const tryDismissSplash = () => {
+    if (dataReadyRef.current && videoEndedRef.current) {
+      setShowSplash(false)
+      setLoading(false)
+    }
+  }
+
+  const handleSplashFinished = () => {
+    videoEndedRef.current = true
+    tryDismissSplash()
+  }
+
   useEffect(() => {
-    // Если есть кэш - не загружаем заново
     if (!hasCachedData) {
       loadProducts()
     }
@@ -172,33 +199,21 @@ export default function Home() {
     groupByCountry()
   }, [products])
 
-  // Сохраняем поиск при изменении
   useEffect(() => {
     saveSearch(searchQuery)
   }, [searchQuery])
 
   const loadProducts = async () => {
     try {
-      setLoadProgress(10)
-      await new Promise(r => setTimeout(r, 200))
-      setLoadProgress(30)
-      
       const data = await productsApi.getAll({ isActive: true })
-      setLoadProgress(70)
-      
       setProducts(data)
-      setCachedProducts(data) // Сохраняем в кэш
-      setLoadProgress(100)
-      
-      await new Promise(r => setTimeout(r, 500))
-      setShowSplash(false)
-      setLoading(false)
+      setCachedProducts(data)
+      dataReadyRef.current = true
+      tryDismissSplash()
     } catch (error) {
       console.error('Ошибка загрузки:', error)
-      setLoadProgress(100)
-      await new Promise(r => setTimeout(r, 300))
-      setShowSplash(false)
-      setLoading(false)
+      dataReadyRef.current = true
+      tryDismissSplash()
     }
   }
 
@@ -275,7 +290,7 @@ export default function Home() {
   }, [searchQuery])
 
   if (showSplash) {
-    return <SplashScreen progress={loadProgress} />
+    return <SplashScreen onFinished={handleSplashFinished} />
   }
 
   return (
