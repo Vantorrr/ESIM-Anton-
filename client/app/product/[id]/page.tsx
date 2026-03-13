@@ -14,6 +14,10 @@ export default function ProductPage() {
   const [purchasing, setPurchasing] = useState(false)
   const [promoCode, setPromoCode] = useState('')
   const [promoApplied, setPromoApplied] = useState(false)
+  const [selectedDays, setSelectedDays] = useState(7)
+
+  const isDaily = product?.isUnlimited
+  const totalPrice = isDaily ? product.ourPrice * selectedDays : product?.ourPrice ?? 0
 
   useEffect(() => {
     loadProduct()
@@ -66,9 +70,13 @@ export default function ProductPage() {
         const pending = (Array.isArray(myOrders) ? myOrders : []).find(
           (o: any) => o.productId === product.id && o.status === 'PENDING'
         );
-        order = pending || await ordersApi.create({ userId: user.id, productId: product.id, quantity: 1 });
+        const createPayload: any = { userId: user.id, productId: product.id, quantity: 1 };
+        if (isDaily && selectedDays > 1) createPayload.periodNum = selectedDays;
+        order = pending || await ordersApi.create(createPayload);
       } catch {
-        order = await ordersApi.create({ userId: user.id, productId: product.id, quantity: 1 });
+        const createPayload: any = { userId: user.id, productId: product.id, quantity: 1 };
+        if (isDaily && selectedDays > 1) createPayload.periodNum = selectedDays;
+        order = await ordersApi.create(createPayload);
       }
       
       // Инициализируем виджет CloudPayments
@@ -78,7 +86,7 @@ export default function ProductPage() {
       widget.pay('charge', {
         publicId: process.env.NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID,
         description: `Mojo mobile заказ #${order.id.slice(-8)}`,
-        amount: Number(product.ourPrice),
+        amount: Number(totalPrice),
         currency: 'RUB',
         invoiceId: order.id,
         accountId: user.id,
@@ -194,16 +202,73 @@ export default function ProductPage() {
             <Wifi size={16} />
             <span className="text-sm">Трафик</span>
           </div>
-          <span className="font-semibold text-primary">{formatDataAmount(product.dataAmount)}</span>
+          <span className="font-semibold text-primary">
+            {formatDataAmount(product.dataAmount)}{isDaily ? ' / день' : ''}
+          </span>
         </div>
         <div className="flex items-center justify-between py-2">
           <div className="flex items-center gap-2 text-secondary">
             <Clock size={16} />
             <span className="text-sm">Срок действия</span>
           </div>
-          <span className="font-semibold text-primary">{product.validityDays} дней</span>
+          <span className="font-semibold text-primary">
+            {isDaily ? `${selectedDays} дней` : `${product.validityDays} дней`}
+          </span>
         </div>
+        {isDaily && (
+          <div className="flex items-center justify-between py-2 border-t border-gray-100">
+            <span className="text-sm text-secondary">Цена за день</span>
+            <span className="font-semibold text-primary">₽{formatPrice(product.ourPrice)}</span>
+          </div>
+        )}
       </div>
+
+      {/* Days selector for unlimited/daily plans */}
+      {isDaily && (
+        <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.12s' }}>
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Количество дней</h3>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSelectedDays(d => Math.max(1, d - 1))}
+              className="w-10 h-10 rounded-xl border border-gray-200 bg-white flex items-center justify-center text-lg font-bold text-gray-600 active:bg-gray-100"
+            >
+              −
+            </button>
+            <input
+              type="number"
+              min={1}
+              max={365}
+              value={selectedDays}
+              onChange={(e) => {
+                const v = parseInt(e.target.value)
+                if (!isNaN(v) && v >= 1 && v <= 365) setSelectedDays(v)
+              }}
+              className="flex-1 text-center py-2.5 rounded-xl border border-gray-200 bg-white text-lg font-bold text-primary focus:outline-none focus:ring-2 focus:ring-[#f77430]/25"
+            />
+            <button
+              onClick={() => setSelectedDays(d => Math.min(365, d + 1))}
+              className="w-10 h-10 rounded-xl border border-gray-200 bg-white flex items-center justify-center text-lg font-bold text-gray-600 active:bg-gray-100"
+            >
+              +
+            </button>
+          </div>
+          <div className="flex gap-2 mt-3">
+            {[3, 5, 7, 14, 30].map(d => (
+              <button
+                key={d}
+                onClick={() => setSelectedDays(d)}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  selectedDays === d
+                    ? 'bg-[#f77430] text-white'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {d} дн.
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Promo code */}
       <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.15s' }}>
@@ -262,7 +327,7 @@ export default function ProductPage() {
                 <span>Обработка...</span>
               </>
             ) : (
-              <span>Оплатить ₽{formatPrice(product.ourPrice)}</span>
+              <span>Оплатить ₽{formatPrice(totalPrice)}</span>
             )}
           </button>
         </div>

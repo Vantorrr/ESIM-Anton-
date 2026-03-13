@@ -174,15 +174,20 @@ export class EsimAccessProvider {
   /**
    * Купить eSIM
    */
-  async purchaseEsim(packageCode: string, quantity = 1, transactionId?: string): Promise<EsimAccessPurchaseResponse> {
+  async purchaseEsim(packageCode: string, quantity = 1, transactionId?: string, periodNum?: number): Promise<EsimAccessPurchaseResponse> {
     try {
-      this.logger.log(`💳 Покупка eSIM (package: ${packageCode}, quantity: ${quantity})...`);
+      this.logger.log(`💳 Покупка eSIM (package: ${packageCode}, quantity: ${quantity}, periodNum: ${periodNum || 'N/A'})...`);
 
-      const response = await this.client.post('/esim/order', {
+      const payload: Record<string, any> = {
         packageCode,
         count: quantity,
         transactionId: transactionId || `order_${Date.now()}`,
-      }, {
+      };
+      if (periodNum && periodNum > 0) {
+        payload.periodNum = periodNum;
+      }
+
+      const response = await this.client.post('/esim/order', payload, {
         headers: this.getAuthHeaders(),
       });
 

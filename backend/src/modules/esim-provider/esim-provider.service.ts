@@ -184,11 +184,10 @@ export class EsimProviderService {
   /**
    * Купить eSIM у провайдера
    */
-  async purchaseEsim(packageId: string, email?: string): Promise<EsimGoPurchaseResponse> {
-    // Если eSIM Access активен - используем его
+  async purchaseEsim(packageId: string, email?: string, periodNum?: number): Promise<EsimGoPurchaseResponse> {
     if (this.esimAccessProvider) {
       try {
-        const result = await this.esimAccessProvider.purchaseEsim(packageId, 1);
+        const result = await this.esimAccessProvider.purchaseEsim(packageId, 1, undefined, periodNum);
         
         // Берём первый eSIM из списка
         const esim = result.esimList?.[0];

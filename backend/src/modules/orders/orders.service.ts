@@ -17,8 +17,7 @@ export class OrdersService {
   /**
    * Создать заказ
    */
-  async create(userId: string, productId: string, quantity = 1, useBonuses = 0) {
-    // Получаем пользователя и продукт
+  async create(userId: string, productId: string, quantity = 1, useBonuses = 0, periodNum?: number) {
     const [user, product] = await Promise.all([
       this.usersService.findById(userId),
       this.productsService.findById(productId),
@@ -28,8 +27,9 @@ export class OrdersService {
       throw new BadRequestException('Продукт недоступен');
     }
 
-    // Рассчитываем сумму
-    let totalAmount = Number(product.ourPrice) * quantity;
+    // Для безлимитных/дневных тарифов цена = ourPrice × periodNum
+    const days = product.isUnlimited && periodNum ? periodNum : 1;
+    let totalAmount = Number(product.ourPrice) * quantity * days;
     let discount = 0;
 
     // Применяем скидку лояльности
@@ -48,6 +48,7 @@ export class OrdersService {
         userId,
         productId,
         quantity,
+        ...(product.isUnlimited && days > 1 ? { periodNum: days } : {}),
         productPrice: product.ourPrice,
         discount: new Prisma.Decimal(discount),
         bonusUsed: new Prisma.Decimal(bonusToUse),
@@ -158,7 +159,8 @@ export class OrdersService {
       // 
       // const esimData = await this.esimProviderService.purchaseEsim(
       //   order.product.providerId,
-      //   order.user.email
+      //   order.user.email,
+      //   order.periodNum ?? undefined,
       // );
       //
       // const updatedOrder = await this.updateStatus(orderId, OrderStatus.COMPLETED, {

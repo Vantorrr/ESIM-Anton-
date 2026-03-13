@@ -113,6 +113,7 @@ model Order {
   productId        String
   status           OrderStatus   @default(PENDING)
   quantity         Int           @default(1)
+  periodNum        Int?
   productPrice     Decimal       @db.Decimal(10, 2)
   discount         Decimal       @default(0) @db.Decimal(10, 2)
   bonusUsed        Decimal       @default(0) @db.Decimal(10, 2)
