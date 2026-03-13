@@ -66,6 +66,8 @@ export default function Users() {
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">ID</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Имя</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Telegram</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Провайдер</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Источник</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Баланс</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Потрачено</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Уровень</th>
@@ -87,6 +89,15 @@ export default function Users() {
                     </td>
                     <td className="py-4 px-4 text-blue-600">
                       {user.username ? `@${user.username}` : user.telegramId}
+                    </td>
+                    <td className="py-4 px-4 text-sm text-slate-700">
+                      {user.authProvider || '—'}
+                    </td>
+                    <td className="py-4 px-4 text-sm">
+                      <div className="text-slate-700">{user.utmSource || '—'}</div>
+                      <div className="text-xs text-slate-500">
+                        {user.utmMedium || '—'} / {user.utmCampaign || '—'}
+                      </div>
                     </td>
                     <td className="py-4 px-4">
                       <div className="text-sm">
