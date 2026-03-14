@@ -127,8 +127,9 @@ export const getFlagUrl = (country: string): string => {
   const code = getCountryCode(country).toLowerCase();
   if (code === 'xx') return '';
   
-  // 64x64 PNG достаточно чёткий и стабилен в мобильных webview.
-  return `https://flagcdn.com/64x48/${code}.png`;
+  // Проксируем через свой домен (rewrite в next.config.js) чтобы
+  // избежать блокировки внешних картинок на Android.
+  return `/flags/${code}.png`;
 };
 
 /**

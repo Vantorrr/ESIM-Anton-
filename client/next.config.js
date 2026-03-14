@@ -32,6 +32,14 @@ const nextConfig = {
     };
     return config;
   },
+  async rewrites() {
+    return [
+      {
+        source: '/flags/:code.png',
+        destination: 'https://flagcdn.com/64x48/:code.png',
+      },
+    ];
+  },
 };
 
 module.exports = withPWA(nextConfig);
