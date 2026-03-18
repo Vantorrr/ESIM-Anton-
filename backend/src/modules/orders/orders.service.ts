@@ -177,6 +177,7 @@ export class OrdersService {
         order.product.providerId,
         order.user.email,
         order.periodNum ?? undefined,
+        Number(order.product.providerPrice) || undefined,
       );
 
       const updatedOrder = await this.updateStatus(orderId, OrderStatus.COMPLETED, {

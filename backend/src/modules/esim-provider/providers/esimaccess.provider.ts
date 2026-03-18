@@ -174,22 +174,33 @@ export class EsimAccessProvider {
   /**
    * Купить eSIM
    */
-  async purchaseEsim(packageCode: string, quantity = 1, transactionId?: string, periodNum?: number): Promise<EsimAccessPurchaseResponse> {
+  async purchaseEsim(packageCode: string, quantity = 1, transactionId?: string, periodNum?: number, price?: number): Promise<EsimAccessPurchaseResponse> {
     try {
       this.logger.log(`💳 Покупка eSIM (package: ${packageCode}, quantity: ${quantity}, periodNum: ${periodNum || 'N/A'})...`);
 
-      const payload: Record<string, any> = {
+      const packageInfo: Record<string, any> = {
         packageCode,
         count: quantity,
-        transactionId: transactionId || `order_${Date.now()}`,
       };
-      if (periodNum && periodNum > 0) {
-        payload.periodNum = periodNum;
+      if (price) {
+        packageInfo.price = price;
       }
+      if (periodNum && periodNum > 0) {
+        packageInfo.periodNum = periodNum;
+      }
+
+      const payload: Record<string, any> = {
+        transactionId: transactionId || `mojo_${Date.now()}`,
+        packageInfoList: [packageInfo],
+      };
+
+      this.logger.log(`📤 Payload: ${JSON.stringify(payload)}`);
 
       const response = await this.client.post('/esim/order', payload, {
         headers: this.getAuthHeaders(),
       });
+
+      this.logger.log(`📥 Response: ${JSON.stringify(response.data)}`);
 
       if (response.data?.success && response.data?.obj) {
         const order = response.data.obj;
@@ -208,7 +219,7 @@ export class EsimAccessProvider {
         };
       }
 
-      throw new Error(response.data?.errorMsg || 'Некорректный ответ от API');
+      throw new Error(response.data?.errorMsg || `API вернул: ${JSON.stringify(response.data)}`);
     } catch (error) {
       this.logger.error('❌ Ошибка покупки eSIM:', error.message);
       throw error;
