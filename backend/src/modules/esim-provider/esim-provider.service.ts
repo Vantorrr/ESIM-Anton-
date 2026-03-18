@@ -160,6 +160,13 @@ export class EsimProviderService {
   /**
    * Купить eSIM у провайдера
    */
+  async queryOrder(orderNo: string): Promise<any> {
+    if (this.esimAccessProvider) {
+      return this.esimAccessProvider.getOrderInfo(orderNo);
+    }
+    throw new BadRequestException('Провайдер не настроен');
+  }
+
   async purchaseEsim(packageId: string, email?: string, periodNum?: number, providerPrice?: number): Promise<EsimGoPurchaseResponse> {
     if (this.esimAccessProvider) {
       try {

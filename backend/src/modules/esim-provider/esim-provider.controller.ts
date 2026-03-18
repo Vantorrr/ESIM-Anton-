@@ -23,7 +23,7 @@ export class EsimProviderController {
   @Get('orders/:orderId/status')
   @ApiOperation({ summary: 'Проверить статус заказа у провайдера' })
   async checkOrderStatus(@Param('orderId') orderId: string) {
-    return this.esimProviderService.checkOrderStatus(orderId);
+    return this.esimProviderService.queryOrder(orderId);
   }
 
   @Post('sync')
