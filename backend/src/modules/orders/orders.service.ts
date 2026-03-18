@@ -173,41 +173,18 @@ export class OrdersService {
     }
 
     try {
-      // TODO: После получения тестового доступа от провайдера раскомментировать:
-      // 
-      // const esimData = await this.esimProviderService.purchaseEsim(
-      //   order.product.providerId,
-      //   order.user.email,
-      //   order.periodNum ?? undefined,
-      // );
-      //
-      // const updatedOrder = await this.updateStatus(orderId, OrderStatus.COMPLETED, {
-      //   qrCode: esimData.qr_code,
-      //   iccid: esimData.iccid,
-      //   activationCode: esimData.activation_code,
-      //   providerOrderId: esimData.order_id,
-      //   providerResponse: esimData as any,
-      // });
+      const esimData = await this.esimProviderService.purchaseEsim(
+        order.product.providerId,
+        order.user.email,
+        order.periodNum ?? undefined,
+      );
 
-      // Временная заглушка (пока нет доступа к API или для тестов)
-      // Генерируем QR-код через API для красивого отображения
-      const mockLpaString = 'LPA:1$rsp.truphone.com$TEST-ACTIVATION-CODE';
-      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(mockLpaString)}`;
-
-      const mockEsimData = {
-        qrCode: qrCodeUrl, // Ссылка на реальный QR-код
-        iccid: '89000000000000000000', // Тестовый ICCID
-        activationCode: mockLpaString,
-        providerOrderId: `TEST_${Date.now()}`,
-      };
-
-      // Обновляем заказ
       const updatedOrder = await this.updateStatus(orderId, OrderStatus.COMPLETED, {
-        qrCode: mockEsimData.qrCode,
-        iccid: mockEsimData.iccid,
-        activationCode: mockEsimData.activationCode,
-        providerOrderId: mockEsimData.providerOrderId,
-        providerResponse: mockEsimData as any,
+        qrCode: esimData.qr_code,
+        iccid: esimData.iccid,
+        activationCode: esimData.activation_code,
+        providerOrderId: esimData.order_id,
+        providerResponse: esimData as any,
       });
 
       // Начисляем кэшбэк
