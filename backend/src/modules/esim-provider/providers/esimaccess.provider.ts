@@ -216,6 +216,7 @@ export class EsimAccessProvider {
           try {
             const queryResponse = await this.client.post('/esim/query', {
               orderNo: order.orderNo,
+              pager: { pageNum: 1, pageSize: 10 },
             }, { headers: this.getAuthHeaders() });
             
             this.logger.log(`📥 Query response: ${JSON.stringify(queryResponse.data)}`);
@@ -261,6 +262,7 @@ export class EsimAccessProvider {
 
       const response = await this.client.post('/esim/query', {
         orderNo,
+        pager: { pageNum: 1, pageSize: 10 },
       }, {
         headers: this.getAuthHeaders(),
       });
