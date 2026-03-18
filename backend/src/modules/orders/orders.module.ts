@@ -4,9 +4,10 @@ import { OrdersController } from './orders.controller';
 import { ProductsModule } from '../products/products.module';
 import { UsersModule } from '../users/users.module';
 import { EsimProviderModule } from '../esim-provider/esim-provider.module';
+import { PromoCodesModule } from '../promo-codes/promo-codes.module';
 
 @Module({
-  imports: [ProductsModule, UsersModule, EsimProviderModule],
+  imports: [ProductsModule, UsersModule, EsimProviderModule, PromoCodesModule],
   controllers: [OrdersController],
   providers: [OrdersService],
   exports: [OrdersService],

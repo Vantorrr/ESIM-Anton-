@@ -16,6 +16,7 @@ import { EsimProviderModule } from './modules/esim-provider/esim-provider.module
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 import { TelegramModule } from './modules/telegram/telegram.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { PromoCodesModule } from './modules/promo-codes/promo-codes.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     SystemSettingsModule,
     TelegramModule,
     NotificationsModule,
+    PromoCodesModule,
   ],
 })
 export class AppModule {}

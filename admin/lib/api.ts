@@ -77,6 +77,15 @@ export const loyaltyApi = {
   deleteLevel: (id: string) => api.delete(`/loyalty/levels/${id}`),
 }
 
+export const promoCodesApi = {
+  getAll: () => api.get('/promo-codes'),
+  create: (data: { code: string; discountPercent: number; maxUses?: number; expiresAt?: string }) =>
+    api.post('/promo-codes', data),
+  toggle: (id: string, isActive: boolean) =>
+    api.patch(`/promo-codes/${id}/toggle`, { isActive }),
+  delete: (id: string) => api.delete(`/promo-codes/${id}`),
+}
+
 export const systemSettingsApi = {
   getAll: () => api.get('/system-settings'),
   getReferralSettings: () => api.get('/system-settings/referral'),

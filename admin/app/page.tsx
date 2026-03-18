@@ -1,12 +1,13 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { LayoutDashboard, Users as UsersIcon, Package, CreditCard, ShoppingBag, BarChart3, Settings as SettingsIcon } from 'lucide-react'
+import { LayoutDashboard, Users as UsersIcon, Package, CreditCard, ShoppingBag, BarChart3, Settings as SettingsIcon, Ticket } from 'lucide-react'
 import Dashboard from '@/components/Dashboard'
 import Orders from '@/components/Orders'
 import Users from '@/components/Users'
 import Products from '@/components/Products'
 import Settings from '@/components/Settings'
+import PromoCodes from '@/components/PromoCodes'
 
 const ADMIN_PIN_STORAGE_KEY = 'admin_pin_verified_v1'
 const DEFAULT_ADMIN_PIN = '7391'
@@ -52,6 +53,7 @@ export default function Home() {
     { id: 'orders', name: 'Заказы', icon: Package },
     { id: 'users', name: 'Пользователи', icon: UsersIcon },
     { id: 'products', name: 'Продукты', icon: ShoppingBag },
+    { id: 'promo', name: 'Промокоды', icon: Ticket },
     { id: 'payments', name: 'Платежи', icon: CreditCard },
     { id: 'analytics', name: 'Аналитика', icon: BarChart3 },
     { id: 'settings', name: 'Настройки', icon: SettingsIcon },
@@ -150,6 +152,7 @@ export default function Home() {
           {activeTab === 'orders' && <Orders />}
           {activeTab === 'users' && <Users />}
           {activeTab === 'products' && <Products />}
+          {activeTab === 'promo' && <PromoCodes />}
           {activeTab === 'payments' && <div className="glass-card p-8 text-center text-slate-600">Платежи - в разработке</div>}
           {activeTab === 'analytics' && <div className="glass-card p-8 text-center text-slate-600">Аналитика - в разработке</div>}
           {activeTab === 'settings' && <Settings />}

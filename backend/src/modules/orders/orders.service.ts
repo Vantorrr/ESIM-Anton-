@@ -3,6 +3,7 @@ import { PrismaService } from '@/common/prisma/prisma.service';
 import { ProductsService } from '../products/products.service';
 import { UsersService } from '../users/users.service';
 import { EsimProviderService } from '../esim-provider/esim-provider.service';
+import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { OrderStatus, Prisma } from '@prisma/client';
 
 @Injectable()
@@ -12,12 +13,20 @@ export class OrdersService {
     private productsService: ProductsService,
     private usersService: UsersService,
     private esimProviderService: EsimProviderService,
+    private promoCodesService: PromoCodesService,
   ) {}
 
   /**
    * Создать заказ
    */
-  async create(userId: string, productId: string, quantity = 1, useBonuses = 0, periodNum?: number) {
+  async create(
+    userId: string,
+    productId: string,
+    quantity = 1,
+    useBonuses = 0,
+    periodNum?: number,
+    promoCodeStr?: string,
+  ) {
     const [user, product] = await Promise.all([
       this.usersService.findById(userId),
       this.productsService.findById(productId),
@@ -27,10 +36,17 @@ export class OrdersService {
       throw new BadRequestException('Продукт недоступен');
     }
 
-    // Для безлимитных/дневных тарифов цена = ourPrice × periodNum
     const days = product.isUnlimited && periodNum ? periodNum : 1;
     let totalAmount = Number(product.ourPrice) * quantity * days;
     let discount = 0;
+    let promoDiscount = 0;
+
+    // Применяем промокод
+    if (promoCodeStr) {
+      const discountPercent = await this.promoCodesService.use(promoCodeStr);
+      promoDiscount = (totalAmount * discountPercent) / 100;
+      totalAmount -= promoDiscount;
+    }
 
     // Применяем скидку лояльности
     if (user.loyaltyLevel) {
@@ -42,7 +58,8 @@ export class OrdersService {
     const bonusToUse = Math.min(useBonuses, Number(user.bonusBalance), totalAmount);
     totalAmount -= bonusToUse;
 
-    // Создаем заказ
+    if (totalAmount < 0) totalAmount = 0;
+
     const order = await this.prisma.order.create({
       data: {
         userId,
@@ -51,6 +68,8 @@ export class OrdersService {
         ...(product.isUnlimited && days > 1 ? { periodNum: days } : {}),
         productPrice: product.ourPrice,
         discount: new Prisma.Decimal(discount),
+        promoCode: promoCodeStr ? promoCodeStr.trim().toUpperCase() : null,
+        promoDiscount: new Prisma.Decimal(promoDiscount),
         bonusUsed: new Prisma.Decimal(bonusToUse),
         totalAmount: new Prisma.Decimal(totalAmount),
         status: OrderStatus.PENDING,
@@ -61,7 +80,6 @@ export class OrdersService {
       },
     });
 
-    // Списываем бонусы
     if (bonusToUse > 0) {
       await this.usersService.updateBalance(userId, -bonusToUse, 'bonusBalance');
     }

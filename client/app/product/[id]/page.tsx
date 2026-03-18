@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Wifi, Clock, Tag, CreditCard, ChevronRight } from 'lucide-react'
-import { productsApi, Product, userApi, ordersApi, paymentsApi } from '@/lib/api'
+import { productsApi, Product, userApi, ordersApi, paymentsApi, promoApi } from '@/lib/api'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
 
 export default function ProductPage() {
@@ -14,10 +14,15 @@ export default function ProductPage() {
   const [purchasing, setPurchasing] = useState(false)
   const [promoCode, setPromoCode] = useState('')
   const [promoApplied, setPromoApplied] = useState(false)
+  const [promoDiscount, setPromoDiscount] = useState(0)
+  const [promoError, setPromoError] = useState('')
+  const [promoLoading, setPromoLoading] = useState(false)
   const [selectedDays, setSelectedDays] = useState(7)
 
   const isDaily = product?.isUnlimited
-  const totalPrice = isDaily ? product.ourPrice * selectedDays : product?.ourPrice ?? 0
+  const basePrice = isDaily ? product.ourPrice * selectedDays : product?.ourPrice ?? 0
+  const discountAmount = promoApplied ? Math.round(basePrice * promoDiscount / 100) : 0
+  const totalPrice = basePrice - discountAmount
 
   useEffect(() => {
     loadProduct()
@@ -72,10 +77,12 @@ export default function ProductPage() {
         );
         const createPayload: any = { userId: user.id, productId: product.id, quantity: 1 };
         if (isDaily && selectedDays > 1) createPayload.periodNum = selectedDays;
+        if (promoApplied && promoCode.trim()) createPayload.promoCode = promoCode.trim();
         order = pending || await ordersApi.create(createPayload);
       } catch {
         const createPayload: any = { userId: user.id, productId: product.id, quantity: 1 };
         if (isDaily && selectedDays > 1) createPayload.periodNum = selectedDays;
+        if (promoApplied && promoCode.trim()) createPayload.promoCode = promoCode.trim();
         order = await ordersApi.create(createPayload);
       }
       
@@ -280,23 +287,68 @@ export default function ProductPage() {
             <input
               type="text"
               value={promoCode}
-              onChange={(e) => { setPromoCode(e.target.value.toUpperCase()); setPromoApplied(false) }}
+              onChange={(e) => {
+                setPromoCode(e.target.value.toUpperCase())
+                setPromoApplied(false)
+                setPromoDiscount(0)
+                setPromoError('')
+              }}
               placeholder="Введите промокод"
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#f77430]/25"
+              className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[#f77430]/25 ${
+                promoApplied ? 'border-green-400 bg-green-50' : promoError ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'
+              }`}
             />
           </div>
           <button
-            onClick={() => { if (promoCode.trim()) setPromoApplied(true) }}
-            disabled={!promoCode.trim()}
+            onClick={async () => {
+              if (!promoCode.trim()) return
+              setPromoLoading(true)
+              setPromoError('')
+              try {
+                const res = await promoApi.validate(promoCode)
+                setPromoApplied(true)
+                setPromoDiscount(res.discountPercent)
+              } catch (e: any) {
+                setPromoApplied(false)
+                setPromoDiscount(0)
+                setPromoError(e?.response?.data?.message || 'Промокод не найден')
+              } finally {
+                setPromoLoading(false)
+              }
+            }}
+            disabled={!promoCode.trim() || promoLoading || promoApplied}
             className="px-4 py-2.5 rounded-xl bg-[#f77430] text-white text-sm font-medium disabled:opacity-40 transition-opacity"
           >
-            Применить
+            {promoLoading ? '...' : promoApplied ? '✓' : 'Применить'}
           </button>
         </div>
         {promoApplied && (
-          <p className="text-xs text-gray-500 mt-2">Промокод будет проверен при оплате</p>
+          <p className="text-xs text-green-600 mt-2 font-medium">
+            Скидка {promoDiscount}% применена! Вы экономите ₽{formatPrice(discountAmount)}
+          </p>
+        )}
+        {promoError && (
+          <p className="text-xs text-red-500 mt-2">{promoError}</p>
         )}
       </div>
+
+      {/* Discount summary */}
+      {promoApplied && discountAmount > 0 && (
+        <div className="card-neutral p-4 mb-4 animate-slide-up bg-green-50 border border-green-200">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">Без скидки</span>
+            <span className="text-sm text-gray-400 line-through">₽{formatPrice(basePrice)}</span>
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-sm text-green-700 font-medium">Скидка ({promoDiscount}%)</span>
+            <span className="text-sm text-green-700 font-medium">−₽{formatPrice(discountAmount)}</span>
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-green-200">
+            <span className="text-sm font-bold text-primary">Итого</span>
+            <span className="text-lg font-bold text-primary">₽{formatPrice(totalPrice)}</span>
+          </div>
+        </div>
+      )}
 
       {/* Payment method */}
       <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>

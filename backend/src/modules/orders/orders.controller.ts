@@ -39,13 +39,24 @@ export class OrdersController {
 
   @Post()
   @ApiOperation({ summary: 'Создать заказ' })
-  async create(@Body() createDto: { userId: string; productId: string; quantity?: number; useBonuses?: number; periodNum?: number }) {
+  async create(
+    @Body()
+    createDto: {
+      userId: string;
+      productId: string;
+      quantity?: number;
+      useBonuses?: number;
+      periodNum?: number;
+      promoCode?: string;
+    },
+  ) {
     return this.ordersService.create(
       createDto.userId,
       createDto.productId,
       createDto.quantity,
       createDto.useBonuses,
       createDto.periodNum,
+      createDto.promoCode,
     );
   }
 }

@@ -164,6 +164,13 @@ export const referralsApi = {
   },
 };
 
+export const promoApi = {
+  async validate(code: string): Promise<{ valid: boolean; code: string; discountPercent: number }> {
+    const { data } = await api.get('/promo-codes/validate', { params: { code } });
+    return data;
+  },
+};
+
 export const paymentsApi = {
   // Создать платеж через Robokassa
   async createPayment(orderId: string): Promise<{
