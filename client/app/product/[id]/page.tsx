@@ -86,14 +86,27 @@ export default function ProductPage() {
         order = await ordersApi.create(createPayload);
       }
       
-      // Инициализируем виджет CloudPayments
-      const widget = new (window as any).cp.CloudPayments();
+      const orderTotal = Number(order.totalAmount ?? totalPrice)
       const tg = (window as any).Telegram?.WebApp
+
+      if (orderTotal <= 0) {
+        const { api: apiClient } = await import('@/lib/api')
+        await apiClient.post(`/orders/${order.id}/fulfill-free`)
+        if (tg?.showAlert) {
+          tg.showAlert('eSIM активирована! Промокод применён.', () => router.push('/my-esim'))
+        } else {
+          alert('eSIM активирована! Промокод применён.')
+          router.push('/my-esim')
+        }
+        return
+      }
+
+      const widget = new (window as any).cp.CloudPayments();
 
       widget.pay('charge', {
         publicId: process.env.NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID,
         description: `Mojo mobile заказ #${order.id.slice(-8)}`,
-        amount: Number(totalPrice),
+        amount: orderTotal,
         currency: 'RUB',
         invoiceId: order.id,
         accountId: user.id,
@@ -109,7 +122,6 @@ export default function ProductPage() {
           }
         },
         onFail: function (reason: any, options: any) {
-          // Действие при ошибке
           console.error('Payment failed:', reason);
           if (tg?.showAlert) {
              tg.showAlert('Оплата не прошла. Попробуйте еще раз.');
@@ -118,7 +130,6 @@ export default function ProductPage() {
           }
         },
         onComplete: function (paymentResult: any, options: any) {
-          // Вызывается как только виджет получает ответ от сервера
         }
       });
 

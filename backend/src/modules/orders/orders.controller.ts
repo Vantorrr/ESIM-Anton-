@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { OrderStatus } from '@prisma/client';
@@ -58,5 +58,17 @@ export class OrdersController {
       createDto.periodNum,
       createDto.promoCode,
     );
+  }
+
+  @Post(':id/fulfill-free')
+  @ApiOperation({ summary: 'Выполнить бесплатный заказ (промокод 100%)' })
+  async fulfillFree(@Param('id') id: string) {
+    const order = await this.ordersService.findById(id);
+    if (!order) throw new BadRequestException('Заказ не найден');
+    if (Number(order.totalAmount) > 0) {
+      throw new BadRequestException('Заказ не бесплатный');
+    }
+    await this.ordersService.updateStatus(id, OrderStatus.PAID);
+    return this.ordersService.fulfillOrder(id);
   }
 }
