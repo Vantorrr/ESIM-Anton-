@@ -122,40 +122,16 @@ export class EsimProviderService {
    * @param dataType - 1 = standard, 2 = unlimited/day pass
    */
   async getPackages(country?: string, dataType?: number): Promise<any[]> {
-    // Если eSIM Access активен - используем его
     if (this.esimAccessProvider) {
       try {
-        const packages = await this.esimAccessProvider.getPackages(country, dataType);
-        return packages;
+        return await this.esimAccessProvider.getPackages(country, dataType);
       } catch (error) {
-        this.logger.error('❌ Ошибка eSIM Access, пробуем другие провайдеры...');
+        this.logger.error('❌ Ошибка eSIM Access:', error.message);
+        throw new BadRequestException('Ошибка получения пакетов: ' + error.message);
       }
     }
     
-    // Иначе используем старый подход
-    try {
-      this.logger.log('📦 Запрос списка пакетов...');
-      
-      const response = await this.primaryClient.get('/packages', {
-        params: { country },
-      });
-
-      if (response.data && response.data.packages) {
-        this.logger.log(`✅ Получено ${response.data.packages.length} пакетов`);
-        return response.data.packages;
-      }
-
-      return [];
-    } catch (error) {
-      this.logger.error('❌ Ошибка получения пакетов от основного провайдера:', error.message);
-
-      // Пробуем резервного провайдера
-      if (this.useFallback && this.fallbackClient) {
-        return this.getPackagesFromFallback(country);
-      }
-
-      throw new BadRequestException('Не удалось получить список пакетов');
-    }
+    throw new BadRequestException('Провайдер eSIM не настроен');
   }
 
   /**
@@ -189,7 +165,6 @@ export class EsimProviderService {
       try {
         const result = await this.esimAccessProvider.purchaseEsim(packageId, 1, undefined, periodNum);
         
-        // Берём первый eSIM из списка
         const esim = result.esimList?.[0];
         
         return {
@@ -202,44 +177,12 @@ export class EsimProviderService {
           status: 'active',
         };
       } catch (error) {
-        this.logger.error('❌ Ошибка eSIM Access, пробуем другие провайдеры...');
+        this.logger.error('❌ Ошибка eSIM Access:', error.message);
+        throw new BadRequestException('Ошибка провайдера eSIM: ' + error.message);
       }
     }
     
-    // Иначе используем старый подход
-    try {
-      this.logger.log(`💳 Покупка eSIM (package: ${packageId})...`);
-
-      const response = await this.primaryClient.post('/orders', {
-        package_id: packageId,
-        email: email || 'noreply@esim-service.com',
-        quantity: 1,
-      });
-
-      if (response.data && response.data.success) {
-        this.logger.log(`✅ eSIM куплен успешно (order: ${response.data.order_id})`);
-        return {
-          success: true,
-          order_id: response.data.order_id,
-          iccid: response.data.iccid,
-          qr_code: response.data.qr_code,
-          activation_code: response.data.activation_code || response.data.smdp_address,
-          smdp_address: response.data.smdp_address,
-          status: response.data.status || 'active',
-        };
-      }
-
-      throw new Error('Некорректный ответ от API');
-    } catch (error) {
-      this.logger.error('❌ Ошибка покупки от основного провайдера:', error.message);
-
-      // Пробуем резервного провайдера
-      if (this.useFallback && this.fallbackClient) {
-        return this.purchaseEsimFromFallback(packageId, email);
-      }
-
-      throw new BadRequestException('Не удалось приобрести eSIM: ' + error.message);
-    }
+    throw new BadRequestException('Провайдер eSIM не настроен (ESIMACCESS_ACCESS_CODE / ESIMACCESS_SECRET_KEY)');
   }
 
   /**
