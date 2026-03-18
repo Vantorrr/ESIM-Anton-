@@ -206,16 +206,42 @@ export class EsimAccessProvider {
         const order = response.data.obj;
         this.logger.log(`✅ eSIM куплен успешно (order: ${order.orderNo})`);
         
+        let esimList = order.esimList || [];
+        
+        // Если esimList пуст — запросим профили отдельно (Query Allocated Profiles)
+        if (esimList.length === 0 && order.orderNo) {
+          this.logger.log(`🔄 esimList пуст, запрашиваем профили по orderNo ${order.orderNo}...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          try {
+            const queryResponse = await this.client.post('/esim/query', {
+              orderNo: order.orderNo,
+            }, { headers: this.getAuthHeaders() });
+            
+            this.logger.log(`📥 Query response: ${JSON.stringify(queryResponse.data)}`);
+            
+            if (queryResponse.data?.success && queryResponse.data?.obj) {
+              const queryObj = queryResponse.data.obj;
+              esimList = queryObj.esimList || queryObj.profileList || [];
+              if (esimList.length === 0 && queryObj.iccid) {
+                esimList = [queryObj];
+              }
+            }
+          } catch (queryError) {
+            this.logger.warn(`⚠️ Не удалось запросить профили: ${queryError.message}`);
+          }
+        }
+        
         return {
           success: true,
           orderNo: order.orderNo,
-          esimList: order.esimList?.map((esim: any) => ({
-            iccid: esim.iccid,
-            lpaCode: esim.lpa || esim.ac,
-            smdpAddress: esim.smdpAddress,
-            matchingCode: esim.confirmationCode || esim.matchingId,
-            qrCodeUrl: esim.qrCodeUrl,
-          })) || [],
+          esimList: esimList.map((esim: any) => ({
+            iccid: esim.iccid || '',
+            lpaCode: esim.lpa || esim.ac || esim.lpaCode || '',
+            smdpAddress: esim.smdpAddress || esim.smdp || '',
+            matchingCode: esim.confirmationCode || esim.matchingId || esim.matchingCode || '',
+            qrCodeUrl: esim.qrCodeUrl || '',
+          })),
         };
       }
 
