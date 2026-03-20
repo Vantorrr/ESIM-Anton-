@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Phone, ArrowRight, ChevronLeft, Loader2, Shield, AlertCircle } from 'lucide-react'
 import { api } from '@/lib/api'
-import { setToken, setStoredUser, isTelegramWebApp } from '@/lib/auth'
+import { setToken, setStoredUser, isTelegramWebApp, getToken } from '@/lib/auth'
 import { Suspense } from 'react'
 
 type Step = 'choose' | 'phone' | 'code'
@@ -30,10 +30,19 @@ function LoginInner() {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    // Если уже в Telegram Mini App — пропускаем логин
-    if (isTelegramWebApp()) { router.replace('/'); return }
+    if (isTelegramWebApp()) {
+      const returnTo = searchParams.get('returnTo') || '/'
+      router.replace(returnTo)
+      return
+    }
 
-    // Показываем ошибку из URL (после неудачного OAuth)
+    const existingToken = getToken()
+    if (existingToken) {
+      const returnTo = searchParams.get('returnTo') || '/'
+      router.replace(returnTo)
+      return
+    }
+
     const err = searchParams.get('error')
     if (err) setError(decodeURIComponent(err))
   }, [router, searchParams])
@@ -58,7 +67,8 @@ function LoginInner() {
           headers: { Authorization: `Bearer ${data.access_token}` }
         })
         setStoredUser(user)
-        router.replace('/')
+        const returnTo = new URLSearchParams(window.location.search).get('returnTo') || '/'
+        router.replace(returnTo)
       } catch (e: any) {
         setError(e.response?.data?.message || 'Ошибка входа через Telegram')
         setLoading(false)
@@ -100,15 +110,15 @@ function LoginInner() {
         headers: { Authorization: `Bearer ${data.access_token}` }
       })
       setStoredUser(user)
-      router.replace('/')
+      router.replace(searchParams.get('returnTo') || '/')
     } catch (e: any) {
       setError(e.response?.data?.message || 'Неверный код')
     } finally { setLoading(false) }
   }
 
   const handleOAuth = (provider: string) => {
-    // Редирект на бэкенд → бэкенд редиректит на провайдера → провайдер возвращает на /login/callback
-    const state = encodeURIComponent('/')
+    const returnTo = searchParams.get('returnTo') || '/'
+    const state = encodeURIComponent(returnTo)
     window.location.href = `${BACKEND_URL}/auth/oauth/${provider}/redirect?state=${state}`
   }
 
@@ -342,15 +352,15 @@ function TelegramLoginButton({ botUsername }: { botUsername: string }) {
       {widgetFailed && (
         <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
           <p className="text-[11px] text-amber-800 text-center">
-            Виджет Telegram не загрузился. Проверь домен бота в BotFather и попробуй снова.
+            Для входа через Telegram откройте приложение через бота
           </p>
           <a
-            href={`https://t.me/${botUsername}`}
+            href={`https://t.me/${botUsername}?start=login`}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 block w-full rounded-lg bg-[#f77430] py-2 text-center text-xs font-semibold text-white"
+            className="mt-2 block w-full rounded-lg bg-[#2AABEE] py-2.5 text-center text-xs font-semibold text-white"
           >
-            Открыть бота в Telegram
+            Открыть в Telegram
           </a>
         </div>
       )}

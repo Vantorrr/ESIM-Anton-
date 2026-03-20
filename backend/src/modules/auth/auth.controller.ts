@@ -171,6 +171,14 @@ export class AuthController {
     return this.authService.loginWithOAuth(profile);
   }
 
+  @Post('telegram/webapp')
+  @ApiOperation({ summary: 'Автоматический вход через Telegram Mini App (initData)' })
+  async telegramWebAppAuth(@Body() dto: { initData: string }) {
+    if (!dto.initData) throw new BadRequestException('initData required');
+    const profile = this.oauthService.verifyTelegramWebAppInitData(dto.initData);
+    return this.authService.loginWithOAuth(profile);
+  }
+
   // ─── /auth/me ─────────────────────────────────────────────────
 
   @Get('me')

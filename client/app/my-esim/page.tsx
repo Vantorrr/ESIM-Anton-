@@ -7,6 +7,7 @@ import { ArrowLeft, Smartphone, Plus, Wifi, WifiOff, RefreshCw, QrCode } from 'l
 import BottomNav from '@/components/BottomNav'
 import { getCountryEmoji, formatDataAmount } from '@/lib/utils'
 import { userApi, ordersApi } from '@/lib/api'
+import { useAuth } from '@/components/AuthProvider'
 
 interface MyEsim {
   id: string
@@ -23,25 +24,21 @@ interface MyEsim {
 
 export default function MyEsimPage() {
   const router = useRouter()
+  const { user: authUser, isLoading: authLoading } = useAuth()
   const [esims, setEsims] = useState<MyEsim[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (authLoading) return
     loadEsims()
-  }, [])
+  }, [authLoading])
 
   const loadEsims = async () => {
     try {
-      const { isTelegramWebApp, getTelegramUserId, getToken } = await import('@/lib/auth')
-      let userId: string | null = null
+      let userId: string | null = authUser?.id || null
 
-      if (isTelegramWebApp()) {
-        const telegramId = getTelegramUserId()
-        if (telegramId) {
-          const user = await userApi.getMe(telegramId)
-          userId = user.id
-        }
-      } else {
+      if (!userId) {
+        const { getToken } = await import('@/lib/auth')
         const token = getToken()
         if (token) {
           const { api } = await import('@/lib/api')

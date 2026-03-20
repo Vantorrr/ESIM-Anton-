@@ -194,6 +194,50 @@ export class OAuthService {
     };
   }
 
+  // ─── Telegram WebApp initData validation ─────────────────────
+
+  verifyTelegramWebAppInitData(initData: string): OAuthProfile {
+    const botToken = this.configService.get('TELEGRAM_BOT_TOKEN') || '';
+    const params = new URLSearchParams(initData);
+    const hash = params.get('hash');
+    if (!hash) throw new UnauthorizedException('hash required in initData');
+
+    params.delete('hash');
+    const dataCheckString = Array.from(params.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${k}=${v}`)
+      .join('\n');
+
+    const secretKey = crypto
+      .createHmac('sha256', 'WebAppData')
+      .update(botToken)
+      .digest();
+    const computedHash = crypto
+      .createHmac('sha256', secretKey)
+      .update(dataCheckString)
+      .digest('hex');
+
+    if (computedHash !== hash) {
+      throw new UnauthorizedException('Telegram WebApp signature invalid');
+    }
+
+    const userRaw = params.get('user');
+    if (!userRaw) throw new UnauthorizedException('user missing in initData');
+
+    let user: any;
+    try { user = JSON.parse(userRaw); } catch {
+      throw new UnauthorizedException('invalid user JSON in initData');
+    }
+
+    return {
+      providerId: String(user.id),
+      provider: 'telegram',
+      firstName: user.first_name,
+      lastName: user.last_name,
+      username: user.username,
+    };
+  }
+
   // ─── Helpers (token-based, for backward compat) ───────────────
 
   async verifyGoogle(idToken: string): Promise<OAuthProfile> {

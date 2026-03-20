@@ -6,6 +6,7 @@ import { Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, ShoppingBag, Re
 import BottomNav from '@/components/BottomNav'
 import { ordersApi, userApi } from '@/lib/api'
 import { getCountryEmoji, getFlagUrl } from '@/lib/utils'
+import { useAuth } from '@/components/AuthProvider'
 
 interface Order {
   id: string
@@ -22,25 +23,21 @@ interface Order {
 }
 
 export default function OrdersPage() {
+  const { user: authUser, isLoading: authLoading } = useAuth()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (authLoading) return
     loadOrders()
-  }, [])
+  }, [authLoading])
 
   const loadOrders = async () => {
     try {
-      const { isTelegramWebApp, getTelegramUserId, getToken } = await import('@/lib/auth')
-      let userId: string | null = null
+      let userId: string | null = authUser?.id || null
 
-      if (isTelegramWebApp()) {
-        const telegramId = getTelegramUserId()
-        if (telegramId) {
-          const user = await userApi.getMe(telegramId)
-          userId = user.id
-        }
-      } else {
+      if (!userId) {
+        const { getToken } = await import('@/lib/auth')
         const token = getToken()
         if (token) {
           const { api } = await import('@/lib/api')

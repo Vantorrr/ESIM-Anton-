@@ -82,16 +82,17 @@ export default function RootLayout({
             `,
           }}
         />
+        <script src="https://telegram.org/js/telegram-web-app.js" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 if (window.Telegram && window.Telegram.WebApp) {
-                  const tg = window.Telegram.WebApp;
+                  var tg = window.Telegram.WebApp;
                   tg.ready();
                   tg.expand();
                   if (tg.themeParams) {
-                    const root = document.documentElement;
+                    var root = document.documentElement;
                     root.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
                     root.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000000');
                     root.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#999999');
@@ -105,7 +106,6 @@ export default function RootLayout({
             `,
           }}
         />
-        <script src="https://telegram.org/js/telegram-web-app.js" async />
         <script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js" async />
       </head>
       <body className={inter.className}>

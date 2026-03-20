@@ -7,6 +7,7 @@ import {
   ChevronRight, Gift, HelpCircle, FileText, MessageCircle, X, Check, LogOut
 } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
+import { useAuth } from '@/components/AuthProvider'
 
 interface UserProfile {
   id: string
@@ -23,6 +24,7 @@ type Theme = 'light' | 'dark' | 'system'
 type Language = 'ru' | 'en'
 
 export default function ProfilePage() {
+  const { user: authUser, isLoading: authLoading, isTelegram } = useAuth()
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [promoCode, setPromoCode] = useState('')
@@ -36,8 +38,8 @@ export default function ProfilePage() {
   const [showNotificationsModal, setShowNotificationsModal] = useState(false)
 
   useEffect(() => {
+    if (authLoading) return
     loadUserData()
-    // Загружаем сохранённые настройки
     const savedTheme = localStorage.getItem('theme') as Theme
     const savedLang = localStorage.getItem('language') as Language
     const savedNotifications = localStorage.getItem('notifications')
@@ -45,7 +47,7 @@ export default function ProfilePage() {
     if (savedTheme) setTheme(savedTheme)
     if (savedLang) setLanguage(savedLang)
     if (savedNotifications !== null) setNotifications(savedNotifications === 'true')
-  }, [])
+  }, [authLoading])
   
   // Применение темы
   useEffect(() => {
@@ -85,26 +87,18 @@ export default function ProfilePage() {
   const loadUserData = async () => {
     let redirectedToLogin = false
     try {
-      const { isTelegramWebApp, getToken, clearToken } = await import('@/lib/auth')
-
-      if (isTelegramWebApp()) {
-        const tg = (window as any).Telegram?.WebApp
-        const tgUser = tg?.initDataUnsafe?.user
-        if (tgUser) {
-          const { userApi: profileUserApi } = await import('@/lib/api')
-          const dbUser = await profileUserApi.getMe(String(tgUser.id))
-          setUser({
-            id: dbUser.id,
-            firstName: tgUser.first_name || 'Пользователь',
-            lastName: tgUser.last_name,
-            username: tgUser.username,
-            photoUrl: tgUser.photo_url,
-            balance: Number(dbUser.balance) || 0,
-            bonusBalance: Number(dbUser.bonusBalance) || 0,
-            referralCode: dbUser.referralCode,
-          })
-        }
+      if (authUser) {
+        setUser({
+          id: authUser.id,
+          firstName: authUser.firstName || 'Пользователь',
+          lastName: authUser.lastName,
+          username: authUser.username,
+          balance: Number(authUser.balance) || 0,
+          bonusBalance: Number(authUser.bonusBalance) || 0,
+          referralCode: authUser.referralCode,
+        })
       } else {
+        const { getToken, clearToken } = await import('@/lib/auth')
         const token = getToken()
         if (token) {
           const { api } = await import('@/lib/api')
@@ -124,12 +118,15 @@ export default function ProfilePage() {
           return
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Profile load error:', e)
-      redirectedToLogin = true
-      const { clearToken } = await import('@/lib/auth')
-      clearToken()
-      window.location.replace('/login')
+      const status = e?.response?.status
+      if (status === 401 || status === 403) {
+        redirectedToLogin = true
+        const { clearToken } = await import('@/lib/auth')
+        clearToken()
+        window.location.replace('/login')
+      }
     } finally {
       if (!redirectedToLogin) {
         setLoading(false)

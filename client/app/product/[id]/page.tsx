@@ -5,10 +5,12 @@ import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Wifi, Clock, Tag, CreditCard, ChevronRight } from 'lucide-react'
 import { productsApi, Product, userApi, ordersApi, paymentsApi, promoApi } from '@/lib/api'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
+import { useAuth } from '@/components/AuthProvider'
 
 export default function ProductPage() {
   const params = useParams()
   const router = useRouter()
+  const { user: authUser, token: authToken, isTelegram } = useAuth()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState(false)
@@ -45,23 +47,17 @@ export default function ProductPage() {
     setPurchasing(true)
     
     try {
-      // Универсальное получение пользователя (Telegram + PWA)
-      const { isTelegramWebApp, getTelegramUserId, getToken } = await import('@/lib/auth')
-      let user: any = null
+      const { getToken } = await import('@/lib/auth')
+      let user: any = authUser
 
-      if (isTelegramWebApp()) {
-        const telegramId = getTelegramUserId()
-        if (telegramId) {
-          user = await userApi.getMe(telegramId)
-        }
-      } else {
-        const token = getToken()
+      if (!user) {
+        const token = authToken || getToken()
         if (token) {
           const { api } = await import('@/lib/api')
           const { data } = await api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
           user = data
         } else {
-          router.push('/login')
+          router.push(`/login?returnTo=${encodeURIComponent(window.location.pathname)}`)
           return
         }
       }
@@ -305,7 +301,7 @@ export default function ProductPage() {
                 setPromoError('')
               }}
               placeholder="Введите промокод"
-              className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[#f77430]/25 ${
+              className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#f77430]/25 ${
                 promoApplied ? 'border-green-400 bg-green-50' : promoError ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'
               }`}
             />

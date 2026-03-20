@@ -36,41 +36,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsTelegram(tgMode)
 
       if (tgMode) {
-        // Telegram Mini App - use existing flow
-        const telegramId = getTelegramUserId()
-        if (telegramId) {
+        const initData = (window as any).Telegram?.WebApp?.initData
+        if (initData) {
           try {
-            const { data } = await api.post('/users/find-or-create', {
-              telegramId: Number(telegramId),
-              username: (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.username,
-              firstName: (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.first_name,
-              lastName: (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.last_name,
+            const { data } = await api.post('/auth/telegram/webapp', { initData })
+            const jwt = data.access_token
+            saveToken(jwt)
+            setToken(jwt)
+            const { data: me } = await api.get('/auth/me', {
+              headers: { Authorization: `Bearer ${jwt}` }
             })
-            setUser(data)
-            setStoredUser(data)
+            setUser(me)
+            setStoredUser(me)
           } catch (e) {
-            console.error('Failed to init Telegram user:', e)
+            console.error('Telegram WebApp auth failed, falling back:', e)
+            const telegramId = getTelegramUserId()
+            if (telegramId) {
+              try {
+                const { data } = await api.post('/users/find-or-create', {
+                  telegramId: Number(telegramId),
+                  username: (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.username,
+                  firstName: (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.first_name,
+                  lastName: (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.last_name,
+                })
+                setUser(data)
+                setStoredUser(data)
+              } catch (e2) {
+                console.error('Failed to init Telegram user:', e2)
+              }
+            }
           }
         }
       } else {
-        // PWA / Browser - use JWT token
         const storedToken = getToken()
         const storedUser = getStoredUser()
 
         if (storedToken && storedUser) {
           setToken(storedToken)
           setUser(storedUser)
-          // Verify token is still valid
           try {
             const { data } = await api.get('/auth/me', {
               headers: { Authorization: `Bearer ${storedToken}` }
             })
             setUser(data)
             setStoredUser(data)
-          } catch {
-            clearToken()
-            setToken(null)
-            setUser(null)
+          } catch (e: any) {
+            const status = e?.response?.status
+            if (status === 401 || status === 403) {
+              clearToken()
+              setToken(null)
+              setUser(null)
+            }
           }
         }
       }
