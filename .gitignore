@@ -40,6 +40,24 @@ prisma/.env
 backend/*_packages.json
 backend/std_*.json
 
+# Analysis / temp scripts (root level)
+analyze_*.py
+extract_*.py
+summarize_*.py
+sample_*.py
+my_extract.py
+*_frames/
+frames_*/
+current_frames/
+review_frames/
+video_analysis*/
+detailed_analysis.json
+video_analysis_specific.json
+analysis_output.txt
+video-analyzer.html
+video-viewer.html
+video-frames/
+
 # next-pwa generated (regenerated at build time)
 client/public/sw.js
 client/public/workbox-*.js
