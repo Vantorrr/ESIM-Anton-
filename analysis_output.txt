@@ -1,0 +1,550 @@
+Checking directory: /Users/pavelgalante/Antonio/frames_new
+Directory contents: ['frame_03.50.jpg', 'frame_02.10.jpg', 'frame_01.40.jpg', 'frame_00.00.jpg', 'frame_04.70.jpg', 'frame_03.90.jpg', 'frame_01.80.jpg', 'frame_01.90.jpg', 'frame_03.80.jpg', 'frame_04.60.jpg', 'frame_00.10.jpg', 'out8.png', 'frame_01.50.jpg', 'frame_02.00.jpg', 'out9.png', 'frame_03.40.jpg', 'frame_03.30.jpg', 'frame_02.70.jpg', 'frame_01.20.jpg', 'frame_00.60.jpg', 'frame_04.10.jpg', 'frame_04.00.jpg', 'frame_00.70.jpg', 'frame_01.30.jpg', 'frame_02.60.jpg', 'frame_03.20.jpg', 'frame_00.80.jpg', 'out10.png', 'frame_02.90.jpg', 'frame_04.30.jpg', 'frame_00.40.jpg', 'frame_01.00.jpg', 'frame_02.50.jpg', 'frame_03.10.jpg', 'frame_03.00.jpg', 'frame_02.40.jpg', 'frame_01.10.jpg', 'frame_00.50.jpg', 'frame_04.20.jpg', 'frame_02.80.jpg', 'frame_00.90.jpg', 'frame_04.50.jpg', 'frame_00.20.jpg', 'out4.png', 'frame_01.60.jpg', 'frame_02.30.jpg', 'out5.png', 'frame_03.70.jpg', 'frame_04.90.jpg', 'out7.png', 'out6.png', 'out2.png', 'out3.png', 'frame_04.80.jpg', 'frame_03.60.jpg', 'out1.png', 'frame_02.20.jpg', 'frame_01.70.jpg', 'frame_00.30.jpg', 'frame_04.40.jpg']
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_00.00.jpg
+--- Frame 1 (frame_00.00.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [220.80786555 116.48773196  61.96297502]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4075
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_00.10.jpg
+--- Frame 2 (frame_00.10.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [220.81593702 116.47752701  61.97273245]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4074
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_00.20.jpg
+--- Frame 3 (frame_00.20.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [220.80824219 116.48663628  61.96911217]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4076
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_00.30.jpg
+--- Frame 4 (frame_00.30.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [220.81741802 116.51913966  62.02353636]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4076
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_00.40.jpg
+--- Frame 5 (frame_00.40.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [220.83219811 116.60374711  62.14983941]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4076
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_00.50.jpg
+--- Frame 6 (frame_00.50.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [220.88133681 116.78539738  62.39700231]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4076
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_00.60.jpg
+--- Frame 7 (frame_00.60.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [220.91459539 116.90896508  62.55552324]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4115
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_00.70.jpg
+--- Frame 8 (frame_00.70.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [220.93969473 117.06229938  62.73063657]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4136
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_00.80.jpg
+--- Frame 9 (frame_00.80.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [220.965326   117.17319059  62.8803641 ]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4162
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_00.90.jpg
+--- Frame 10 (frame_00.90.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [220.99310089 117.2988561   63.04467351]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4161
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_01.00.jpg
+--- Frame 11 (frame_01.00.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.03714265 117.51856819  63.32841339]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4174
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_01.10.jpg
+--- Frame 12 (frame_01.10.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.10313079 117.66617429  63.56999855]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4169
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_01.20.jpg
+--- Frame 13 (frame_01.20.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.13424093 117.88993007  63.8418533 ]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4190
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_01.30.jpg
+--- Frame 14 (frame_01.30.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.17429929 118.06838638  64.09689381]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4187
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_01.40.jpg
+--- Frame 15 (frame_01.40.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.19457224 118.17356433  64.234932  ]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4186
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_01.50.jpg
+--- Frame 16 (frame_01.50.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.22161989 118.29281732  64.39126061]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4205
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_01.60.jpg
+--- Frame 17 (frame_01.60.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.22725984 118.31392892  64.41154948]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4215
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_01.70.jpg
+--- Frame 18 (frame_01.70.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.20335407 118.23073206  64.2876876 ]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4207
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_01.80.jpg
+--- Frame 19 (frame_01.80.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.23050347 118.35406202  64.45022666]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4225
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_01.90.jpg
+--- Frame 20 (frame_01.90.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.25636863 118.46834443  64.60043065]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4236
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_02.00.jpg
+--- Frame 21 (frame_02.00.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.26321518 118.53789931  64.68671441]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4256
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_02.10.jpg
+--- Frame 22 (frame_02.10.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.31384886 118.75961806  64.98048081]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4278
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_02.20.jpg
+--- Frame 23 (frame_02.20.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.41182919 119.11065828  65.48523438]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4310
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_02.30.jpg
+--- Frame 24 (frame_02.30.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.53485147 119.68742622  66.2590977 ]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4306
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_02.40.jpg
+--- Frame 25 (frame_02.40.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.60165268 119.95895351  66.62938947]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4349
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_02.50.jpg
+--- Frame 26 (frame_02.50.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.66525222 120.27013744  67.02131076]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4364
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_02.60.jpg
+--- Frame 27 (frame_02.60.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.68846065 120.33272039  67.1228342 ]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4364
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_02.70.jpg
+--- Frame 28 (frame_02.70.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.70502074 120.45781539  67.26660253]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4373
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_02.80.jpg
+--- Frame 29 (frame_02.80.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.72240451 120.5371658   67.37101755]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4381
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_02.90.jpg
+--- Frame 30 (frame_02.90.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.76873119 120.74529851  67.64218316]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4399
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_03.00.jpg
+--- Frame 31 (frame_03.00.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.78499084 120.83544753  67.74368682]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4408
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_03.10.jpg
+--- Frame 32 (frame_03.10.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80599633 120.898655    67.84612895]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4415
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_03.20.jpg
+--- Frame 33 (frame_03.20.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80199797 120.91890529  67.85913773]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4419
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_03.30.jpg
+--- Frame 34 (frame_03.30.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80135899 120.9252474   67.86706115]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4417
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_03.40.jpg
+--- Frame 35 (frame_03.40.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80279851 120.92666377  67.86955392]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4415
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_03.50.jpg
+--- Frame 36 (frame_03.50.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80286169 120.92875627  67.87286844]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4415
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_03.60.jpg
+--- Frame 37 (frame_03.60.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80314429 120.9299865   67.8747526 ]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4415
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_03.70.jpg
+--- Frame 38 (frame_03.70.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80327546 120.93163532  67.87715133]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4415
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_03.80.jpg
+--- Frame 39 (frame_03.80.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80350839 120.93259838  67.87870901]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4415
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_03.90.jpg
+--- Frame 40 (frame_03.90.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80361834 120.93385947  67.88063899]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4415
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_04.00.jpg
+--- Frame 41 (frame_04.00.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.8059727  120.93652874  67.87771219]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4415
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_04.10.jpg
+--- Frame 42 (frame_04.10.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.81153115 120.92796152  67.88626495]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4415
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_04.20.jpg
+--- Frame 43 (frame_04.20.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80428916 120.93557726  67.88222656]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4417
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_04.30.jpg
+--- Frame 44 (frame_04.30.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80424865 120.93646171  67.88325617]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4417
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_04.40.jpg
+--- Frame 45 (frame_04.40.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80420862 120.93689525  67.88381896]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4417
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_04.50.jpg
+--- Frame 46 (frame_04.50.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80441358 120.93738571  67.88452546]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4417
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_04.60.jpg
+--- Frame 47 (frame_04.60.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80431182 120.93765046  67.88504244]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4417
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_04.70.jpg
+--- Frame 48 (frame_04.70.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80441213 120.93785928  67.88545187]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4417
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_04.80.jpg
+--- Frame 49 (frame_04.80.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.8044864  120.93808642  67.8857499 ]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4417
+Analyzing: /Users/pavelgalante/Antonio/frames_new/frame_04.90.jpg
+--- Frame 50 (frame_04.90.jpg) ---
+Background Color (RGB): [215  93  46]
+Average Color (RGB): [221.80449846 120.93814043  67.8858478 ]
+Content Bounding Box (x, y, w, h): (np.int64(0), np.int64(0), np.int64(1079), np.int64(1919))
+Content Center: (np.float64(539.5), np.float64(959.5))
+Content Area Ratio: 0.4417
+
+--- Changes ---
+Frame 1 -> Frame 2:
+  Color Difference: 0.02
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 2 -> Frame 3:
+  Color Difference: 0.01
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 3 -> Frame 4:
+  Color Difference: 0.06
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 4 -> Frame 5:
+  Color Difference: 0.15
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 5 -> Frame 6:
+  Color Difference: 0.31
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 6 -> Frame 7:
+  Color Difference: 0.20
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 7 -> Frame 8:
+  Color Difference: 0.23
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 8 -> Frame 9:
+  Color Difference: 0.19
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 9 -> Frame 10:
+  Color Difference: 0.21
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 10 -> Frame 11:
+  Color Difference: 0.36
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 11 -> Frame 12:
+  Color Difference: 0.29
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 12 -> Frame 13:
+  Color Difference: 0.35
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 13 -> Frame 14:
+  Color Difference: 0.31
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 14 -> Frame 15:
+  Color Difference: 0.17
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 15 -> Frame 16:
+  Color Difference: 0.20
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 16 -> Frame 17:
+  Color Difference: 0.03
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 17 -> Frame 18:
+  Color Difference: 0.15
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 18 -> Frame 19:
+  Color Difference: 0.21
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 19 -> Frame 20:
+  Color Difference: 0.19
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 20 -> Frame 21:
+  Color Difference: 0.11
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 21 -> Frame 22:
+  Color Difference: 0.37
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 22 -> Frame 23:
+  Color Difference: 0.62
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 23 -> Frame 24:
+  Color Difference: 0.97
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 24 -> Frame 25:
+  Color Difference: 0.46
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 25 -> Frame 26:
+  Color Difference: 0.50
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 26 -> Frame 27:
+  Color Difference: 0.12
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 27 -> Frame 28:
+  Color Difference: 0.19
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 28 -> Frame 29:
+  Color Difference: 0.13
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 29 -> Frame 30:
+  Color Difference: 0.34
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 30 -> Frame 31:
+  Color Difference: 0.14
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 31 -> Frame 32:
+  Color Difference: 0.12
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 32 -> Frame 33:
+  Color Difference: 0.02
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 33 -> Frame 34:
+  Color Difference: 0.01
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 34 -> Frame 35:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 35 -> Frame 36:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 36 -> Frame 37:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 37 -> Frame 38:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 38 -> Frame 39:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 39 -> Frame 40:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 40 -> Frame 41:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 41 -> Frame 42:
+  Color Difference: 0.01
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 42 -> Frame 43:
+  Color Difference: 0.01
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 43 -> Frame 44:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 44 -> Frame 45:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 45 -> Frame 46:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 46 -> Frame 47:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 47 -> Frame 48:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 48 -> Frame 49:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)
+Frame 49 -> Frame 50:
+  Color Difference: 0.00
+  Position Change (dx, dy): (0, 0)
+  Size Change (dw, dh): (0, 0)

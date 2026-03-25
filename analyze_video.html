@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Video Analysis</title>
+</head>
+<body>
+    <video id="video" width="640" height="360" controls muted>
+        <source src="MOJO anim_2.mp4" type="video/mp4">
+    </video>
+    <canvas id="canvas" width="640" height="360" style="display:none;"></canvas>
+    <div id="log" style="white-space: pre-wrap; font-family: monospace;"></div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const logDiv = document.getElementById('log');
+
+        function log(msg) {
+            logDiv.textContent += msg + '\n';
+        }
+
+        video.addEventListener('loadeddata', async () => {
+            const duration = video.duration;
+            log(`Duration: ${duration.toFixed(2)}s`);
+            log('Time, BgColor, FgArea, CenterX, CenterY');
+
+            const interval = 0.1; // Analyze every 0.1s
+            for (let t = 0; t <= duration; t += interval) {
+                video.currentTime = t;
+                await new Promise(r => {
+                    const handler = () => {
+                        video.removeEventListener('seeked', handler);
+                        r();
+                    };
+                    video.addEventListener('seeked', handler);
+                });
+
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                analyzeFrame(t);
+            }
+            log('DONE');
+        });
+
+        function analyzeFrame(time) {
+            const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = frame.data;
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // 1. Background Color (average of corners)
+            const corners = [
+                getPixel(data, 0, 0, w),
+                getPixel(data, w-1, 0, w),
+                getPixel(data, 0, h-1, w),
+                getPixel(data, w-1, h-1, w)
+            ];
+            const avgBg = [0, 1, 2].map(c => 
+                Math.round(corners.reduce((sum, p) => sum + p[c], 0) / 4)
+            );
+            const bgHex = rgbToHex(avgBg[0], avgBg[1], avgBg[2]);
+
+            // 2. Foreground (diff from bg)
+            let fgPixels = 0;
+            let sumX = 0;
+            let sumY = 0;
+            const threshold = 30;
+
+            for (let y = 0; y < h; y += 5) { // Sample every 5th pixel for speed
+                for (let x = 0; x < w; x += 5) {
+                    const p = getPixel(data, x, y, w);
+                    const diff = Math.abs(p[0] - avgBg[0]) + Math.abs(p[1] - avgBg[1]) + Math.abs(p[2] - avgBg[2]);
+                    if (diff > threshold * 3) {
+                        fgPixels++;
+                        sumX += x;
+                        sumY += y;
+                    }
+                }
+            }
+
+            const totalSampled = (w/5) * (h/5);
+            const fgAreaPct = (fgPixels / totalSampled * 100).toFixed(1);
+            
+            let centerX = 0, centerY = 0;
+            if (fgPixels > 0) {
+                centerX = Math.round(sumX / fgPixels);
+                centerY = Math.round(sumY / fgPixels);
+            }
+
+            log(`${time.toFixed(1)}, ${bgHex}, ${fgAreaPct}%, ${centerX}, ${centerY}`);
+        }
+
+        function getPixel(data, x, y, w) {
+            const i = (y * w + x) * 4;
+            return [data[i], data[i+1], data[i+2]];
+        }
+
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        }
+    </script>
+</body>
+</html>

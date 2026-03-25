@@ -174,9 +174,9 @@ export class EsimAccessProvider {
   /**
    * Купить eSIM
    */
-  async purchaseEsim(packageCode: string, quantity = 1, transactionId?: string, periodNum?: number, price?: number): Promise<EsimAccessPurchaseResponse> {
+  async purchaseEsim(packageCode: string, quantity = 1, transactionId?: string, periodNum?: number, price?: number, customerEmail?: string): Promise<EsimAccessPurchaseResponse> {
     try {
-      this.logger.log(`💳 Покупка eSIM (package: ${packageCode}, quantity: ${quantity}, periodNum: ${periodNum || 'N/A'})...`);
+      this.logger.log(`💳 Покупка eSIM (package: ${packageCode}, quantity: ${quantity}, periodNum: ${periodNum || 'N/A'}, email: ${customerEmail || 'N/A'})...`);
 
       const packageInfo: Record<string, any> = {
         packageCode,
@@ -193,6 +193,11 @@ export class EsimAccessProvider {
         transactionId: transactionId || `mojo_${Date.now()}`,
         packageInfoList: [packageInfo],
       };
+
+      // Если передан email — eSIM Access отправит eSIM напрямую на почту клиента
+      if (customerEmail) {
+        payload.email = customerEmail;
+      }
 
       this.logger.log(`📤 Payload: ${JSON.stringify(payload)}`);
 
