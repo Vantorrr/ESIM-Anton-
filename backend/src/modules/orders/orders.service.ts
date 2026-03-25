@@ -1,19 +1,25 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { ProductsService } from '../products/products.service';
 import { UsersService } from '../users/users.service';
 import { EsimProviderService } from '../esim-provider/esim-provider.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
+import { TelegramNotificationService } from '../telegram/telegram-notification.service';
+import { EmailService } from '../notifications/email.service';
 import { OrderStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private prisma: PrismaService,
     private productsService: ProductsService,
     private usersService: UsersService,
     private esimProviderService: EsimProviderService,
     private promoCodesService: PromoCodesService,
+    private telegramNotification: TelegramNotificationService,
+    private emailService: EmailService,
   ) {}
 
   /**
@@ -197,12 +203,43 @@ export class OrdersService {
       // Обновляем totalSpent для лояльности
       await this.prisma.user.update({
         where: { id: order.userId },
-        data: {
-          totalSpent: {
-            increment: order.totalAmount,
-          },
-        },
+        data: { totalSpent: { increment: order.totalAmount } },
       });
+
+      // Отправляем уведомления с деталями eSIM
+      const esimDetails = {
+        country: order.product.country,
+        dataAmount: order.product.dataAmount,
+        iccid: esimData.iccid,
+        qrCode: esimData.qr_code,
+        activationCode: esimData.activation_code,
+      };
+
+      // Telegram — отправляем QR + детали
+      if (order.user.telegramId) {
+        try {
+          await this.telegramNotification.sendEsimDetails(order.user.telegramId, esimDetails);
+        } catch (e: any) {
+          this.logger.error(`TG notification failed: ${e.message}`);
+        }
+      }
+
+      // Email
+      if (order.user.email) {
+        try {
+          await this.emailService.sendEsimReady(order.user.email, {
+            orderId: order.id,
+            country: order.product.country,
+            dataAmount: order.product.dataAmount,
+            iccid: esimData.iccid,
+            qrCode: esimData.qr_code,
+            activationCode: esimData.activation_code,
+            price: Number(order.totalAmount),
+          });
+        } catch (e: any) {
+          this.logger.error(`Email notification failed: ${e.message}`);
+        }
+      }
 
       return updatedOrder;
     } catch (error) {

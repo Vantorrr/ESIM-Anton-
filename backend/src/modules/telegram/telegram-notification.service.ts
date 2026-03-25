@@ -23,7 +23,7 @@ export class TelegramNotificationService {
   }
 
   /**
-   * Отправить уведомление об успешной оплате
+   * Отправить уведомление об успешной оплате (без деталей eSIM)
    */
   async sendPaymentSuccessNotification(
     telegramId: bigint | number | string,
@@ -75,6 +75,67 @@ export class TelegramNotificationService {
     } catch (error) {
       this.logger.error(`❌ Failed to send notification to ${telegramId}: ${error.message}`);
       throw error;
+    }
+  }
+
+  /**
+   * Отправить eSIM с QR-кодом, ICCID и кодом активации в бот
+   */
+  async sendEsimDetails(
+    telegramId: bigint | number | string,
+    details: {
+      country: string;
+      dataAmount: string;
+      iccid?: string;
+      qrCode?: string;
+      activationCode?: string;
+    }
+  ) {
+    if (!this.botToken) return;
+
+    const lines = [
+      `🎉 <b>Ваша eSIM готова к установке!</b>`,
+      ``,
+      `🌍 <b>Страна:</b> ${details.country}`,
+      `📶 <b>Трафик:</b> ${details.dataAmount}`,
+    ];
+    if (details.iccid) lines.push(`🔢 <b>ICCID:</b> <code>${details.iccid}</code>`);
+    if (details.activationCode) {
+      lines.push(``, `📋 <b>Код активации (LPA):</b>`);
+      lines.push(`<code>${details.activationCode}</code>`);
+    }
+    lines.push(``, `📲 <i>Отсканируйте QR-код ниже в настройках телефона → Мобильные данные → Добавить тариф</i>`);
+
+    const keyboard = {
+      inline_keyboard: [[{
+        text: '📱 Открыть Мои eSIM',
+        url: `https://t.me/${this.botUsername}/app?startapp=my-esim`,
+      }]]
+    };
+
+    const chatId = telegramId.toString();
+
+    try {
+      if (details.qrCode) {
+        await axios.post(`${this.apiUrl}/sendPhoto`, {
+          chat_id: chatId,
+          photo: details.qrCode,
+          caption: lines.join('\n'),
+          parse_mode: 'HTML',
+          reply_markup: keyboard,
+        });
+        this.logger.log(`✅ eSIM details + QR sent to ${chatId}`);
+      } else {
+        await axios.post(`${this.apiUrl}/sendMessage`, {
+          chat_id: chatId,
+          text: lines.join('\n'),
+          parse_mode: 'HTML',
+          reply_markup: keyboard,
+        });
+        this.logger.log(`✅ eSIM details sent to ${chatId}`);
+      }
+    } catch (error) {
+      this.logger.error(`❌ Failed to send eSIM details to ${chatId}: ${error.message}`);
     }
   }
 
