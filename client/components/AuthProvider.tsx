@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { AuthUser, getToken, setToken as saveToken, getStoredUser, setStoredUser, clearToken, isTelegramWebApp, getTelegramUserId } from '@/lib/auth'
+import { AuthUser, getToken, setToken as saveToken, getStoredUser, setStoredUser, clearToken, isTelegramEnvironment } from '@/lib/auth'
 import { api } from '@/lib/api'
 
 interface AuthContextValue {
@@ -32,14 +32,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const init = async () => {
-      const tgMode = isTelegramWebApp()
-      setIsTelegram(tgMode)
+      const tgEnv = isTelegramEnvironment()
+      setIsTelegram(tgEnv)
 
-      if (tgMode) {
-        const initData = (window as any).Telegram?.WebApp?.initData
-        if (initData) {
+      // Шаг 1: сразу восстанавливаем сессию из localStorage — UI показывается мгновенно
+      const storedToken = getToken()
+      const storedUser = getStoredUser()
+      if (storedToken && storedUser) {
+        setToken(storedToken)
+        setUser(storedUser)
+      }
+      setIsLoading(false)
+
+      // Шаг 2: фоновая верификация / обновление токена
+      if (tgEnv) {
+        // Ждём загрузки Telegram SDK (async скрипт), max 2s
+        let tgApp = (window as any).Telegram?.WebApp
+        if (!tgApp?.initData) {
+          for (let i = 0; i < 20; i++) {
+            await new Promise(r => setTimeout(r, 100))
+            tgApp = (window as any).Telegram?.WebApp
+            if (tgApp?.initData) break
+          }
+        }
+
+        if (tgApp?.initData) {
           try {
-            const { data } = await api.post('/auth/telegram/webapp', { initData })
+            const { data } = await api.post('/auth/telegram/webapp', { initData: tgApp.initData })
             const jwt = data.access_token
             saveToken(jwt)
             setToken(jwt)
@@ -49,49 +68,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(me)
             setStoredUser(me)
           } catch (e) {
-            console.error('Telegram WebApp auth failed, falling back:', e)
-            const telegramId = getTelegramUserId()
-            if (telegramId) {
-              try {
-                const { data } = await api.post('/users/find-or-create', {
-                  telegramId: Number(telegramId),
-                  username: (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.username,
-                  firstName: (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.first_name,
-                  lastName: (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.last_name,
-                })
-                setUser(data)
-                setStoredUser(data)
-              } catch (e2) {
-                console.error('Failed to init Telegram user:', e2)
+            console.error('Telegram WebApp auth failed:', e)
+            // Если нет токена — пробуем find-or-create без JWT
+            if (!storedToken) {
+              const tgUser = tgApp?.initDataUnsafe?.user
+              if (tgUser?.id) {
+                try {
+                  const { data } = await api.post('/users/find-or-create', {
+                    telegramId: Number(tgUser.id),
+                    username: tgUser.username,
+                    firstName: tgUser.first_name,
+                    lastName: tgUser.last_name,
+                  })
+                  setUser(data)
+                  setStoredUser(data)
+                } catch {}
               }
             }
           }
         }
-      } else {
-        const storedToken = getToken()
-        const storedUser = getStoredUser()
-
-        if (storedToken && storedUser) {
-          setToken(storedToken)
-          setUser(storedUser)
-          try {
-            const { data } = await api.get('/auth/me', {
-              headers: { Authorization: `Bearer ${storedToken}` }
-            })
-            setUser(data)
-            setStoredUser(data)
-          } catch (e: any) {
-            const status = e?.response?.status
-            if (status === 401 || status === 403) {
-              clearToken()
-              setToken(null)
-              setUser(null)
-            }
+      } else if (storedToken) {
+        // Тихая фоновая верификация токена
+        try {
+          const { data } = await api.get('/auth/me', {
+            headers: { Authorization: `Bearer ${storedToken}` }
+          })
+          setUser(data)
+          setStoredUser(data)
+        } catch (e: any) {
+          const status = e?.response?.status
+          if (status === 401 || status === 403) {
+            clearToken()
+            setToken(null)
+            setUser(null)
           }
         }
       }
-
-      setIsLoading(false)
     }
 
     init()

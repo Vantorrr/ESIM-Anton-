@@ -46,6 +46,14 @@ export function isTelegramWebApp(): boolean {
   return !!(window as any).Telegram?.WebApp?.initData
 }
 
+// Определяет Telegram-окружение до загрузки SDK (по URL hash)
+export function isTelegramEnvironment(): boolean {
+  if (typeof window === 'undefined') return false
+  if ((window as any).Telegram?.WebApp?.initData) return true
+  const hash = window.location.hash
+  return hash.includes('tgWebAppData') || hash.includes('tgWebAppVersion')
+}
+
 export function getTelegramUserId(): string | null {
   if (!isTelegramWebApp()) return null
   const tg = (window as any).Telegram.WebApp

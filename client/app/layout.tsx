@@ -82,7 +82,7 @@ export default function RootLayout({
             `,
           }}
         />
-        <script src="https://telegram.org/js/telegram-web-app.js" />
+        <script src="https://telegram.org/js/telegram-web-app.js" async />
         <script
           dangerouslySetInnerHTML={{
             __html: `
