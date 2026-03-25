@@ -169,36 +169,17 @@ export class CloudPaymentsService {
         this.logger.error(`❌ Failed to issue eSIM: ${error.message}`);
       }
 
-      // Send notifications (Telegram + Web Push)
-      const notifDetails = {
-        orderId: order.id,
-        productName: order.product.name,
-        country: order.product.country,
-        dataAmount: order.product.dataAmount,
-        price: Number(order.totalAmount),
-      };
-
-      if (order.user) {
-        // Telegram notification
-        if (order.user.telegramId) {
-          try {
-            const tgId = String(order.user.telegramId);
-            this.logger.log(`📤 Sending Telegram notification to: ${tgId}`);
-            await this.telegramNotification.sendPaymentSuccessNotification(tgId, notifDetails);
-            this.logger.log(`✅ Telegram notification sent to ${tgId}`);
-          } catch (error) {
-            this.logger.error(`❌ Telegram notification error: ${error.message}`);
-          }
-        }
-
-        // Web Push notification
-        try {
-          await this.pushService.sendPaymentSuccess(order.userId, notifDetails);
-        } catch (error) {
-          this.logger.error(`❌ Push notification error: ${error.message}`);
-        }
-      } else {
-        this.logger.warn(`⚠️ No user found on order ${order.id}`);
+      // Web Push notification (Telegram уведомление с QR уже отправляется внутри fulfillOrder)
+      try {
+        await this.pushService.sendPaymentSuccess(order.userId, {
+          orderId: order.id,
+          productName: order.product.name,
+          country: order.product.country,
+          dataAmount: order.product.dataAmount,
+          price: Number(order.totalAmount),
+        });
+      } catch (error) {
+        this.logger.error(`❌ Push notification error: ${error.message}`);
       }
     }
 
