@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Wifi, Clock, Tag, CreditCard, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Wifi, Clock, Tag, CreditCard, ChevronRight, Mail } from 'lucide-react'
 import { productsApi, Product, userApi, ordersApi, paymentsApi, promoApi } from '@/lib/api'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
 import { useAuth } from '@/components/AuthProvider'
@@ -20,6 +20,8 @@ export default function ProductPage() {
   const [promoError, setPromoError] = useState('')
   const [promoLoading, setPromoLoading] = useState(false)
   const [selectedDays, setSelectedDays] = useState(7)
+  const [email, setEmail] = useState('')
+  const [emailSaved, setEmailSaved] = useState(false)
 
   const isDaily = product?.isUnlimited
   const basePrice = isDaily ? product.ourPrice * selectedDays : product?.ourPrice ?? 0
@@ -29,6 +31,13 @@ export default function ProductPage() {
   useEffect(() => {
     loadProduct()
   }, [params.id])
+
+  useEffect(() => {
+    if (authUser?.email && !email) {
+      setEmail(authUser.email)
+      setEmailSaved(true)
+    }
+  }, [authUser])
 
   const loadProduct = async () => {
     try {
@@ -63,6 +72,18 @@ export default function ProductPage() {
       }
 
       if (!user) throw new Error('Пользователь не найден')
+
+      // Сохраняем email в профиль если его ещё нет
+      const userEmail = email.trim() || user.email || ''
+      if (userEmail && !user.email) {
+        try {
+          const { api: apiClient } = await import('@/lib/api')
+          const token = authToken || (await import('@/lib/auth')).getToken()
+          await apiClient.patch('/users/me/email', { email: userEmail }, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          })
+        } catch { /* non-critical */ }
+      }
       
       // Проверяем есть ли уже PENDING заказ на этот продукт (чтобы не создавать дубли)
       let order;
@@ -74,11 +95,13 @@ export default function ProductPage() {
         const createPayload: any = { userId: user.id, productId: product.id, quantity: 1 };
         if (isDaily && selectedDays > 1) createPayload.periodNum = selectedDays;
         if (promoApplied && promoCode.trim()) createPayload.promoCode = promoCode.trim();
+        if (userEmail) createPayload.email = userEmail;
         order = pending || await ordersApi.create(createPayload);
       } catch {
         const createPayload: any = { userId: user.id, productId: product.id, quantity: 1 };
         if (isDaily && selectedDays > 1) createPayload.periodNum = selectedDays;
         if (promoApplied && promoCode.trim()) createPayload.promoCode = promoCode.trim();
+        if (userEmail) createPayload.email = userEmail;
         order = await ordersApi.create(createPayload);
       }
       
@@ -356,6 +379,27 @@ export default function ProductPage() {
           </div>
         </div>
       )}
+
+      {/* Email for eSIM delivery */}
+      <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.18s' }}>
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Email для получения eSIM</h3>
+        <p className="text-xs text-gray-400 mb-3">Провайдер отправит QR-код на вашу почту</p>
+        <div className="relative">
+          <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setEmailSaved(false) }}
+            placeholder="your@email.com (необязательно)"
+            className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#f77430]/25 transition-colors ${
+              emailSaved ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-white'
+            }`}
+          />
+        </div>
+        {emailSaved && (
+          <p className="text-xs text-green-600 mt-1.5 font-medium">✓ Email из вашего профиля</p>
+        )}
+      </div>
 
       {/* Payment method */}
       <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>

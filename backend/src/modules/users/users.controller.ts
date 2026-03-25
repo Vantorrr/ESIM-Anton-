@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Query, Body, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Query, Body, Headers, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { PushService } from '../notifications/push.service';
@@ -66,6 +66,27 @@ export class UsersController {
       userData
     );
     return serializeUser(user);
+  }
+
+  @Patch('me/email')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Сохранить email текущего пользователя' })
+  async updateMyEmail(
+    @Headers('authorization') authHeader: string,
+    @Body() dto: { email: string },
+  ) {
+    if (!authHeader?.startsWith('Bearer ')) throw new UnauthorizedException('No token');
+    const token = authHeader.slice(7);
+    let userId: string;
+    try {
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+      userId = payload.sub;
+    } catch {
+      throw new UnauthorizedException('Invalid token');
+    }
+    if (!userId) throw new UnauthorizedException('Invalid token payload');
+    const updated = await this.usersService.updateEmail(userId, dto.email);
+    return serializeUser(updated);
   }
 
   @Get('push/vapid-public-key')

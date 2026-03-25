@@ -126,6 +126,16 @@ export class UsersService {
   }
 
   /**
+   * Сохранить email пользователя
+   */
+  async updateEmail(userId: string, email: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { email },
+    });
+  }
+
+  /**
    * Получить всех пользователей (для админки)
    */
   async findAll(page = 1, limit = 20) {
