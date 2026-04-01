@@ -1,13 +1,14 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 
 export function useSmartBack(fallbackRoute: string) {
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   return () => {
-    const returnTo = searchParams.get('returnTo')
+    const returnTo = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('returnTo')
+      : null
     if (returnTo) {
       router.push(returnTo)
       return

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import { AuthUser, getToken, setToken as saveToken, getStoredUser, setStoredUser, clearToken, isTelegramEnvironment } from '@/lib/auth'
 import { api } from '@/lib/api'
 
@@ -24,7 +24,7 @@ const AuthContext = createContext<AuthContextValue>({
   refreshUser: async () => {},
 })
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: any }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -82,7 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   })
                   setUser(data)
                   setStoredUser(data)
-                } catch {}
+                } catch (fallbackError) {
+                  console.error('Telegram fallback init failed:', fallbackError)
+                }
               }
             }
           }
