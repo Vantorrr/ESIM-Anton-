@@ -22,6 +22,12 @@ export class ProductsService implements OnModuleInit {
     return this.systemSettingsService.getPricingSettings();
   }
 
+  private calculateRubPrice(providerPriceRaw: number, exchangeRate: number, markupPercent: number) {
+    const providerPriceUSD = Number(providerPriceRaw) / 10000;
+    const priceWithMarkup = providerPriceUSD * (1 + markupPercent / 100);
+    return Math.round(priceWithMarkup * exchangeRate);
+  }
+
   private normalizeCoverageCountries(value: unknown): string[] {
     if (!Array.isArray(value)) return [];
 
@@ -177,10 +183,7 @@ export class ProductsService implements OnModuleInit {
     let updated = 0;
 
     for (const product of products) {
-      // providerPrice хранится в центах (2109 = $21.09)
-      const providerPriceUSD = Number(product.providerPrice) / 100;
-      const priceWithMarkup = providerPriceUSD * (1 + markupPercent / 100);
-      const newPrice = Math.round(priceWithMarkup * exchangeRate);
+      const newPrice = this.calculateRubPrice(Number(product.providerPrice), exchangeRate, markupPercent);
 
       await this.prisma.esimProduct.update({
         where: { id: product.id },
@@ -195,6 +198,47 @@ export class ProductsService implements OnModuleInit {
       success: true,
       updated,
       message: `Наценка ${markupPercent}% применена к ${updated} продуктам (курс: ${exchangeRate}₽/$)`,
+    };
+  }
+
+  /**
+   * Пересчитать цены всех продуктов по текущему курсу и дефолтной наценке
+   */
+  async repriceAllProducts() {
+    const pricingSettings = await this.getPricingSettings();
+    const exchangeRate = pricingSettings.exchangeRate;
+    const defaultMarkup = pricingSettings.defaultMarkupPercent;
+
+    this.logger.log(`💱 Пересчет всех цен: курс=${exchangeRate}₽/$, наценка=${defaultMarkup}%`);
+
+    const products = await this.prisma.esimProduct.findMany({
+      select: {
+        id: true,
+        providerPrice: true,
+      },
+    });
+
+    let updated = 0;
+
+    for (const product of products) {
+      const newPrice = this.calculateRubPrice(Number(product.providerPrice), exchangeRate, defaultMarkup);
+
+      await this.prisma.esimProduct.update({
+        where: { id: product.id },
+        data: { ourPrice: newPrice },
+      });
+
+      updated++;
+    }
+
+    this.logger.log(`✅ Пересчитано ${updated} продуктов`);
+
+    return {
+      success: true,
+      updated,
+      exchangeRate,
+      markupPercent: defaultMarkup,
+      message: `Пересчитано ${updated} продуктов по курсу ${exchangeRate}₽/$ и наценке ${defaultMarkup}%`,
     };
   }
 
@@ -332,7 +376,7 @@ export class ProductsService implements OnModuleInit {
           const priceRaw = Number(pkg.price) || 0;
           const priceInUSD = priceRaw / 10000;  // сотые центы -> доллары
           const priceWithMarkup = priceInUSD * markupMultiplier;
-          const priceInRUB = Math.round(priceWithMarkup * exchangeRate);
+          const priceInRUB = this.calculateRubPrice(priceRaw, exchangeRate, defaultMarkup);
           
           // DEBUG: первый пакет
           if (synced === 0) {

@@ -62,6 +62,13 @@ export class ProductsController {
     return this.productsService.bulkSetMarkup(body.ids, body.markupPercent);
   }
 
+  @Post('reprice')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Пересчитать цены всех продуктов по текущим настройкам' })
+  async repriceAll() {
+    return this.productsService.repriceAllProducts();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Получить продукт по ID' })
   async findOne(@Param('id') id: string) {

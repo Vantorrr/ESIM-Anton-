@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { productsApi } from '@/lib/api'
+import { productsApi, systemSettingsApi } from '@/lib/api'
 import { Package, Plus, Edit2, Eye, EyeOff, RefreshCw, Check, X, Tag, Percent, Filter, ChevronDown, Search } from 'lucide-react'
 
 export default function Products() {
@@ -30,6 +30,9 @@ export default function Products() {
   const [bulkBadge, setBulkBadge] = useState('')
   const [bulkBadgeColor, setBulkBadgeColor] = useState('')
   const [bulkMarkup, setBulkMarkup] = useState(30)
+  const [exchangeRate, setExchangeRate] = useState(95)
+  const [editingProviderPriceUsd, setEditingProviderPriceUsd] = useState('0.00')
+  const [editingMarkupPercent, setEditingMarkupPercent] = useState('0')
 
   // Детальный просмотр тарифа
   const [viewingProduct, setViewingProduct] = useState<any>(null)
@@ -37,7 +40,18 @@ export default function Products() {
   useEffect(() => {
     loadProducts()
     loadCountries()
+    loadPricingSettings()
   }, [])
+
+  const getProviderPriceUSD = (providerPrice: number | string) => Number(providerPrice) / 10000
+  const getMarkupPercent = (providerPrice: number | string, ourPrice: number | string) => {
+    const providerPriceUSD = getProviderPriceUSD(providerPrice)
+    const ourPriceRUB = Number(ourPrice)
+    if (!providerPriceUSD || !exchangeRate) return 0
+    return ((ourPriceRUB / (providerPriceUSD * exchangeRate)) - 1) * 100
+  }
+  const formatMarkupInput = (providerPrice: number | string, ourPrice: number | string) =>
+    Math.round(getMarkupPercent(providerPrice, ourPrice)).toString()
 
   // Фильтрация продуктов
   useEffect(() => {
@@ -103,6 +117,17 @@ export default function Products() {
     }
   }
 
+  const loadPricingSettings = async () => {
+    try {
+      const response = await systemSettingsApi.getPricingSettings()
+      if (response.data?.exchangeRate) {
+        setExchangeRate(Number(response.data.exchangeRate))
+      }
+    } catch (err) {
+      console.error('❌ Ошибка загрузки настроек ценообразования:', err)
+    }
+  }
+
   const handleSync = async () => {
     try {
       setSyncing(true)
@@ -117,8 +142,15 @@ export default function Products() {
     }
   }
 
+  const closeEditor = () => {
+    setEditingProduct(null)
+    setIsCreating(false)
+    setEditingProviderPriceUsd('0.00')
+    setEditingMarkupPercent('0')
+  }
+
   const handleCreate = () => {
-    setEditingProduct({
+    const nextProduct = {
       country: '',
       region: '',
       name: '',
@@ -129,13 +161,62 @@ export default function Products() {
       ourPrice: 0,
       providerId: '',
       isActive: true,
-    })
+    }
+    setEditingProduct(nextProduct)
+    setEditingProviderPriceUsd('0.00')
+    setEditingMarkupPercent('0')
     setIsCreating(true)
   }
 
   const handleEdit = (product: any) => {
     setEditingProduct({ ...product })
+    setEditingProviderPriceUsd(getProviderPriceUSD(product.providerPrice).toFixed(2))
+    setEditingMarkupPercent(formatMarkupInput(product.providerPrice, product.ourPrice))
     setIsCreating(false)
+  }
+
+  const handleProviderPriceUsdChange = (value: string) => {
+    const normalized = value.replace(',', '.')
+    setEditingProviderPriceUsd(normalized)
+
+    const numericValue = Number.parseFloat(normalized)
+    const nextProviderPrice = Number.isFinite(numericValue) ? Math.round(numericValue * 10000) : 0
+
+    setEditingProduct((prev: any) => {
+      if (!prev) return prev
+      const nextProduct = { ...prev, providerPrice: nextProviderPrice }
+      setEditingMarkupPercent(formatMarkupInput(nextProduct.providerPrice, nextProduct.ourPrice))
+      return nextProduct
+    })
+  }
+
+  const handleOurPriceChange = (value: string) => {
+    const nextOurPrice = Number(value) || 0
+    setEditingProduct((prev: any) => {
+      if (!prev) return prev
+      const nextProduct = { ...prev, ourPrice: nextOurPrice }
+      setEditingMarkupPercent(formatMarkupInput(nextProduct.providerPrice, nextProduct.ourPrice))
+      return nextProduct
+    })
+  }
+
+  const applyMarkupToEditingProduct = (markupValue?: number) => {
+    if (!editingProduct) return
+
+    const resolvedMarkup = typeof markupValue === 'number'
+      ? markupValue
+      : Number.parseFloat(editingMarkupPercent.replace(',', '.'))
+
+    if (!Number.isFinite(resolvedMarkup)) {
+      alert('Введите корректную наценку в процентах')
+      return
+    }
+
+    const providerPriceUSD = getProviderPriceUSD(editingProduct.providerPrice)
+    const nextOurPrice = Math.round(providerPriceUSD * (1 + resolvedMarkup / 100) * exchangeRate)
+
+    setEditingProduct({ ...editingProduct, ourPrice: nextOurPrice })
+    setEditingMarkupPercent(String(resolvedMarkup))
   }
 
   const handleSave = async () => {
@@ -148,8 +229,7 @@ export default function Products() {
         alert('Продукт обновлен!')
       }
       
-      setEditingProduct(null)
-      setIsCreating(false)
+      closeEditor()
       loadProducts()
     } catch (error) {
       console.error('Ошибка сохранения:', error)
@@ -532,10 +612,10 @@ export default function Products() {
                     />
                   </th>
                   <th className="text-left py-3 px-2 font-semibold text-slate-700">Name</th>
-                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Price ⇅</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Цена поставщика</th>
                   <th className="text-left py-3 px-2 font-semibold text-slate-700">Data ⇅</th>
                   <th className="text-left py-3 px-2 font-semibold text-slate-700">Duration ⇅</th>
-                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Per GB ⇅</th>
+                  <th className="text-left py-3 px-2 font-semibold text-slate-700">Себестоимость / GB</th>
                   <th className="text-left py-3 px-2 font-semibold text-slate-700">Наша цена</th>
                   <th className="text-left py-3 px-2 font-semibold text-slate-700">Наценка</th>
                   <th className="text-left py-3 px-2 font-semibold text-slate-700">Speed</th>
@@ -548,11 +628,10 @@ export default function Products() {
               </thead>
               <tbody>
                 {filteredProducts.map((product) => {
-                  const providerPriceUSD = Number(product.providerPrice) / 100
+                  const providerPriceUSD = getProviderPriceUSD(product.providerPrice)
+                  const providerPriceRUB = providerPriceUSD * exchangeRate
                   const ourPriceRUB = Number(product.ourPrice)
-                  const markup = providerPriceUSD > 0 
-                    ? ((ourPriceRUB / (providerPriceUSD * 95)) - 1) * 100 
-                    : 0
+                  const markup = getMarkupPercent(product.providerPrice, product.ourPrice)
                   
                   // Извлекаем числовое значение GB из dataAmount
                   const dataMatch = product.dataAmount?.match(/(\d+(\.\d+)?)\s*(GB|MB)/i)
@@ -562,7 +641,7 @@ export default function Products() {
                     const unit = dataMatch[3].toUpperCase()
                     dataInGB = unit === 'GB' ? value : value / 1024
                   }
-                  const perGB = dataInGB > 0 ? providerPriceUSD / dataInGB : 0
+                  const perGB = dataInGB > 0 ? providerPriceRUB / dataInGB : 0
                   
                   return (
                     <tr
@@ -591,7 +670,8 @@ export default function Products() {
                         </div>
                       </td>
                       <td className="py-2 px-2 font-semibold">
-                        ${providerPriceUSD.toFixed(2)}
+                        <div className="font-semibold text-slate-800">₽{Math.round(providerPriceRUB).toLocaleString()}</div>
+                        <div className="text-xs text-slate-500">${providerPriceUSD.toFixed(2)}</div>
                       </td>
                       <td className="py-2 px-2 font-medium">{product.dataAmount}</td>
                       <td className="py-2 px-2">
@@ -601,7 +681,8 @@ export default function Products() {
                         </div>
                       </td>
                       <td className="py-2 px-2 text-slate-600">
-                        ${perGB.toFixed(2)}
+                        <div>₽{Math.round(perGB).toLocaleString()}</div>
+                        <div className="text-xs text-slate-500">по курсу {exchangeRate}₽/$</div>
                       </td>
                       <td className="py-2 px-2 font-bold text-green-600">
                         ₽{Math.round(ourPriceRUB).toLocaleString()}
@@ -746,7 +827,7 @@ export default function Products() {
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-2xl font-bold text-center"
                 />
                 <p className="text-xs text-slate-500 mt-1">
-                  Формула: (Цена провайдера USD × (1 + наценка/100)) × курс 95₽
+                  Формула: (Цена провайдера USD × (1 + наценка/100)) × курс {exchangeRate}₽
                 </p>
               </div>
 
@@ -867,15 +948,17 @@ export default function Products() {
 
               {/* Цена поставщика */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Цена поставщика (центы) *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Цена поставщика (USD) *</label>
                 <input
                   type="number"
-                  value={editingProduct.providerPrice}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, providerPrice: +e.target.value })}
+                  step="0.01"
+                  min="0"
+                  value={editingProviderPriceUsd}
+                  onChange={(e) => handleProviderPriceUsdChange(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
                 />
                 <p className="text-sm text-slate-500 mt-1">
-                  = ${(Number(editingProduct.providerPrice) / 100).toFixed(2)} USD
+                  Внутри хранится как `1/10000 USD`: {Number(editingProduct.providerPrice).toLocaleString()}
                 </p>
               </div>
 
@@ -885,9 +968,48 @@ export default function Products() {
                 <input
                   type="number"
                   value={editingProduct.ourPrice}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, ourPrice: +e.target.value })}
+                  onChange={(e) => handleOurPriceChange(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
                 />
+                <p className="text-sm text-slate-500 mt-1">
+                  Текущая наценка: {getMarkupPercent(editingProduct.providerPrice, editingProduct.ourPrice).toFixed(0)}%
+                </p>
+              </div>
+
+              <div className="col-span-2 rounded-xl border border-blue-100 bg-blue-50 p-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Пересчитать по наценке (%)</label>
+                    <input
+                      type="number"
+                      value={editingMarkupPercent}
+                      onChange={(e) => setEditingMarkupPercent(e.target.value)}
+                      className="w-40 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => applyMarkupToEditingProduct()}
+                    className="px-5 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-all"
+                  >
+                    Применить наценку
+                  </button>
+                </div>
+                <p className="text-sm text-slate-500 mt-3">
+                  Формула: ${getProviderPriceUSD(editingProduct.providerPrice).toFixed(2)} × (1 + {editingMarkupPercent || '0'}/100) × {exchangeRate}₽
+                </p>
+                <div className="flex gap-2 flex-wrap mt-3">
+                  {[30, 50, 100, 150, 200].map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => applyMarkupToEditingProduct(val)}
+                      className="px-3 py-1.5 rounded-lg bg-white border border-blue-200 text-blue-700 font-medium hover:bg-blue-100 transition-all"
+                    >
+                      +{val}%
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Provider ID */}
@@ -954,8 +1076,7 @@ export default function Products() {
               </button>
               <button
                 onClick={() => {
-                  setEditingProduct(null)
-                  setIsCreating(false)
+                  closeEditor()
                 }}
                 className="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 transition-all"
               >
@@ -1001,8 +1122,11 @@ export default function Products() {
                     </span>
                   </div>
                   <div className="flex">
-                    <span className="w-32 text-slate-500 text-sm">Price:</span>
-                    <span className="font-bold text-slate-800">${(Number(viewingProduct.providerPrice) / 100).toFixed(2)}</span>
+                    <span className="w-32 text-slate-500 text-sm">Cost:</span>
+                    <div>
+                      <div className="font-bold text-slate-800">₽{Math.round(getProviderPriceUSD(viewingProduct.providerPrice) * exchangeRate).toLocaleString()}</div>
+                      <div className="text-xs text-slate-500">${getProviderPriceUSD(viewingProduct.providerPrice).toFixed(2)} по курсу {exchangeRate}₽/$</div>
+                    </div>
                   </div>
                   <div className="flex">
                     <span className="w-32 text-slate-500 text-sm">Region type:</span>
@@ -1058,7 +1182,7 @@ export default function Products() {
                   <div>
                     <span className="text-sm text-slate-500">Наценка:</span>
                     <div className="text-xl font-bold text-blue-600">
-                      +{((Number(viewingProduct.ourPrice) / (Number(viewingProduct.providerPrice) / 100 * 95) - 1) * 100).toFixed(0)}%
+                      +{getMarkupPercent(viewingProduct.providerPrice, viewingProduct.ourPrice).toFixed(0)}%
                     </div>
                   </div>
                   <div>

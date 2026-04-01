@@ -8,7 +8,9 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState<'pricing' | 'referrals' | 'loyalty'>('pricing')
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
+  const [repricing, setRepricing] = useState(false)
   const [updatingRate, setUpdatingRate] = useState(false)
+  const [autoUpdateRate, setAutoUpdateRate] = useState(false)
 
   // Настройки ценообразования
   const [pricingSettings, setPricingSettings] = useState({
@@ -47,6 +49,7 @@ export default function Settings() {
         if (rateInfoResponse.data?.updatedAt) {
           setRateUpdatedAt(rateInfoResponse.data.updatedAt)
         }
+        setAutoUpdateRate(Boolean(rateInfoResponse.data?.autoUpdate))
       } else if (activeTab === 'referrals') {
         const response = await systemSettingsApi.getReferralSettings()
         if (response.data) {
@@ -88,6 +91,19 @@ export default function Settings() {
     }
   }
 
+  const handleRepriceProducts = async () => {
+    try {
+      setRepricing(true)
+      const response = await productsApi.repriceAll()
+      alert(`✅ ${response.data.message}`)
+    } catch (error: any) {
+      console.error('Ошибка пересчета цен:', error)
+      alert('❌ Ошибка пересчета: ' + (error.response?.data?.message || error.message))
+    } finally {
+      setRepricing(false)
+    }
+  }
+
   const handleUpdateRateFromCBR = async () => {
     try {
       setUpdatingRate(true)
@@ -104,6 +120,18 @@ export default function Settings() {
       alert('❌ Ошибка: ' + (error.response?.data?.message || error.message))
     } finally {
       setUpdatingRate(false)
+    }
+  }
+
+  const handleToggleAutoUpdateRate = async (enabled: boolean) => {
+    try {
+      setAutoUpdateRate(enabled)
+      const response = await systemSettingsApi.setExchangeRateAutoUpdate(enabled)
+      alert(`✅ ${response.data.message}`)
+    } catch (error: any) {
+      console.error('Ошибка переключения автообновления курса:', error)
+      setAutoUpdateRate(!enabled)
+      alert('❌ Ошибка: ' + (error.response?.data?.message || error.message))
     }
   }
 
@@ -252,6 +280,17 @@ export default function Settings() {
                   ✅ Последнее обновление: {new Date(rateUpdatedAt).toLocaleString('ru-RU')}
                 </p>
               )}
+              <label className="flex items-center gap-3 mt-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoUpdateRate}
+                  onChange={(e) => handleToggleAutoUpdateRate(e.target.checked)}
+                  className="w-5 h-5 rounded"
+                />
+                <span className="text-sm font-medium text-slate-700">
+                  Автоматически обновлять курс раз в сутки в 9:00
+                </span>
+              </label>
             </div>
 
             {/* Наценка по умолчанию */}
@@ -287,7 +326,7 @@ export default function Settings() {
                 ))}
               </div>
               <p className="text-sm text-slate-500 mt-2">
-                Применяется при синхронизации тарифов с провайдером
+                Применяется для новых тарифов и при полном пересчете цен
               </p>
             </div>
 
@@ -311,18 +350,26 @@ export default function Settings() {
                 Сохранить настройки
               </button>
               <button
+                onClick={handleRepriceProducts}
+                disabled={repricing}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+              >
+                <RefreshCw className={`w-5 h-5 ${repricing ? 'animate-spin' : ''}`} />
+                {repricing ? 'Пересчет...' : 'Применить к текущим товарам'}
+              </button>
+              <button
                 onClick={handleSyncProducts}
                 disabled={syncing}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
               >
                 <RefreshCw className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} />
-                {syncing ? 'Синхронизация...' : 'Пересчитать все цены'}
+                {syncing ? 'Синхронизация...' : 'Синхронизировать тарифы'}
               </button>
             </div>
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
               <p className="text-sm text-yellow-800">
-                <strong>⚠️ Важно:</strong> После изменения курса или наценки нажмите "Пересчитать все цены" чтобы обновить цены всех тарифов.
+                <strong>⚠️ Важно:</strong> После изменения курса или наценки нажмите "Применить к текущим товарам", чтобы пересчитать уже существующие цены. Кнопка синхронизации только подтягивает пакеты от провайдера.
               </p>
             </div>
           </div>

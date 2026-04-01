@@ -43,6 +43,7 @@ export const productsApi = {
   create: (data: any) => api.post('/products', data),
   update: (id: string, data: any) => api.put(`/products/${id}`, data),
   sync: () => api.post('/products/sync'),
+  repriceAll: () => api.post('/products/reprice'),
   // Массовые операции
   bulkToggleActive: (ids: string[], isActive: boolean) => 
     api.post('/products/bulk/toggle-active', { ids, isActive }),
@@ -97,4 +98,5 @@ export const systemSettingsApi = {
   // Автоматический курс ЦБ РФ
   getExchangeRateInfo: () => api.get('/system-settings/exchange-rate'),
   updateExchangeRateFromCBR: () => api.post('/system-settings/exchange-rate/update'),
+  setExchangeRateAutoUpdate: (enabled: boolean) => api.post('/system-settings/exchange-rate/auto-update', { enabled }),
 }
