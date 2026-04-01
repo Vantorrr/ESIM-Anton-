@@ -13,6 +13,7 @@ export interface EsimAccessPackage {
   slug: string;
   location: string;
   locationCode: string;
+  description?: string;
   price: number;
   currencyCode: string;
   volume: number;
@@ -21,8 +22,10 @@ export interface EsimAccessPackage {
   durationUnit: string;
   validity: number;      // Срок действия (180 дней для Daily Unlimited)
   speed: string;         // Ограничение скорости после лимита
+  fupPolicy?: string;
   supportTopup: boolean;
   dataType?: number;     // 1 = standard, 2 = unlimited/day pass
+  coverageCountries?: string[];
 }
 
 export interface EsimAccessPurchaseResponse {
@@ -154,6 +157,7 @@ export class EsimAccessProvider {
         slug: pkg.slug,
         location: pkg.location,
         locationCode: pkg.locationCode,
+        description: pkg.description,
         price: pkg.price,
         currencyCode: pkg.currencyCode,
         volume: pkg.volume,
@@ -162,8 +166,14 @@ export class EsimAccessProvider {
         durationUnit: pkg.durationUnit,
         validity: pkg.validity || pkg.duration, // Срок действия (для Day Pass обычно 180)
         speed: pkg.speed || '',                  // Ограничение скорости
+        fupPolicy: pkg.fupPolicy || '',
         supportTopup: pkg.supportTopup,
         dataType: dataType || (pkg.type || 1),   // Сохраняем тип
+        coverageCountries: Array.isArray(pkg.locationNetworkList)
+          ? pkg.locationNetworkList
+              .map((item: any) => item?.locationName)
+              .filter((name: any) => typeof name === 'string' && name.trim().length > 0)
+          : [],
       }));
     } catch (error) {
       this.logger.error('❌ Ошибка получения пакетов:', error.message);
@@ -397,6 +407,7 @@ export class EsimAccessProvider {
         slug: pkg.slug,
         location: pkg.location,
         locationCode: pkg.locationCode,
+        description: pkg.description,
         price: pkg.price,
         currencyCode: pkg.currencyCode,
         volume: pkg.volume,
@@ -404,7 +415,13 @@ export class EsimAccessProvider {
         duration: pkg.duration,
         durationUnit: pkg.durationUnit,
         speed: pkg.speed,
+        fupPolicy: pkg.fupPolicy || '',
         supportTopup: pkg.supportTopup,
+        coverageCountries: Array.isArray(pkg.locationNetworkList)
+          ? pkg.locationNetworkList
+              .map((item: any) => item?.locationName)
+              .filter((name: any) => typeof name === 'string' && name.trim().length > 0)
+          : [],
       }));
     } catch (error) {
       this.logger.error('❌ Ошибка получения пакетов для пополнения:', error.message);

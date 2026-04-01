@@ -1,22 +1,34 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Share2 } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
+import {
+  getCoverageCount,
+  getCoverageItems,
+  getCoveragePreview,
+  getCoverageScopeLabel,
+  getCoverageSummary,
+  isGlobalProduct,
+  isMultiProduct,
+} from '@/lib/productCoverage'
 
 export default function CountryPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const country = decodeURIComponent(params.country as string)
+  const initialTab = searchParams.get('tab') === 'unlimited' ? 'unlimited' : 'standard'
+  const initialSelected = searchParams.get('selected')
   
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'standard' | 'unlimited'>('standard')
-  const [selectedProduct, setSelectedProduct] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'standard' | 'unlimited'>(initialTab)
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(initialSelected)
 
   useEffect(() => {
     loadProducts()
@@ -26,15 +38,36 @@ export default function CountryPage() {
   const products = allProducts.filter(p => 
     activeTab === 'unlimited' ? p.isUnlimited : !p.isUnlimited
   )
+  const selectedProd = products.find(p => p.id === selectedProduct) || null
+  const selectedCoverageItems = selectedProd ? getCoverageItems(selectedProd) : []
+  const selectedCoverageCount = selectedProd ? getCoverageCount(selectedProd) : 1
+
+  useEffect(() => {
+    const tabFromQuery = searchParams.get('tab')
+    const selectedFromQuery = searchParams.get('selected')
+
+    if (tabFromQuery === 'standard' || tabFromQuery === 'unlimited') {
+      setActiveTab(tabFromQuery)
+    }
+
+    if (selectedFromQuery) {
+      setSelectedProduct(selectedFromQuery)
+    }
+  }, [searchParams])
 
   // Выбираем первый продукт при смене таба
   useEffect(() => {
-    if (products.length > 0) {
-      setSelectedProduct(products[0].id)
-    } else {
+    if (products.length === 0) {
       setSelectedProduct(null)
+      return
     }
-  }, [activeTab, allProducts])
+
+    if (selectedProduct && products.some(product => product.id === selectedProduct)) {
+      return
+    }
+
+    setSelectedProduct(products[0].id)
+  }, [products, selectedProduct])
 
   const loadProducts = async () => {
     try {
@@ -66,7 +99,7 @@ export default function CountryPage() {
       <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-gray-200/70">
         <div className="flex items-center justify-between px-4 py-3">
           <button 
-            onClick={() => router.back()}
+            onClick={() => router.push('/')}
             className="p-2 -ml-2 text-gray-600"
           >
             <ArrowLeft size={24} />
@@ -89,6 +122,20 @@ export default function CountryPage() {
       </div>
 
       <div className="px-4 py-4">
+        {selectedProd && (isMultiProduct(selectedProd) || isGlobalProduct(selectedProd)) && (
+          <div className="card-neutral p-4 mb-4 animate-slide-up">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+              {getCoverageScopeLabel(selectedProd)}
+            </p>
+            <p className="text-base font-semibold text-gray-900">
+              Работает в {getCoverageSummary(selectedProd)}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              {getCoveragePreview(selectedProd, 4) || 'Покрытие зависит от выбранного тарифа.'}
+            </p>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex gap-2 mb-4">
           <button
@@ -169,6 +216,14 @@ export default function CountryPage() {
                       </span>
                     )}
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {product.isUnlimited
+                      ? 'Ежедневный пакет интернета'
+                      : 'Весь объём интернета на срок тарифа'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {getCoverageScopeLabel(product)}: {getCoverageSummary(product)}
+                  </p>
                   {/* Скорость после лимита для Daily Unlimited */}
                   {product.isUnlimited && product.speed && (
                     <p className="text-xs text-gray-400 mt-0.5">
@@ -201,63 +256,91 @@ export default function CountryPage() {
         )}
 
         {/* Tariff Details */}
-        {products.length > 0 && (() => {
-          const selectedProd = products.find(p => p.id === selectedProduct);
-          return (
-            <div className="mt-6">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                Особенности тарифа
-              </h3>
-              <div className="card-neutral divide-y divide-gray-100">
-                <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
-                    <span className="text-lg">📶</span>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase">Скорость сети</p>
-                    <p className="font-medium text-gray-900">
-                      {selectedProd?.isUnlimited && selectedProd?.speed 
-                        ? `3G/4G/5G (после лимита: ${selectedProd.speed})`
-                        : '3G/4G/5G'
-                      }
-                    </p>
-                  </div>
+        {selectedProd && (
+          <div className="mt-6">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              Что входит в тариф
+            </h3>
+            <div className="card-neutral divide-y divide-gray-100">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <span className="text-lg">📦</span>
                 </div>
-                {selectedProd?.isUnlimited && (
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                      <span className="text-lg">📅</span>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 uppercase">Тип тарифа</p>
-                      <p className="font-medium text-gray-900">
-                        {formatDataAmount(selectedProd.dataAmount)} в день на {selectedProd.validityDays} дней
-                      </p>
-                    </div>
-                  </div>
-                )}
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-                    <span className="text-lg">🔄</span>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase">Пополнение</p>
-                    <p className="font-medium text-gray-900">Можно продлить</p>
-                  </div>
+                <div>
+                  <p className="text-xs text-gray-400 uppercase">Интернет</p>
+                  <p className="font-medium text-gray-900">
+                    {selectedProd.isUnlimited
+                      ? `${formatDataAmount(selectedProd.dataAmount)} в день`
+                      : `${formatDataAmount(selectedProd.dataAmount)} на весь срок`}
+                  </p>
                 </div>
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
-                    <span className="text-lg">📡</span>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase">Тип подключения</p>
-                    <p className="font-medium text-gray-900">Только данные</p>
-                  </div>
+              </div>
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                  <span className="text-lg">📅</span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 uppercase">Срок действия</p>
+                  <p className="font-medium text-gray-900">
+                    {selectedProd.validityDays} дней
+                  </p>
+                  {selectedProd.description && (
+                    <p className="text-xs text-gray-500 mt-1">{selectedProd.description}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                  <span className="text-lg">🌍</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-400 uppercase">Где работает</p>
+                  <p className="font-medium text-gray-900">{getCoverageSummary(selectedProd)}</p>
+                  {selectedCoverageItems.length > 1 && (
+                    <details className="mt-2 group">
+                      <summary className="list-none cursor-pointer text-xs font-medium text-[#f77430]">
+                        Показать страны ({selectedCoverageCount})
+                      </summary>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {selectedCoverageItems.map(item => (
+                          <span
+                            key={item}
+                            className="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-700"
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                  <span className="text-lg">📶</span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 uppercase">Скорость сети</p>
+                  <p className="font-medium text-gray-900">
+                    {selectedProd.isUnlimited && selectedProd.speed
+                      ? `3G/4G/5G, после лимита ${selectedProd.speed}`
+                      : '3G/4G/5G'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                  <span className="text-lg">📡</span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 uppercase">Тип подключения</p>
+                  <p className="font-medium text-gray-900">Только данные</p>
+                  <p className="text-xs text-gray-500 mt-1">Звонки и SMS в тариф не входят.</p>
                 </div>
               </div>
             </div>
-          );
-        })()}
+          </div>
+        )}
 
         {/* Important Info */}
         <div className="mt-6">
@@ -280,7 +363,11 @@ export default function CountryPage() {
               style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
             >
               <div className="max-w-lg mx-auto">
-                <Link href={`/product/${selectedProduct}`}>
+                <Link
+                  href={`/product/${selectedProduct}?returnTo=${encodeURIComponent(
+                    `/country/${encodeURIComponent(country)}?tab=${activeTab}&selected=${selectedProduct}`
+                  )}`}
+                >
                   <button className="w-full py-4 rounded-2xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold text-lg transition-colors shadow-lg shadow-orange-500/30">
                     Далее
                   </button>

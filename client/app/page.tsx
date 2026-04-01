@@ -5,7 +5,15 @@ import Link from 'next/link'
 import { Search } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
-import { formatPrice, getFlagUrl, getCountryName, getCountryCode } from '@/lib/utils'
+import { formatPrice, getFlagUrl, getCountryName } from '@/lib/utils'
+import {
+  getCoverageCount,
+  getCoveragePreview,
+  getCoverageScopeLabel,
+  getCoverageSummary,
+  isGlobalProduct,
+  isMultiProduct,
+} from '@/lib/productCoverage'
 
 // Brand splash screen — plays the original MOJO animation video
 function SplashScreen({ onFinished }: { onFinished: () => void }) {
@@ -42,6 +50,10 @@ interface CountryGroup {
   country: string
   minPrice: number
   productCount: number
+  coverageCount: number
+  coverageSummary: string
+  coveragePreview: string
+  scopeLabel: string
   isMulti?: boolean
   isGlobal?: boolean
 }
@@ -64,14 +76,10 @@ const POPULAR_COUNTRIES = [
   'UK', 'United Kingdom', 'Великобритания',
 ]
 
-// Ключевые слова для мульти-стран
-const MULTI_KEYWORDS = ['europe', 'asia', 'africa', 'america', 'regional', 'multi', 'евро', 'ази', 'афри', 'регион']
-const GLOBAL_KEYWORDS = ['global', 'world', 'глобал', 'мир', 'worldwide']
-
 // Liquid Glass карточка страны (iOS style)
 function CountryCard({ group, index }: { group: CountryGroup; index: number }) {
-  const flagUrl = getFlagUrl(group.country);
-  const countryName = getCountryName(group.country);
+  const flagUrl = getFlagUrl(group.country)
+  const countryName = getCountryName(group.country)
   
   return (
     <Link href={`/country/${encodeURIComponent(group.country)}`}>
@@ -100,8 +108,18 @@ function CountryCard({ group, index }: { group: CountryGroup; index: number }) {
               <img src="/logo-mark.png" alt="Mojo mobile" className="w-10 h-10 rounded-lg object-contain" />
             )}
           </div>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#f77430] mb-1">
+            {group.scopeLabel}
+          </p>
           <p className="font-semibold text-base leading-tight text-gray-900 mb-1 truncate">
             {countryName}
+          </p>
+          <p className="text-[11px] text-gray-500 min-h-[28px] leading-4 mb-1">
+            {group.coverageCount > 1 ? `${group.coverageSummary}` : 'Одна страна'}
+            {group.coveragePreview ? ` • ${group.coveragePreview}` : ''}
+          </p>
+          <p className="text-[11px] text-gray-400 mb-1">
+            {group.productCount} {group.productCount === 1 ? 'тариф' : group.productCount < 5 ? 'тарифа' : 'тарифов'}
           </p>
           <p className="text-xs font-semibold text-[#f7741d]/85">
             от ₽{formatPrice(group.minPrice)}
@@ -225,15 +243,8 @@ export default function Home() {
     
     products.forEach(product => {
       const country = product.country
-      const nameLower = (product.name + ' ' + country).toLowerCase()
-      
-      // Определяем тип
-      const isGlobal = GLOBAL_KEYWORDS.some(kw => nameLower.includes(kw))
-      const isMulti = !isGlobal && (
-        MULTI_KEYWORDS.some(kw => nameLower.includes(kw)) ||
-        country.includes(',') ||
-        (product.region && product.region.includes(','))
-      )
+      const isGlobal = isGlobalProduct(product)
+      const isMulti = isMultiProduct(product)
       
       const targetGroups = isGlobal ? global : isMulti ? multi : groups
       
@@ -242,6 +253,10 @@ export default function Home() {
           country,
           minPrice: product.ourPrice,
           productCount: 1,
+          coverageCount: getCoverageCount(product),
+          coverageSummary: getCoverageSummary(product),
+          coveragePreview: getCoveragePreview(product, 2),
+          scopeLabel: getCoverageScopeLabel(product),
           isMulti: Boolean(isMulti),
           isGlobal: Boolean(isGlobal)
         }
@@ -410,6 +425,14 @@ export default function Home() {
       ) : activeTab === 'multi' ? (
         // Мульти-страны
         <>
+          <div className="card-neutral p-4 mb-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+              Региональные пакеты
+            </p>
+            <p className="text-sm text-gray-600">
+              Один eSIM работает сразу в нескольких странах региона. На карточке видно, сколько стран входит в пакет.
+            </p>
+          </div>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
             Региональные пакеты
           </h2>
@@ -432,6 +455,14 @@ export default function Home() {
       ) : activeTab === 'global' ? (
         // Глобальный
         <>
+          <div className="card-neutral p-4 mb-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+              Глобальные пакеты
+            </p>
+            <p className="text-sm text-gray-600">
+              Пакеты для мира и больших географий. Сразу видно охват по странам, чтобы не гадать, что входит внутрь.
+            </p>
+          </div>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
             Глобальные пакеты
           </h2>

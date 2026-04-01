@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 // Lucide icons removed due to type issues - using emoji instead
 import BottomNav from '@/components/BottomNav'
+import { useSmartBack } from '@/lib/useSmartBack'
 
 interface Transaction {
   id: string
@@ -14,11 +14,11 @@ interface Transaction {
 }
 
 export default function BalancePage() {
-  const router = useRouter()
   const [balance, setBalance] = useState(0)
   const [bonusBalance, setBonusBalance] = useState(0)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const handleBack = useSmartBack('/profile')
 
   useEffect(() => {
     loadData()
@@ -47,7 +47,7 @@ export default function BalancePage() {
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
         <div className="flex items-center justify-between px-4 py-3">
           <button 
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="p-2 -ml-2 text-gray-600 dark:text-gray-300"
           >
             <span className="text-xl">←</span>

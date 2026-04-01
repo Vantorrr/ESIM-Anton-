@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { ArrowLeft, Smartphone, Tablet, Laptop, ChevronDown, Check, Copy, Info } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
+import { useSmartBack } from '@/lib/useSmartBack'
 
 type DeviceCategory = 'apple' | 'samsung' | 'google' | 'other'
 
@@ -152,10 +152,10 @@ const deviceData: Record<DeviceCategory, DeviceList> = {
 }
 
 export default function DevicesPage() {
-  const router = useRouter()
   const [selectedCategory, setSelectedCategory] = useState<DeviceCategory>('apple')
   const [showDropdown, setShowDropdown] = useState(false)
   const [copied, setCopied] = useState(false)
+  const handleBack = useSmartBack('/help')
 
   const copyCode = () => {
     navigator.clipboard.writeText('*#06#')
@@ -171,7 +171,7 @@ export default function DevicesPage() {
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
         <div className="flex items-center justify-between px-4 py-3">
           <button 
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="p-2 -ml-2 text-gray-600 dark:text-gray-300"
           >
             <ArrowLeft size={24} />

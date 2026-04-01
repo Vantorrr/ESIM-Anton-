@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { ArrowLeft, ChevronDown, ChevronUp, MessageCircle, Mail, Smartphone } from 'lucide-react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
+import { useSmartBack } from '@/lib/useSmartBack'
 
 interface FAQ {
   question: string
@@ -47,8 +47,8 @@ const faqs: FAQ[] = [
 ]
 
 export default function HelpPage() {
-  const router = useRouter()
   const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const handleBack = useSmartBack('/profile')
 
   const toggleFAQ = (index: number) => {
     setOpenIndex(openIndex === index ? null : index)
@@ -60,7 +60,7 @@ export default function HelpPage() {
       <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-gray-200/70">
         <div className="flex items-center justify-between px-4 py-3">
           <button 
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="p-2 -ml-2 text-gray-600"
           >
             <ArrowLeft size={24} />

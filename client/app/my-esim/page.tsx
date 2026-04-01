@@ -8,6 +8,7 @@ import BottomNav from '@/components/BottomNav'
 import { getCountryEmoji, formatDataAmount } from '@/lib/utils'
 import { userApi, ordersApi } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
+import { useSmartBack } from '@/lib/useSmartBack'
 
 interface MyEsim {
   id: string
@@ -24,6 +25,7 @@ interface MyEsim {
 
 export default function MyEsimPage() {
   const router = useRouter()
+  const handleBack = useSmartBack('/profile')
   const { user: authUser, isLoading: authLoading } = useAuth()
   const [esims, setEsims] = useState<MyEsim[]>([])
   const [loading, setLoading] = useState(true)
@@ -109,7 +111,7 @@ export default function MyEsimPage() {
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
         <div className="flex items-center justify-between px-4 py-3">
           <button 
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="p-2 -ml-2 text-gray-600 dark:text-gray-300"
           >
             <ArrowLeft size={24} />

@@ -1,15 +1,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Wifi, Clock, Tag, CreditCard, ChevronRight, Mail } from 'lucide-react'
 import { productsApi, Product, userApi, ordersApi, paymentsApi, promoApi } from '@/lib/api'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
+import { getCoverageItems, getCoverageScopeLabel, getCoverageSummary } from '@/lib/productCoverage'
 import { useAuth } from '@/components/AuthProvider'
 
 export default function ProductPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user: authUser, token: authToken, isTelegram } = useAuth()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
@@ -27,6 +29,19 @@ export default function ProductPage() {
   const basePrice = isDaily ? product.ourPrice * selectedDays : product?.ourPrice ?? 0
   const discountAmount = promoApplied ? Math.round(basePrice * promoDiscount / 100) : 0
   const totalPrice = basePrice - discountAmount
+  const coverageItems = product ? getCoverageItems(product) : []
+  const coverageSummary = product ? getCoverageSummary(product) : ''
+  const trafficSummary = product
+    ? product.isUnlimited
+      ? `${formatDataAmount(product.dataAmount)} каждый день`
+      : `${formatDataAmount(product.dataAmount)} на весь срок тарифа`
+    : ''
+  const validitySummary = product
+    ? product.isUnlimited
+      ? `${selectedDays} дней использования`
+      : `${product.validityDays} дней использования`
+    : ''
+  const returnTo = searchParams.get('returnTo')
 
   useEffect(() => {
     loadProduct()
@@ -50,6 +65,20 @@ export default function ProductPage() {
     }
   }
 
+  const handleBack = () => {
+    if (returnTo) {
+      router.push(returnTo)
+      return
+    }
+
+    if (product?.country) {
+      router.push(`/country/${encodeURIComponent(product.country)}`)
+      return
+    }
+
+    router.push('/')
+  }
+
   const handlePurchase = async () => {
     if (!product) return
     
@@ -66,7 +95,7 @@ export default function ProductPage() {
           const { data } = await api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
           user = data
         } else {
-          router.push(`/login?returnTo=${encodeURIComponent(window.location.pathname)}`)
+          router.push(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`)
           return
         }
       }
@@ -190,7 +219,7 @@ export default function ProductPage() {
       <div className="container">
         <div className="glass-card text-center py-12">
           <p className="text-secondary text-lg">Продукт не найден</p>
-          <button onClick={() => router.back()} className="glass-button mt-4">
+          <button onClick={handleBack} className="glass-button mt-4">
             Вернуться
           </button>
         </div>
@@ -203,7 +232,7 @@ export default function ProductPage() {
       {/* Sticky Back Header */}
       <div className="sticky top-0 z-40 bg-[#f4f5f7]/95 backdrop-blur-sm -mx-5 px-5 pt-2 pb-3 mb-4">
         <button
-          onClick={() => router.back()}
+          onClick={handleBack}
           className="flex items-center gap-2 text-accent font-medium"
         >
           <ArrowLeft size={20} />
@@ -229,6 +258,14 @@ export default function ProductPage() {
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-primary leading-tight truncate">{getCountryName(product.country)}</h1>
             <p className="text-sm text-secondary truncate">{product.name}</p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-medium text-[#f77430]">
+                {product.isUnlimited ? 'Ежедневный пакет' : 'Фиксированный пакет'}
+              </span>
+              <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-700">
+                {getCoverageScopeLabel(product)}: {coverageSummary}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -259,6 +296,76 @@ export default function ProductPage() {
             <span className="font-semibold text-primary">₽{formatPrice(product.ourPrice)}</span>
           </div>
         )}
+        <div className="flex items-center justify-between py-2 border-t border-gray-100">
+          <div className="flex items-center gap-2 text-secondary">
+            <span className="text-sm">Где работает</span>
+          </div>
+          <span className="font-semibold text-primary text-right max-w-[60%]">{coverageSummary}</span>
+        </div>
+      </div>
+
+      {/* What is included */}
+      <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.11s' }}>
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Что входит в тариф</h3>
+        <div className="space-y-3">
+          <div className="rounded-xl bg-white border border-gray-100 px-3 py-3">
+            <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Трафик</p>
+            <p className="text-sm font-semibold text-primary">{trafficSummary}</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {product.isUnlimited
+                ? 'Лимит обновляется каждый день в течение выбранного периода.'
+                : 'Весь объём можно использовать в любой день до окончания срока.'}
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-white border border-gray-100 px-3 py-3">
+            <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Срок действия</p>
+            <p className="text-sm font-semibold text-primary">{validitySummary}</p>
+            {product.description && (
+              <p className="text-xs text-gray-500 mt-1">{product.description}</p>
+            )}
+          </div>
+
+          <div className="rounded-xl bg-white border border-gray-100 px-3 py-3">
+            <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Покрытие</p>
+            <p className="text-sm font-semibold text-primary">{coverageSummary}</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {coverageItems.length > 1
+                ? 'Ниже показаны страны, которые входят в этот пакет.'
+                : `Пакет работает в зоне ${coverageSummary}.`}
+            </p>
+            {coverageItems.length > 1 && (
+              <details className="mt-2 group">
+                <summary className="list-none cursor-pointer text-xs font-medium text-[#f77430]">
+                  Показать страны ({coverageItems.length})
+                </summary>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {coverageItems.map(item => (
+                    <span
+                      key={item}
+                      className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-700"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+
+          <div className="rounded-xl bg-white border border-gray-100 px-3 py-3">
+            <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Подключение</p>
+            <p className="text-sm font-semibold text-primary">Только мобильный интернет</p>
+            <p className="text-xs text-gray-500 mt-1">Звонки и SMS в тариф не входят.</p>
+          </div>
+
+          {product.isUnlimited && product.speed && (
+            <div className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-3">
+              <p className="text-xs uppercase tracking-wide text-amber-600 mb-1">После лимита в день</p>
+              <p className="text-sm font-semibold text-amber-900">Скорость снижается до {product.speed}</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Days selector for unlimited/daily plans */}

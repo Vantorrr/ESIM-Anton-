@@ -22,6 +22,39 @@ export class ProductsService implements OnModuleInit {
     return this.systemSettingsService.getPricingSettings();
   }
 
+  private normalizeCoverageCountries(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+
+    return value
+      .map(item => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean)
+      .filter((item, index, arr) => arr.indexOf(item) === index);
+  }
+
+  private getCoverageRegion(pkg: any): string | undefined {
+    const coverageCountries = this.normalizeCoverageCountries(pkg.coverageCountries);
+    if (coverageCountries.length > 1) {
+      return coverageCountries.join(', ');
+    }
+
+    if (coverageCountries.length === 1) {
+      return undefined;
+    }
+
+    const rawLocation = typeof pkg.location === 'string' ? pkg.location.trim() : '';
+    const rawCode = typeof pkg.locationCode === 'string' ? pkg.locationCode.trim() : '';
+    const pkgName = typeof pkg.name === 'string' ? pkg.name.toLowerCase() : '';
+
+    const looksRegional =
+      rawLocation.includes(',') ||
+      (!/^[A-Z]{2}$/.test(rawCode) && rawLocation.length > 2) ||
+      ['global', 'world', 'worldwide', 'europe', 'asia', 'africa', 'america'].some(word =>
+        `${rawLocation} ${pkgName}`.toLowerCase().includes(word)
+      );
+
+    return looksRegional ? rawLocation || undefined : undefined;
+  }
+
   async onModuleInit() {
     // Автосинхронизация отключена - данные уже в БД
     // Синхронизация запускается вручную через POST /api/products/sync
@@ -213,7 +246,7 @@ export class ProductsService implements OnModuleInit {
    * dataType: 1 = standard, 2 = unlimited/day pass
    */
   async syncWithProvider() {
-    this.logger.log('🔄 [SYNC V10] Начало синхронизации (dataType=1 и dataType=2)...');
+    this.logger.log('🔄 [SYNC V12] Начало синхронизации (dataType=1 и dataType=2)...');
     
     try {
       // Получаем настройки ценообразования из БД
@@ -303,7 +336,7 @@ export class ProductsService implements OnModuleInit {
           
           // DEBUG: первый пакет
           if (synced === 0) {
-            this.logger.warn(`🔍 [SYNC V11] Первый пакет:`);
+            this.logger.warn(`🔍 [SYNC V12] Первый пакет:`);
             this.logger.warn(`   name: ${pkg.name}`);
             this.logger.warn(`   volume: ${volumeInBytes} bytes -> ${volumeInMB.toFixed(1)} MB -> ${volumeInGB.toFixed(2)} GB -> "${dataAmount}"`);
             this.logger.warn(`   price: ${priceRaw} / 10000 = $${priceInUSD.toFixed(2)} -> +${defaultMarkup}% -> $${priceWithMarkup.toFixed(2)} -> ₽${priceInRUB}`);
@@ -332,6 +365,8 @@ export class ProductsService implements OnModuleInit {
             const speedMatch = pkgName.match(/FUP(\d+)\s*(Mbps|Kbps)/i);
             if (speedMatch) {
               speed = `${speedMatch[1]} ${speedMatch[2]}`;
+            } else if (pkg.fupPolicy) {
+              speed = String(pkg.fupPolicy).trim();
             } else {
               speed = '384 Kbps'; // Дефолт для Day Pass без FUP в названии
             }
@@ -350,8 +385,11 @@ export class ProductsService implements OnModuleInit {
             description = `${dataAmount} на ${duration} дней`;
           }
           
+          const coverageRegion = this.getCoverageRegion(pkg);
+
           const productData = {
             country: pkg.locationCode || pkg.location || 'Unknown',
+            region: coverageRegion,
             name: pkgName,
             description: description,
             dataAmount: dataAmount,
@@ -380,6 +418,7 @@ export class ProductsService implements OnModuleInit {
               where: { id: existing.id },
               data: {
                 country: productData.country,
+                region: productData.region,
                 name: productData.name,
                 description: productData.description,
                 dataAmount: productData.dataAmount,
@@ -411,14 +450,14 @@ export class ProductsService implements OnModuleInit {
       const syncedStandard = standardPackages.length;
       const syncedUnlimited = unlimitedPackages.length;
       
-      this.logger.log(`✅ [SYNC V10] Готово: ${synced} синхронизировано (${syncedStandard} стандартных + ${syncedUnlimited} Day Pass), ${errors} ошибок`);
+      this.logger.log(`✅ [SYNC V12] Готово: ${synced} синхронизировано (${syncedStandard} стандартных + ${syncedUnlimited} Day Pass), ${errors} ошибок`);
       
       return { 
         success: true,
         synced, 
         errors,
         message: `Синхронизировано ${synced} продуктов: ${syncedStandard} стандартных + ${syncedUnlimited} Day Pass (курс: ${exchangeRate}₽/$)`,
-        version: 'V10-DATATYPE-FIX',
+        version: 'V12-COVERAGE-LISTS',
         settings: {
           exchangeRate,
           markupPercent: defaultMarkup,
