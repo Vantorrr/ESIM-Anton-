@@ -99,9 +99,13 @@ const NAME_TO_ISO: Record<string, string> = {
 export const getCountryCode = (country: string): string => {
   if (!country) return 'XX';
 
-  if (/^[A-Za-z]{2}-\d+$/.test(country.trim())) {
+  // Provider region codes: XX-NN, SGMY-2, CNJPKR-3, O-OC-3, etc.
+  if (/^[A-Za-z][A-Za-z-]*-\d+$/.test(country.trim())) {
     return 'XX';
   }
+
+  // Russian input → no ISO code
+  if (/[а-яА-ЯёЁ]/.test(country)) return 'XX';
 
   if (/^[A-Za-z]{2}$/.test(country)) {
     return country.toUpperCase();
@@ -139,9 +143,65 @@ export const getFlagUrl = (country: string): string => {
 /**
  * Название страны по ISO коду
  */
+// Complete lookup table for all known eSIM Access provider codes
+const PROVIDER_CODE_NAMES: Record<string, string> = {
+  // Africa
+  'AF-29': 'Африка',
+  // Asia
+  'AS-5': 'Центральная Азия',
+  'AS-7': 'Юго-Восточная Азия',
+  'AS-12': 'Азия',
+  'AS-20': 'Азия',
+  'AS-21': 'Азия',
+  // British Isles
+  'BI-2': 'Великобритания и Ирландия',
+  // Central Asia
+  'CA-4': 'Центральная Азия',
+  // Caribbean
+  'CB-25': 'Карибы и Латинская Америка',
+  // China region
+  'CN-3': 'Китай и регион',
+  'CNHK-2': 'Китай и Гонконг',
+  'CNJPKR-3': 'Китай, Япония, Корея',
+  // Europe
+  'EU-7': 'Балканы',
+  'EU-30': 'Европа',
+  'EU-42': 'Европа',
+  'EU-43': 'Европа и Марокко',
+  // Global
+  'GL-120': 'Глобальный',
+  'GL-139': 'Глобальный',
+  // Middle East
+  'ME-6': 'Персидский залив',
+  'ME-12': 'Ближний Восток и Северная Африка',
+  'ME-13': 'Ближний Восток',
+  // Americas
+  'NA-3': 'Северная Америка',
+  'SA-18': 'Южная Америка',
+  // Combo codes
+  'AUKUS-3': 'Австралия, Великобритания, США',
+  'AUNZ-2': 'Австралия и Новая Зеландия',
+  'IESI-2': 'Ирландия и Великобритания',
+  'JPKR-2': 'Япония и Корея',
+  'O-OC-3': 'Океания',
+  'SAAEQAKWOMBH-6': 'Аравийский полуостров',
+  'SGMY-2': 'Сингапур и Малайзия',
+  'SGMYTH-3': 'Юго-Восточная Азия',
+  'SGMYVNTHID-5': 'Юго-Восточная Азия',
+  'USCA-2': 'США и Канада',
+};
+
 export const getCountryName = (country: string): string => {
   if (!country) return 'Мир';
 
+  // Exact match first — covers all known provider codes
+  const upperKey = country.trim().toUpperCase();
+  if (PROVIDER_CODE_NAMES[upperKey]) return PROVIDER_CODE_NAMES[upperKey];
+
+  // Russian input — already in Russian, return as-is
+  if (/[а-яА-ЯёЁ]/.test(country)) return country;
+
+  // Generic XX-NN provider codes with prefix mapping (fallback for unknown codes)
   const providerRegionCode = country.trim().toUpperCase().match(/^([A-Z]{2})-\d+$/);
   if (providerRegionCode) {
     const regionNames: Record<string, string> = {
@@ -151,14 +211,23 @@ export const getCountryName = (country: string): string => {
       NA: 'Северная Америка',
       LA: 'Латинская Америка',
       OC: 'Океания',
-      ME: 'Ближний Восток и Северная Африка',
+      ME: 'Ближний Восток',
       GL: 'Глобальный',
       WW: 'Глобальный',
+      SA: 'Южная Америка',
+      CA: 'Центральная Азия',
+      CB: 'Карибские острова',
+      CN: 'Китай и регион',
+      BI: 'Великобритания и Ирландия',
     };
-
-    return regionNames[providerRegionCode[1]] || country;
+    return regionNames[providerRegionCode[1]] || 'Региональный пакет';
   }
-  
+
+  // Any other multi-letter provider code (SGMY-2 style not in exact table)
+  if (/^[A-Za-z][A-Za-z-]*-\d+$/.test(country.trim())) {
+    return 'Региональный пакет';
+  }
+
   const code = getCountryCode(country);
   
   const names: Record<string, string> = {

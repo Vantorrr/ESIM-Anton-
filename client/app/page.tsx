@@ -76,34 +76,43 @@ const POPULAR_COUNTRIES = [
   'UK', 'United Kingdom', 'Великобритания',
 ]
 
-function getRegionIcon(value: string) {
-  const normalized = value.trim().toLowerCase()
+function getRegionIcon(humanName: string) {
+  const n = humanName.trim().toLowerCase()
 
-  if (normalized.includes('europe') || normalized.includes('европ')) {
+  if (n.includes('европ') || n.includes('балкан')) {
     return { emoji: '🌍', bg: 'bg-green-100' }
   }
-  if (normalized.includes('asia') || normalized.includes('ази')) {
+  if (n.includes('юго-восточная азия') || n.includes('southeast')) {
+    return { emoji: '🌏', bg: 'bg-orange-100' }
+  }
+  if (n.includes('централ') && (n.includes('ази') || n.includes('asia'))) {
+    return { emoji: '🌏', bg: 'bg-fuchsia-100' }
+  }
+  if (n.includes('ази') || n.includes('asia')) {
     return { emoji: '🌏', bg: 'bg-rose-100' }
   }
-  if (normalized.includes('north america') || normalized.includes('северн')) {
+  if (n.includes('северная америка') || n.includes('north america') || n.includes('сша и канад') || n.includes('usca')) {
     return { emoji: '🌎', bg: 'bg-sky-100' }
   }
-  if (normalized.includes('latin america') || normalized.includes('латин')) {
-    return { emoji: '🟣', bg: 'bg-violet-100' }
+  if (n.includes('южная америка') || n.includes('карибы') || n.includes('латин') || n.includes('south america')) {
+    return { emoji: '🌎', bg: 'bg-violet-100' }
   }
-  if (normalized.includes('middle east') || normalized.includes('ближ')) {
+  if (n.includes('ближн') || n.includes('персидск') || n.includes('залив') || n.includes('аравийск') || n.includes('middle east') || n.includes('gulf')) {
     return { emoji: '🟠', bg: 'bg-amber-100' }
   }
-  if (normalized.includes('central asia') || normalized.includes('централ')) {
-    return { emoji: '🟣', bg: 'bg-fuchsia-100' }
-  }
-  if (normalized.includes('oceania') || normalized.includes('океан')) {
-    return { emoji: '🟢', bg: 'bg-emerald-100' }
-  }
-  if (normalized.includes('africa') || normalized.includes('африк')) {
+  if (n.includes('африк') || n.includes('africa')) {
     return { emoji: '🟡', bg: 'bg-yellow-100' }
   }
-  if (normalized.includes('global') || normalized.includes('world')) {
+  if (n.includes('океан') || n.includes('австрал') || n.includes('oceani')) {
+    return { emoji: '🟢', bg: 'bg-emerald-100' }
+  }
+  if (n.includes('китай') || n.includes('china') || n.includes('япони') || n.includes('корея') || n.includes('сингапур')) {
+    return { emoji: '🌏', bg: 'bg-red-100' }
+  }
+  if (n.includes('британ') || n.includes('ирланд')) {
+    return { emoji: '🌍', bg: 'bg-blue-50' }
+  }
+  if (n.includes('глобальн') || n.includes('global') || n.includes('world')) {
     return { emoji: '🌐', bg: 'bg-blue-100' }
   }
 
@@ -150,8 +159,8 @@ function CountryListRow({ group, index }: { group: CountryGroup; index: number }
 }
 
 function RegionListRow({ group, index }: { group: CountryGroup; index: number }) {
-  const icon = getRegionIcon(group.country)
   const title = getCountryName(group.country)
+  const icon = getRegionIcon(title)
 
   return (
     <Link href={`/country/${encodeURIComponent(group.country)}`}>
