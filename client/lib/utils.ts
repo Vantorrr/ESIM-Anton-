@@ -104,8 +104,26 @@ export const getCountryCode = (country: string): string => {
     return 'XX';
   }
 
-  // Russian input → no ISO code
-  if (/[а-яА-ЯёЁ]/.test(country)) return 'XX';
+  // Russian country names → resolve to ISO code
+  if (/[а-яА-ЯёЁ]/.test(country)) {
+    const RUSSIAN_TO_ISO: Record<string, string> = {
+      'россия': 'RU', 'турция': 'TR', 'египет': 'EG', 'оаэ': 'AE',
+      'китай': 'CN', 'грузия': 'GE', 'таиланд': 'TH', 'япония': 'JP',
+      'германия': 'DE', 'франция': 'FR', 'италия': 'IT', 'испания': 'ES',
+      'сша': 'US', 'великобритания': 'GB', 'индия': 'IN', 'бразилия': 'BR',
+      'австралия': 'AU', 'канада': 'CA', 'мексика': 'MX', 'португалия': 'PT',
+      'нидерланды': 'NL', 'польша': 'PL', 'бельгия': 'BE', 'австрия': 'AT',
+      'швейцария': 'CH', 'швеция': 'SE', 'норвегия': 'NO', 'дания': 'DK',
+      'финляндия': 'FI', 'греция': 'GR', 'румыния': 'RO', 'венгрия': 'HU',
+      'чехия': 'CZ', 'израиль': 'IL', 'корея': 'KR', 'сингапур': 'SG',
+      'малайзия': 'MY', 'индонезия': 'ID', 'вьетнам': 'VN', 'пакистан': 'PK',
+      'казахстан': 'KZ', 'узбекистан': 'UZ', 'азербайджан': 'AZ',
+      'армения': 'AM', 'беларусь': 'BY', 'украина': 'UA', 'гонконг': 'HK',
+      'тайвань': 'TW', 'саудовская аравия': 'SA', 'катар': 'QA',
+      'марокко': 'MA', 'нигерия': 'NG', 'кения': 'KE',
+    };
+    return RUSSIAN_TO_ISO[country.trim().toLowerCase()] || 'XX';
+  }
 
   if (/^[A-Za-z]{2}$/.test(country)) {
     return country.toUpperCase();
