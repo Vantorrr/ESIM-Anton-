@@ -99,6 +99,10 @@ const NAME_TO_ISO: Record<string, string> = {
 export const getCountryCode = (country: string): string => {
   if (!country) return 'XX';
 
+  if (/^[A-Za-z]{2}-\d+$/.test(country.trim())) {
+    return 'XX';
+  }
+
   if (/^[A-Za-z]{2}$/.test(country)) {
     return country.toUpperCase();
   }
@@ -137,6 +141,23 @@ export const getFlagUrl = (country: string): string => {
  */
 export const getCountryName = (country: string): string => {
   if (!country) return 'Мир';
+
+  const providerRegionCode = country.trim().toUpperCase().match(/^([A-Z]{2})-\d+$/);
+  if (providerRegionCode) {
+    const regionNames: Record<string, string> = {
+      AF: 'Африка',
+      AS: 'Азия',
+      EU: 'Европа',
+      NA: 'Северная Америка',
+      LA: 'Латинская Америка',
+      OC: 'Океания',
+      ME: 'Ближний Восток и Северная Африка',
+      GL: 'Глобальный',
+      WW: 'Глобальный',
+    };
+
+    return regionNames[providerRegionCode[1]] || country;
+  }
   
   const code = getCountryCode(country);
   

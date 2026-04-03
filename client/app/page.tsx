@@ -76,27 +76,6 @@ const POPULAR_COUNTRIES = [
   'UK', 'United Kingdom', 'Великобритания',
 ]
 
-function getRegionLabel(value: string): string {
-  const normalized = value.trim().toLowerCase()
-
-  const labels: Record<string, string> = {
-    asia: 'Азия',
-    europe: 'Европа',
-    africa: 'Африка',
-    oceania: 'Океания',
-    global: 'Глобальный',
-    worldwide: 'Глобальный',
-    world: 'Глобальный',
-    'north america': 'Северная Америка',
-    'latin america': 'Латинская Америка',
-    'central asia': 'Центральная Азия',
-    'middle east and north africa': 'Ближний Восток и Северная Африка',
-    'middle east': 'Ближний Восток',
-  }
-
-  return labels[normalized] || value
-}
-
 function getRegionIcon(value: string) {
   const normalized = value.trim().toLowerCase()
 
@@ -172,7 +151,7 @@ function CountryListRow({ group, index }: { group: CountryGroup; index: number }
 
 function RegionListRow({ group, index }: { group: CountryGroup; index: number }) {
   const icon = getRegionIcon(group.country)
-  const title = getRegionLabel(group.country)
+  const title = getCountryName(group.country)
 
   return (
     <Link href={`/country/${encodeURIComponent(group.country)}`}>
