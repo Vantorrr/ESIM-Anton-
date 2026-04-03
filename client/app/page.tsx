@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ChevronRight, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
 import { formatPrice, getFlagUrl, getCountryName } from '@/lib/utils'
@@ -76,6 +76,61 @@ const POPULAR_COUNTRIES = [
   'UK', 'United Kingdom', 'Великобритания',
 ]
 
+function getRegionLabel(value: string): string {
+  const normalized = value.trim().toLowerCase()
+
+  const labels: Record<string, string> = {
+    asia: 'Азия',
+    europe: 'Европа',
+    africa: 'Африка',
+    oceania: 'Океания',
+    global: 'Глобальный',
+    worldwide: 'Глобальный',
+    world: 'Глобальный',
+    'north america': 'Северная Америка',
+    'latin america': 'Латинская Америка',
+    'central asia': 'Центральная Азия',
+    'middle east and north africa': 'Ближний Восток и Северная Африка',
+    'middle east': 'Ближний Восток',
+  }
+
+  return labels[normalized] || value
+}
+
+function getRegionIcon(value: string) {
+  const normalized = value.trim().toLowerCase()
+
+  if (normalized.includes('europe') || normalized.includes('европ')) {
+    return { emoji: '🌍', bg: 'bg-green-100' }
+  }
+  if (normalized.includes('asia') || normalized.includes('ази')) {
+    return { emoji: '🌏', bg: 'bg-rose-100' }
+  }
+  if (normalized.includes('north america') || normalized.includes('северн')) {
+    return { emoji: '🌎', bg: 'bg-sky-100' }
+  }
+  if (normalized.includes('latin america') || normalized.includes('латин')) {
+    return { emoji: '🟣', bg: 'bg-violet-100' }
+  }
+  if (normalized.includes('middle east') || normalized.includes('ближ')) {
+    return { emoji: '🟠', bg: 'bg-amber-100' }
+  }
+  if (normalized.includes('central asia') || normalized.includes('централ')) {
+    return { emoji: '🟣', bg: 'bg-fuchsia-100' }
+  }
+  if (normalized.includes('oceania') || normalized.includes('океан')) {
+    return { emoji: '🟢', bg: 'bg-emerald-100' }
+  }
+  if (normalized.includes('africa') || normalized.includes('африк')) {
+    return { emoji: '🟡', bg: 'bg-yellow-100' }
+  }
+  if (normalized.includes('global') || normalized.includes('world')) {
+    return { emoji: '🌐', bg: 'bg-blue-100' }
+  }
+
+  return { emoji: '🌐', bg: 'bg-gray-100' }
+}
+
 function CountryListRow({ group, index }: { group: CountryGroup; index: number }) {
   const flagUrl = getFlagUrl(group.country)
   const countryName = getCountryName(group.country)
@@ -83,30 +138,62 @@ function CountryListRow({ group, index }: { group: CountryGroup; index: number }
   return (
     <Link href={`/country/${encodeURIComponent(group.country)}`}>
       <div
-        className="card-neutral flex items-center gap-3 px-4 py-4 transition-all active:scale-[0.99] animate-slide-up"
+        className="card-neutral flex items-center justify-between px-4 py-3.5 transition-all active:scale-[0.99] animate-slide-up"
         style={{ animationDelay: `${0.03 * index}s` }}
       >
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-50">
-          {flagUrl ? (
-            <img
-              src={flagUrl}
-              alt={countryName}
-              className="h-9 w-9 rounded-full object-cover"
-              loading="lazy"
-              onError={(e) => { (e.target as HTMLImageElement).src = '/logo-mark.png'; (e.target as HTMLImageElement).className = 'h-9 w-9 rounded-full object-contain'; }}
-            />
-          ) : (
-            <img src="/logo-mark.png" alt="Mojo mobile" className="h-9 w-9 rounded-full object-contain" />
-          )}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-50">
+            {flagUrl ? (
+              <img
+                src={flagUrl}
+                alt={countryName}
+                className="w-9 h-9 rounded-full object-cover"
+                loading="lazy"
+                onError={(e) => { (e.target as HTMLImageElement).src = '/logo-mark.png'; (e.target as HTMLImageElement).className = 'w-9 h-9 rounded-full object-contain'; }}
+              />
+            ) : (
+              <img src="/logo-mark.png" alt="Mojo mobile" className="w-9 h-9 rounded-full object-contain" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-gray-900 truncate">{countryName}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              от ₽{formatPrice(group.minPrice)}
+            </p>
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium text-gray-900">{countryName}</p>
-          <p className="mt-0.5 text-xs text-gray-500">
-            {group.productCount} {group.productCount === 1 ? 'тариф' : group.productCount < 5 ? 'тарифа' : 'тарифов'}
-            {' • '}от ₽{formatPrice(group.minPrice)}
-          </p>
+        <svg className="w-5 h-5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    </Link>
+  )
+}
+
+function RegionListRow({ group, index }: { group: CountryGroup; index: number }) {
+  const icon = getRegionIcon(group.country)
+  const title = getRegionLabel(group.country)
+
+  return (
+    <Link href={`/country/${encodeURIComponent(group.country)}`}>
+      <div
+        className="card-neutral flex items-center justify-between px-4 py-3.5 transition-all active:scale-[0.99] animate-slide-up"
+        style={{ animationDelay: `${0.03 * index}s` }}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${icon.bg}`}>
+            <span className="text-lg">{icon.emoji}</span>
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-gray-900 truncate">{title}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {group.coverageCount > 1 ? `${group.coverageSummary}` : 'Региональный пакет'} • от ₽{formatPrice(group.minPrice)}
+            </p>
+          </div>
         </div>
-        <ChevronRight className="h-5 w-5 shrink-0 text-gray-300" />
+        <svg className="w-5 h-5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
       </div>
     </Link>
   )
@@ -130,92 +217,6 @@ function ListSection({
         {items.map((group, index) => renderItem(group, index))}
       </div>
     </>
-  )
-}
-
-function RegionBadge({ label }: { label: string }) {
-  return (
-    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-      {label}
-    </span>
-  )
-}
-
-function GlobalListRow({ group, index }: { group: CountryGroup; index: number }) {
-  const { emoji, bg, text } = getRegionVisual(group.country)
-  const regionName = getCountryName(group.country)
-
-  return (
-    <Link href={`/country/${encodeURIComponent(group.country)}`}>
-      <div
-        className="card-neutral flex items-center gap-3 px-4 py-4 transition-all active:scale-[0.99] animate-slide-up"
-        style={{ animationDelay: `${0.03 * index}s` }}
-      >
-        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${bg}`}>
-          <span className="text-lg">{emoji}</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 flex items-center gap-2">
-            <p className="truncate font-medium text-gray-900">{regionName}</p>
-            <RegionBadge label={group.scopeLabel} />
-          </div>
-          <p className="text-xs text-gray-500">
-            {group.coverageSummary}
-            {group.coveragePreview ? ` • ${group.coveragePreview}` : ''}
-          </p>
-          <p className="mt-1 text-xs text-gray-400">
-            {group.productCount} {group.productCount === 1 ? 'тариф' : group.productCount < 5 ? 'тарифа' : 'тарифов'} • от ₽{formatPrice(group.minPrice)}
-          </p>
-        </div>
-        <ChevronRight className="h-5 w-5 shrink-0 text-gray-300" />
-      </div>
-    </Link>
-  )
-}
-
-function getRegionVisual(country: string) {
-  const normalized = getCountryName(country).toLowerCase()
-
-  if (normalized.includes('европ')) return { emoji: '🌍', bg: 'bg-emerald-100', text: 'text-emerald-700' }
-  if (normalized.includes('ази')) return { emoji: '🌏', bg: 'bg-rose-100', text: 'text-rose-700' }
-  if (normalized.includes('америк')) return { emoji: '🌎', bg: 'bg-sky-100', text: 'text-sky-700' }
-  if (normalized.includes('африк')) return { emoji: '🌍', bg: 'bg-amber-100', text: 'text-amber-700' }
-  if (normalized.includes('океан')) return { emoji: '🌊', bg: 'bg-cyan-100', text: 'text-cyan-700' }
-  if (normalized.includes('восток')) return { emoji: '☀️', bg: 'bg-orange-100', text: 'text-orange-700' }
-  if (normalized.includes('глоб') || normalized.includes('мир')) return { emoji: '🛰️', bg: 'bg-violet-100', text: 'text-violet-700' }
-
-  return { emoji: '🌐', bg: 'bg-gray-100', text: 'text-gray-700' }
-}
-
-function RegionListCard({ group, index }: { group: CountryGroup; index: number }) {
-  const { emoji, bg, text } = getRegionVisual(group.country)
-  const regionName = getCountryName(group.country)
-
-  return (
-    <Link href={`/country/${encodeURIComponent(group.country)}`}>
-      <div
-        className="card-neutral flex items-center gap-3 px-4 py-4 transition-all active:scale-[0.99] animate-slide-up"
-        style={{ animationDelay: `${0.03 * index}s` }}
-      >
-        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${bg}`}>
-          <span className="text-xl">{emoji}</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 flex items-center gap-2">
-            <p className="truncate font-medium text-gray-900">{regionName}</p>
-            <RegionBadge label={group.scopeLabel} />
-          </div>
-          <p className="text-xs text-gray-500">
-            {group.coverageSummary}
-            {group.coveragePreview ? ` • ${group.coveragePreview}` : ''}
-          </p>
-          <p className="mt-1 text-xs font-medium text-gray-400">
-            {group.productCount} {group.productCount === 1 ? 'тариф' : group.productCount < 5 ? 'тарифа' : 'тарифов'} • от ₽{formatPrice(group.minPrice)}
-          </p>
-        </div>
-        <ChevronRight className="h-5 w-5 shrink-0 text-gray-400" />
-      </div>
-    </Link>
   )
 }
 
@@ -441,8 +442,8 @@ export default function Home() {
         <div className="w-full rounded-full bg-white/75 border border-gray-200 p-1 flex gap-1.5">
         {[
           { id: 'countries' as const, label: 'Страны' },
-          { id: 'multi' as const, label: 'Регионы' },
-          { id: 'global' as const, label: 'Глобальные' },
+          { id: 'multi' as const, label: 'Мульти-страны' },
+          { id: 'global' as const, label: 'Глобальный' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -472,9 +473,6 @@ export default function Home() {
       ) : searchQuery ? (
         // Результаты поиска - список
         <>
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-            Страны
-          </h2>
           {filteredCountries.length === 0 ? (
             <div className="card-neutral text-center py-10">
               <div className="text-4xl mb-3">🔍</div>
@@ -482,11 +480,11 @@ export default function Home() {
               <p className="text-gray-400 text-sm mt-1">Попробуйте другой запрос</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredCountries.map((group, index) => (
-                <CountryListRow key={group.country} group={group} index={index} />
-              ))}
-            </div>
+            <ListSection
+              title="Страны"
+              items={filteredCountries}
+              renderItem={(group, index) => <CountryListRow key={group.country} group={group} index={index} />}
+            />
           )}
         </>
       ) : activeTab === 'multi' ? (
@@ -494,10 +492,10 @@ export default function Home() {
         <>
           <div className="card-neutral p-4 mb-4">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
-              Каталог регионов
+              Региональные пакеты
             </p>
             <p className="text-sm text-gray-600">
-              Как в Ton Mobile: сначала выбираете нужный регион, а уже внутри видите тарифы и полный список стран, которые входят в пакет.
+              Выберите регион и внутри посмотрите тарифы и страны, которые входят в пакет.
             </p>
           </div>
           {multiGroups.length === 0 ? (
@@ -510,7 +508,7 @@ export default function Home() {
             <ListSection
               title="Регионы"
               items={multiGroups}
-              renderItem={(group, index) => <RegionListCard key={group.country} group={group} index={index} />}
+              renderItem={(group, index) => <RegionListRow key={group.country} group={group} index={index} />}
             />
           )}
         </>
@@ -522,7 +520,7 @@ export default function Home() {
               Глобальные пакеты
             </p>
             <p className="text-sm text-gray-600">
-              Пакеты для мира и больших географий. Сразу видно охват по странам, а внутри страницы пакета можно посмотреть подробный список покрытия.
+              Пакеты с широким покрытием. Внутри каждого сразу видно список стран, которые входят в тариф.
             </p>
           </div>
           {globalGroups.length === 0 ? (
@@ -535,7 +533,7 @@ export default function Home() {
             <ListSection
               title="Глобальные"
               items={globalGroups}
-              renderItem={(group, index) => <GlobalListRow key={group.country} group={group} index={index} />}
+              renderItem={(group, index) => <RegionListRow key={group.country} group={group} index={index} />}
             />
           )}
         </>
