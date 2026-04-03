@@ -3,6 +3,11 @@ import { getCountryName } from '@/lib/utils'
 
 const MULTI_KEYWORDS = ['europe', 'asia', 'africa', 'america', 'regional', 'multi', 'евро', 'ази', 'афри', 'регион']
 const GLOBAL_KEYWORDS = ['global', 'world', 'глобал', 'мир', 'worldwide']
+const PROVIDER_REGION_CODE_RE = /^[A-Z]{2}-\d+$/i
+
+function isProviderRegionCode(value?: string): boolean {
+  return Boolean(value && PROVIDER_REGION_CODE_RE.test(value.trim()))
+}
 
 export function splitCoverageList(value?: string): string[] {
   if (!value) return []
@@ -42,11 +47,19 @@ export function getCoverageCount(product: Product): number {
 }
 
 export function isGlobalProduct(product: Product): boolean {
+  if (isProviderRegionCode(product.country)) {
+    return /^(GL|WW)-/i.test(product.country.trim())
+  }
+
   const haystack = `${product.name} ${product.country} ${product.region || ''}`.toLowerCase()
   return GLOBAL_KEYWORDS.some(keyword => haystack.includes(keyword))
 }
 
 export function isMultiProduct(product: Product): boolean {
+  if (isProviderRegionCode(product.country)) {
+    return !isGlobalProduct(product)
+  }
+
   if (isGlobalProduct(product)) return false
   const haystack = `${product.name} ${product.country} ${product.region || ''}`.toLowerCase()
   return (

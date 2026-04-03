@@ -121,17 +121,17 @@ function CountryListRow({ group, index }: { group: CountryGroup; index: number }
         style={{ animationDelay: `${0.03 * index}s` }}
       >
         <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-50">
+          <div className="flex h-10 w-12 shrink-0 items-center justify-center rounded-lg bg-gray-50">
             {flagUrl ? (
               <img
                 src={flagUrl}
                 alt={countryName}
-                className="w-9 h-9 rounded-full object-cover"
+                className="w-10 h-7 rounded-sm object-cover"
                 loading="lazy"
-                onError={(e) => { (e.target as HTMLImageElement).src = '/logo-mark.png'; (e.target as HTMLImageElement).className = 'w-9 h-9 rounded-full object-contain'; }}
+                onError={(e) => { (e.target as HTMLImageElement).src = '/logo-mark.png'; (e.target as HTMLImageElement).className = 'w-8 h-8 rounded-lg object-contain'; }}
               />
             ) : (
-              <img src="/logo-mark.png" alt="Mojo mobile" className="w-9 h-9 rounded-full object-contain" />
+              <img src="/logo-mark.png" alt="Mojo mobile" className="w-8 h-8 rounded-lg object-contain" />
             )}
           </div>
           <div className="min-w-0">
