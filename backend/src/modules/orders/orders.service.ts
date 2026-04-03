@@ -5,6 +5,7 @@ import { UsersService } from '../users/users.service';
 import { EsimProviderService } from '../esim-provider/esim-provider.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { TelegramNotificationService } from '../telegram/telegram-notification.service';
+import { EmailService } from '../notifications/email.service';
 import { OrderStatus, Prisma } from '@prisma/client';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class OrdersService {
     private esimProviderService: EsimProviderService,
     private promoCodesService: PromoCodesService,
     private telegramNotification: TelegramNotificationService,
+    private emailService: EmailService,
   ) {}
 
   /**
@@ -219,6 +221,24 @@ export class OrdersService {
           await this.telegramNotification.sendEsimDetails(order.user.telegramId, esimDetails);
         } catch (e: any) {
           this.logger.error(`TG notification failed: ${e.message}`);
+        }
+      }
+
+      // Email — отправляем если есть адрес
+      if (order.user.email) {
+        try {
+          await this.emailService.sendEsimReady(order.user.email, {
+            orderId: order.id,
+            country: order.product.country,
+            dataAmount: order.product.dataAmount,
+            iccid: esimData.iccid,
+            qrCode: esimData.qr_code,
+            activationCode: esimData.activation_code,
+            price: Number(order.totalAmount),
+          });
+          this.logger.log(`✅ Email с eSIM отправлен на ${order.user.email}`);
+        } catch (e: any) {
+          this.logger.error(`Email notification failed: ${e.message}`);
         }
       }
 
