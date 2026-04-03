@@ -76,13 +76,11 @@ const POPULAR_COUNTRIES = [
   'UK', 'United Kingdom', 'Великобритания',
 ]
 
-// Twemoji — профессионально нарисованные emoji от Twitter/Google.
-// Глобусы реально отображают континенты: 🌍 Европа/Африка, 🌏 Азия, 🌎 Америка
-const TW = 'https://cdn.jsdelivr.net/npm/twemoji@14.0.2/assets/svg'
-const GLOBE_EU_AF = `${TW}/1f30d.svg`   // 🌍 Европа + Африка
-const GLOBE_ASIA  = `${TW}/1f30f.svg`   // 🌏 Азия + Австралия
-const GLOBE_AM    = `${TW}/1f30e.svg`   // 🌎 Америка
-const GLOBE_GRID  = `${TW}/1f310.svg`   // 🌐 глобус с сеткой
+// Twemoji глобусы (скачаны локально в /public/emoji/)
+const GLOBE_EU_AF = '/emoji/globe-eu-af.svg'  // 🌍 Европа + Африка
+const GLOBE_ASIA  = '/emoji/globe-asia.svg'   // 🌏 Азия + Австралия
+const GLOBE_AM    = '/emoji/globe-am.svg'     // 🌎 Америка
+const GLOBE_GRID  = '/emoji/globe-grid.svg'   // 🌐 глобус с сеткой
 
 function getRegionIcon(humanName: string): { img: string; bg: string } {
   const n = humanName.trim().toLowerCase()
