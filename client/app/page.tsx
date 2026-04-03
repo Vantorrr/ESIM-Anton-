@@ -76,75 +76,187 @@ const POPULAR_COUNTRIES = [
   'UK', 'United Kingdom', 'Великобритания',
 ]
 
-function getRegionIcon(humanName: string) {
+// Custom SVG continent/region icons — white shape on colored background
+function RegionSvgIcon({ type }: { type: string }) {
+  const base = 'w-5 h-5'
+  switch (type) {
+    case 'africa':
+      return (
+        <svg viewBox="0 0 40 40" className={base} fill="white">
+          <path d="M20 4C17.5 4 15 5 13.5 7C12 9 12.5 11 12 13C11 14.5 10 16 10.5 18.5C11 21 12.5 23.5 14.5 26C16.5 28.5 18.5 32 20 36C21.5 32 23.5 28.5 25.5 26C27.5 23.5 29 21 29.5 18.5C30 16 29 14.5 28 13C27.5 11 28 9 26.5 7C25 5 22.5 4 20 4Z" />
+          <path d="M25 5.5C26 5 28 5.5 28.5 7C29 8.5 27.5 10 26 9.5C24.5 9 24 6 25 5.5Z" />
+        </svg>
+      )
+    case 'europe':
+      return (
+        <svg viewBox="0 0 40 40" className={base} fill="white">
+          {/* Main body */}
+          <path d="M14 7L12 9L10 10.5L10 13L12 14.5L11 17L13 19L15 20L17 21L19 20.5L21 21.5L23 20.5L25 19L26.5 17L27 14.5L29 13L29.5 10.5L27.5 9L25 8L22 7L18 7Z" />
+          {/* Iberian peninsula */}
+          <path d="M11 19L9.5 20.5L9 22.5L10.5 23.5L12 22.5L12.5 20.5Z" />
+          {/* Italian peninsula */}
+          <path d="M18.5 21L17.5 23.5L18 26L19.5 25.5L20 23.5L19.5 21Z" />
+          {/* Scandinavian */}
+          <path d="M21 7L23 5L26 6L25 8Z" />
+        </svg>
+      )
+    case 'asia':
+      return (
+        <svg viewBox="0 0 40 40" className={base} fill="white">
+          {/* Main landmass */}
+          <path d="M8 10L12 7L17 8L22 7L27 8L31 10L33 13L32 16L34 18L31 21L28 23L25 25L22 28L20 26L17 24L13 23L10 21L8 18L7 15Z" />
+          {/* Indian subcontinent */}
+          <path d="M22 26L21 29L20 33L21.5 31L23 28Z" />
+          {/* SE Asian peninsula */}
+          <path d="M27 24L26 27L25 30L26.5 28L28 25Z" />
+          {/* Japan */}
+          <path d="M33 12L35 11L36 13L34.5 14Z" />
+          <path d="M32 14L34 13.5L35 15.5L33.5 16.5Z" />
+        </svg>
+      )
+    case 'north_america':
+      return (
+        <svg viewBox="0 0 40 40" className={base} fill="white">
+          <path d="M8 6L11 5L15 5.5L18 7L20 9L19 12L21 14L18 16.5L15 17.5L12 16.5L10 17.5L8 15.5L7 12.5L7 9Z" />
+          {/* Florida */}
+          <path d="M17 17L16 19.5L17.5 19L18 17.5Z" />
+          {/* Alaska */}
+          <path d="M5 8L7 7L8 9L6 9.5Z" />
+        </svg>
+      )
+    case 'south_america':
+      return (
+        <svg viewBox="0 0 40 40" className={base} fill="white">
+          <path d="M14 6L18 5.5L21 7L22 10L21 13.5L23 16L22 20L20 24L18 29L16 34L14 29L12 24L11 20L10 16L12 13L11 9Z" />
+        </svg>
+      )
+    case 'middle_east':
+      return (
+        <svg viewBox="0 0 40 40" className={base} fill="white">
+          {/* Arabian Peninsula */}
+          <path d="M14 8L18 7L24 8L27 11L28 15L27 20L24 24L22 27L20 30L19 27L18 24L16 21L14 20L12 17L12 13Z" />
+          {/* Mesopotamia / Levant */}
+          <path d="M10 9L14 8L14 13L12 15L10 14L9 11Z" />
+          {/* Persian Gulf */}
+          <path d="M26 15L30 14L32 17L29 19L26 18Z" opacity="0.5" />
+        </svg>
+      )
+    case 'oceania':
+      return (
+        <svg viewBox="0 0 40 40" className={base} fill="white">
+          {/* Australia */}
+          <path d="M8 15L12 13L17 12.5L22 13L26 12.5L30 14L32 17L31 21L29 24.5L25 27L20 28L15 27L11 24L8 21Z" />
+          {/* Cape York Peninsula */}
+          <path d="M27 12.5L29 10.5L31 12L29 14Z" />
+          {/* New Zealand North */}
+          <path d="M34 19L36 18L37 20.5L35 21.5Z" />
+          {/* New Zealand South */}
+          <path d="M33 22L35 21.5L36 24L34 25Z" />
+        </svg>
+      )
+    case 'uk':
+      return (
+        <svg viewBox="0 0 40 40" className={base} fill="white">
+          {/* Great Britain */}
+          <path d="M19 6L22 5L24 7L24.5 10L25 13L23.5 16L24 19L22 21.5L19 22.5L17 21.5L16 19L16.5 16L15 13L15.5 10L17 7Z" />
+          {/* Scotland */}
+          <path d="M20.5 5.5L23 4L26 5L24 7L22 6Z" />
+          {/* Ireland */}
+          <path d="M12 12L15 11L16 13.5L14.5 16L12 16L11 14Z" />
+        </svg>
+      )
+    case 'se_asia':
+      return (
+        <svg viewBox="0 0 40 40" className={base} fill="white">
+          {/* Indochina + peninsula */}
+          <path d="M12 7L16 6L20 7L21 10L19 13L17 15L16 18L14.5 16L13 13L11 10Z" />
+          {/* Sumatra */}
+          <path d="M10 19L15 18L18 20L17 22L12 22L9 21Z" />
+          {/* Java */}
+          <path d="M15 24L20 23L23 24L22 26L17 26Z" />
+          {/* Borneo */}
+          <path d="M21 16L26 15L29 18L28 22L25 24L22 23L20 20Z" />
+          {/* Philippines */}
+          <path d="M28 10L30 9L31 11L29.5 12.5Z" />
+          <path d="M30 12L32 11L33 13L31 14Z" />
+        </svg>
+      )
+    case 'central_asia':
+      return (
+        <svg viewBox="0 0 40 40" className={base} fill="white">
+          {/* Central Asian steppe region */}
+          <path d="M8 13L13 10L19 11L25 10L30 12L33 16L31 20L27 22L22 23L16 23L11 21L8 18Z" />
+          {/* Mountain peaks */}
+          <path d="M14 18L17 13L20 18Z" opacity="0.35" fill="white" />
+          <path d="M19 17L22 12L25 17Z" opacity="0.35" fill="white" />
+        </svg>
+      )
+    case 'east_asia':
+      return (
+        <svg viewBox="0 0 40 40" className={base} fill="white">
+          {/* China mainland */}
+          <path d="M8 10L12 8L17 9L22 8L26 10L28 13L27 17L24 20L20 22L16 22L12 20L9 17L8 14Z" />
+          {/* Korean peninsula */}
+          <path d="M26 14L28 13.5L29 16L27 18L25 17Z" />
+          {/* Japan */}
+          <path d="M30 10L32 9L34 11.5L32 13Z" />
+          <path d="M29 13L31.5 12.5L33 15L31 16Z" />
+          <path d="M28 16L30 15.5L31 18L29.5 19Z" />
+          {/* Hainan/Taiwan */}
+          <path d="M25 20L27 19L28 21L26.5 22Z" />
+        </svg>
+      )
+    case 'global':
+      return (
+        <svg viewBox="0 0 40 40" className={base} fill="none" stroke="white" strokeWidth="1.5">
+          <circle cx="20" cy="20" r="15" />
+          <ellipse cx="20" cy="20" rx="7" ry="15" />
+          <path d="M5 20 C9 17 14 15.5 20 15.5 C26 15.5 31 17 35 20" strokeWidth="1" />
+          <path d="M5 20 C9 23 14 24.5 20 24.5 C26 24.5 31 23 35 20" strokeWidth="1" />
+          <path d="M5 20H35" strokeWidth="1" />
+        </svg>
+      )
+    default:
+      return (
+        <svg viewBox="0 0 40 40" className={base} fill="none" stroke="white" strokeWidth="1.5">
+          <circle cx="20" cy="20" r="15" />
+          <ellipse cx="20" cy="20" rx="7" ry="15" />
+          <path d="M5 20H35" strokeWidth="1" />
+          <path d="M5 20 C9 16 14 14 20 14 C26 14 31 16 35 20" strokeWidth="1" />
+        </svg>
+      )
+  }
+}
+
+function getRegionIcon(humanName: string): { type: string; bg: string; color: string } {
   const n = humanName.trim().toLowerCase()
 
-  // Europe / Balkans — EU flag
-  if (n.includes('европ') || n.includes('балкан')) {
-    return { emoji: '🇪🇺', bg: 'bg-blue-50' }
-  }
-  // SE Asia — palm tree
-  if (n.includes('юго-восточ')) {
-    return { emoji: '🌴', bg: 'bg-green-100' }
-  }
-  // Central Asia — mountains
-  if (n.includes('централ') && n.includes('ази')) {
-    return { emoji: '🏔️', bg: 'bg-stone-100' }
-  }
-  // Asia (broad) — Asia-facing globe
-  if (n.includes('ази')) {
-    return { emoji: '🌏', bg: 'bg-rose-100' }
-  }
-  // North America
-  if (n.includes('северная америка') || n.includes('сша и канад')) {
-    return { emoji: '🌎', bg: 'bg-sky-100' }
-  }
-  // South America / Caribbean / Latin
-  if (n.includes('южная америка') || n.includes('карибы') || n.includes('латин')) {
-    return { emoji: '🌎', bg: 'bg-violet-100' }
-  }
-  // Middle East / Gulf / Arabian
-  if (n.includes('ближн') || n.includes('персидск') || n.includes('залив') || n.includes('аравийск')) {
-    return { emoji: '🕌', bg: 'bg-amber-100' }
-  }
-  // Africa
-  if (n.includes('африк')) {
-    return { emoji: '🌍', bg: 'bg-yellow-100' }
-  }
-  // Oceania / Australia / New Zealand
-  if (n.includes('океан') || n.includes('австрал') || n.includes('зеланд')) {
-    return { emoji: '🏝️', bg: 'bg-emerald-100' }
-  }
-  // UK + Ireland
-  if (n.includes('британ') || n.includes('ирланд')) {
-    return { emoji: '🇬🇧', bg: 'bg-indigo-50' }
-  }
-  // China + HK / China region
-  if (n.includes('китай') && !n.includes('япон') && !n.includes('корея')) {
-    return { emoji: '🇨🇳', bg: 'bg-red-50' }
-  }
-  // Japan + Korea / CNJPKR
-  if (n.includes('япон') || n.includes('корея')) {
-    return { emoji: '🗾', bg: 'bg-pink-50' }
-  }
-  // Singapore / Malaysia / SE combos
-  if (n.includes('сингапур') || n.includes('малайзи')) {
-    return { emoji: '🌴', bg: 'bg-teal-50' }
-  }
-  // US + Canada
-  if (n.includes('сша') && n.includes('канад')) {
-    return { emoji: '🌎', bg: 'bg-sky-100' }
-  }
-  // Aus + UK + US (AUKUS)
-  if (n.includes('австрал') && n.includes('великобритан')) {
-    return { emoji: '🏝️', bg: 'bg-cyan-50' }
-  }
-  // Global
-  if (n.includes('глобальн')) {
-    return { emoji: '🌐', bg: 'bg-blue-100' }
-  }
+  if (n.includes('европ') || n.includes('балкан'))
+    return { type: 'europe', bg: 'bg-blue-500', color: '#3B82F6' }
+  if (n.includes('юго-восточ') || n.includes('сингапур') || n.includes('малайзи'))
+    return { type: 'se_asia', bg: 'bg-teal-500', color: '#14B8A6' }
+  if (n.includes('централ') && n.includes('ази'))
+    return { type: 'central_asia', bg: 'bg-amber-600', color: '#D97706' }
+  if (n.includes('ази'))
+    return { type: 'asia', bg: 'bg-rose-500', color: '#F43F5E' }
+  if (n.includes('северная америка') || (n.includes('сша') && n.includes('канад')))
+    return { type: 'north_america', bg: 'bg-sky-500', color: '#0EA5E9' }
+  if (n.includes('южная америка') || n.includes('карибы') || n.includes('латин'))
+    return { type: 'south_america', bg: 'bg-violet-500', color: '#8B5CF6' }
+  if (n.includes('ближн') || n.includes('персидск') || n.includes('залив') || n.includes('аравийск'))
+    return { type: 'middle_east', bg: 'bg-orange-500', color: '#F97316' }
+  if (n.includes('африк'))
+    return { type: 'africa', bg: 'bg-yellow-500', color: '#EAB308' }
+  if (n.includes('океан') || n.includes('австрал') || n.includes('зеланд'))
+    return { type: 'oceania', bg: 'bg-emerald-500', color: '#10B981' }
+  if (n.includes('британ') || n.includes('ирланд'))
+    return { type: 'uk', bg: 'bg-indigo-600', color: '#4F46E5' }
+  if (n.includes('китай') || n.includes('япон') || n.includes('корея'))
+    return { type: 'east_asia', bg: 'bg-red-500', color: '#EF4444' }
+  if (n.includes('глобальн'))
+    return { type: 'global', bg: 'bg-blue-600', color: '#2563EB' }
 
-  return { emoji: '🌐', bg: 'bg-gray-100' }
+  return { type: 'default', bg: 'bg-slate-500', color: '#64748B' }
 }
 
 function CountryListRow({ group, index }: { group: CountryGroup; index: number }) {
@@ -198,7 +310,7 @@ function RegionListRow({ group, index }: { group: CountryGroup; index: number })
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${icon.bg}`}>
-            <span className="text-xl">{icon.emoji}</span>
+            <RegionSvgIcon type={icon.type} />
           </div>
           <div className="min-w-0">
             <p className="font-medium text-gray-900 truncate">{title}</p>
@@ -223,8 +335,8 @@ function GlobalListRow({ group, index }: { group: CountryGroup; index: number })
         style={{ animationDelay: `${0.03 * index}s` }}
       >
         <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-indigo-100">
-            <span className="text-xl">🌍</span>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600">
+            <RegionSvgIcon type="global" />
           </div>
           <div className="min-w-0">
             <p className="font-medium text-gray-900 truncate">Глобальный пакет</p>
