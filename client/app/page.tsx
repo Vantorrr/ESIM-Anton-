@@ -328,6 +328,7 @@ function RegionListRow({ group, index }: { group: CountryGroup; index: number })
 }
 
 function GlobalListRow({ group, index }: { group: CountryGroup; index: number }) {
+  const title = getCountryName(group.country)
   return (
     <Link href={`/country/${encodeURIComponent(group.country)}`}>
       <div
@@ -339,7 +340,7 @@ function GlobalListRow({ group, index }: { group: CountryGroup; index: number })
             <RegionSvgIcon type="global" />
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-gray-900 truncate">Глобальный пакет</p>
+            <p className="font-medium text-gray-900 truncate">{title}</p>
             <p className="text-xs text-gray-400 mt-0.5">
               {group.coverageSummary} • от ₽{formatPrice(group.minPrice)}
             </p>
