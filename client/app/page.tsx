@@ -79,40 +79,68 @@ const POPULAR_COUNTRIES = [
 function getRegionIcon(humanName: string) {
   const n = humanName.trim().toLowerCase()
 
+  // Europe / Balkans — EU flag
   if (n.includes('европ') || n.includes('балкан')) {
-    return { emoji: '🌍', bg: 'bg-green-100' }
+    return { emoji: '🇪🇺', bg: 'bg-blue-50' }
   }
-  if (n.includes('юго-восточная азия') || n.includes('southeast')) {
-    return { emoji: '🌏', bg: 'bg-orange-100' }
+  // SE Asia — palm tree
+  if (n.includes('юго-восточ')) {
+    return { emoji: '🌴', bg: 'bg-green-100' }
   }
-  if (n.includes('централ') && (n.includes('ази') || n.includes('asia'))) {
-    return { emoji: '🌏', bg: 'bg-fuchsia-100' }
+  // Central Asia — mountains
+  if (n.includes('централ') && n.includes('ази')) {
+    return { emoji: '🏔️', bg: 'bg-stone-100' }
   }
-  if (n.includes('ази') || n.includes('asia')) {
+  // Asia (broad) — Asia-facing globe
+  if (n.includes('ази')) {
     return { emoji: '🌏', bg: 'bg-rose-100' }
   }
-  if (n.includes('северная америка') || n.includes('north america') || n.includes('сша и канад') || n.includes('usca')) {
+  // North America
+  if (n.includes('северная америка') || n.includes('сша и канад')) {
     return { emoji: '🌎', bg: 'bg-sky-100' }
   }
-  if (n.includes('южная америка') || n.includes('карибы') || n.includes('латин') || n.includes('south america')) {
+  // South America / Caribbean / Latin
+  if (n.includes('южная америка') || n.includes('карибы') || n.includes('латин')) {
     return { emoji: '🌎', bg: 'bg-violet-100' }
   }
-  if (n.includes('ближн') || n.includes('персидск') || n.includes('залив') || n.includes('аравийск') || n.includes('middle east') || n.includes('gulf')) {
-    return { emoji: '🟠', bg: 'bg-amber-100' }
+  // Middle East / Gulf / Arabian
+  if (n.includes('ближн') || n.includes('персидск') || n.includes('залив') || n.includes('аравийск')) {
+    return { emoji: '🕌', bg: 'bg-amber-100' }
   }
-  if (n.includes('африк') || n.includes('africa')) {
-    return { emoji: '🟡', bg: 'bg-yellow-100' }
+  // Africa
+  if (n.includes('африк')) {
+    return { emoji: '🌍', bg: 'bg-yellow-100' }
   }
-  if (n.includes('океан') || n.includes('австрал') || n.includes('oceani')) {
-    return { emoji: '🟢', bg: 'bg-emerald-100' }
+  // Oceania / Australia / New Zealand
+  if (n.includes('океан') || n.includes('австрал') || n.includes('зеланд')) {
+    return { emoji: '🏝️', bg: 'bg-emerald-100' }
   }
-  if (n.includes('китай') || n.includes('china') || n.includes('япони') || n.includes('корея') || n.includes('сингапур')) {
-    return { emoji: '🌏', bg: 'bg-red-100' }
-  }
+  // UK + Ireland
   if (n.includes('британ') || n.includes('ирланд')) {
-    return { emoji: '🌍', bg: 'bg-blue-50' }
+    return { emoji: '🇬🇧', bg: 'bg-indigo-50' }
   }
-  if (n.includes('глобальн') || n.includes('global') || n.includes('world')) {
+  // China + HK / China region
+  if (n.includes('китай') && !n.includes('япон') && !n.includes('корея')) {
+    return { emoji: '🇨🇳', bg: 'bg-red-50' }
+  }
+  // Japan + Korea / CNJPKR
+  if (n.includes('япон') || n.includes('корея')) {
+    return { emoji: '🗾', bg: 'bg-pink-50' }
+  }
+  // Singapore / Malaysia / SE combos
+  if (n.includes('сингапур') || n.includes('малайзи')) {
+    return { emoji: '🌴', bg: 'bg-teal-50' }
+  }
+  // US + Canada
+  if (n.includes('сша') && n.includes('канад')) {
+    return { emoji: '🌎', bg: 'bg-sky-100' }
+  }
+  // Aus + UK + US (AUKUS)
+  if (n.includes('австрал') && n.includes('великобритан')) {
+    return { emoji: '🏝️', bg: 'bg-cyan-50' }
+  }
+  // Global
+  if (n.includes('глобальн')) {
     return { emoji: '🌐', bg: 'bg-blue-100' }
   }
 
@@ -170,7 +198,7 @@ function RegionListRow({ group, index }: { group: CountryGroup; index: number })
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${icon.bg}`}>
-            <span className="text-lg">{icon.emoji}</span>
+            <span className="text-xl">{icon.emoji}</span>
           </div>
           <div className="min-w-0">
             <p className="font-medium text-gray-900 truncate">{title}</p>
@@ -195,8 +223,8 @@ function GlobalListRow({ group, index }: { group: CountryGroup; index: number })
         style={{ animationDelay: `${0.03 * index}s` }}
       >
         <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100">
-            <span className="text-lg">🌐</span>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-indigo-100">
+            <span className="text-xl">🌍</span>
           </div>
           <div className="min-w-0">
             <p className="font-medium text-gray-900 truncate">Глобальный пакет</p>
