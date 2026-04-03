@@ -39,8 +39,13 @@ export default function CountryPage() {
     activeTab === 'unlimited' ? p.isUnlimited : !p.isUnlimited
   )
   const selectedProd = products.find(p => p.id === selectedProduct) || null
-  const selectedCoverageItems = selectedProd ? getCoverageItems(selectedProd) : []
+  const selectedCoverageItems = selectedProd ? getCoverageItems(selectedProd).map(getCountryName) : []
   const selectedCoverageCount = selectedProd ? getCoverageCount(selectedProd) : 1
+  const showRegionCoverage = Boolean(
+    selectedProd &&
+    (isMultiProduct(selectedProd) || isGlobalProduct(selectedProd)) &&
+    selectedCoverageItems.length > 1
+  )
 
   useEffect(() => {
     const tabFromQuery = searchParams.get('tab')
@@ -132,6 +137,37 @@ export default function CountryPage() {
             </p>
             <p className="text-sm text-gray-500 mt-1">
               {getCoveragePreview(selectedProd, 4) || 'Покрытие зависит от выбранного тарифа.'}
+            </p>
+          </div>
+        )}
+
+        {showRegionCoverage && selectedProd && (
+          <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.04s' }}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                  Страны в пакете
+                </p>
+                <p className="text-base font-semibold text-gray-900">
+                  {getCoverageSummary(selectedProd)}
+                </p>
+              </div>
+              <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-[#f77430]">
+                {selectedCoverageCount} стран
+              </span>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {selectedCoverageItems.map(item => (
+                <div
+                  key={item}
+                  className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-gray-500">
+              Перед покупкой сразу видно, какие страны входят в этот региональный пакет.
             </p>
           </div>
         )}
@@ -296,7 +332,7 @@ export default function CountryPage() {
                 <div className="min-w-0">
                   <p className="text-xs text-gray-400 uppercase">Где работает</p>
                   <p className="font-medium text-gray-900">{getCoverageSummary(selectedProd)}</p>
-                  {selectedCoverageItems.length > 1 && (
+                  {selectedCoverageItems.length > 1 && !showRegionCoverage && (
                     <details className="mt-2 group">
                       <summary className="list-none cursor-pointer text-xs font-medium text-[#f77430]">
                         Показать страны ({selectedCoverageCount})
