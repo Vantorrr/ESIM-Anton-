@@ -345,9 +345,9 @@ export default function Home() {
       const isGlobal = isGlobalProduct(product)
       const isMulti = isMultiProduct(product)
 
-      // Пропускаем одиночные продукты с кириллическими именами стран —
-      // это дубли нормально закодированных (AE, TR, JP...) с некорректными ценами
-      if (/[а-яА-ЯёЁ]/.test(country) && !isGlobal && !isMulti) return
+      // Пропускаем ВСЕ продукты с кириллическими именами стран —
+      // это дубли нормально закодированных (AE, TR, JP...) с ценой 0
+      if (/[а-яА-ЯёЁ]/.test(country)) return
       
       const targetGroups = isGlobal ? global : isMulti ? multi : groups
       
