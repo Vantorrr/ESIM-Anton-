@@ -132,7 +132,7 @@ export default function CountryPage() {
               {getCoverageScopeLabel(selectedProd)}
             </p>
             <p className="text-base font-semibold text-gray-900">
-              Работает в {getCoverageSummary(selectedProd)}
+              Покрывает {getCoverageSummary(selectedProd)}
             </p>
           </div>
         )}
