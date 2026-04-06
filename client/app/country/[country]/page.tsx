@@ -10,7 +10,6 @@ import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib
 import {
   getCoverageCount,
   getCoverageItems,
-  getCoveragePreview,
   getCoverageScopeLabel,
   getCoverageSummary,
   isGlobalProduct,
@@ -134,9 +133,6 @@ export default function CountryPage() {
             </p>
             <p className="text-base font-semibold text-gray-900">
               Работает в {getCoverageSummary(selectedProd)}
-            </p>
-            <p className="text-sm text-gray-500 mt-1">
-              {getCoveragePreview(selectedProd, 4) || 'Покрытие зависит от выбранного тарифа.'}
             </p>
           </div>
         )}
