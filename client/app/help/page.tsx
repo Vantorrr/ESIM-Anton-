@@ -131,14 +131,18 @@ export default function HelpPage() {
           <div className="grid grid-cols-2 gap-3">
             <Link href="/help/ios">
               <div className="card-neutral p-4 flex flex-col items-center text-center gap-2 active:scale-[0.98] transition-transform">
-                <span className="text-4xl">🍎</span>
+                <svg viewBox="0 0 814 1000" className="w-10 h-10" fill="currentColor">
+                  <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-43.4-150.3-113.4C173.6 831.6 128 739.4 128 651.6c0-141.4 91.6-216.3 181.3-216.3 67.1 0 116.1 43.8 155.5 43.8 37.5 0 93.2-46.6 168.7-46.6 21.5 0 123.9 2 198.3 99.2zm-234-181.5c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/>
+                </svg>
                 <p className="font-semibold text-gray-900">iPhone / iPad</p>
                 <p className="text-xs text-gray-500">iOS — пошагово</p>
               </div>
             </Link>
             <Link href="/help/android">
               <div className="card-neutral p-4 flex flex-col items-center text-center gap-2 active:scale-[0.98] transition-transform">
-                <span className="text-4xl">🤖</span>
+                <svg viewBox="0 0 24 24" className="w-10 h-10" fill="#3DDC84">
+                  <path d="M17.523 15.341a.676.676 0 0 1-.676.676H7.153a.676.676 0 0 1-.676-.676V9.01h11.046v6.331zm-9.369 3.312a.901.901 0 1 1-1.802 0v-2.636h1.802v2.636zm7.692 0a.901.901 0 1 1-1.802 0v-2.636h1.802v2.636zM7.133 8.332l-1.23-2.11a.27.27 0 0 1 .468-.27l1.246 2.14a7.312 7.312 0 0 1 4.383-1.4 7.312 7.312 0 0 1 4.383 1.4l1.246-2.14a.27.27 0 0 1 .468.27l-1.23 2.11a7.304 7.304 0 0 1 3.133 5.678H4c0-2.375 1.182-4.47 3.133-5.678zM9.927 5.674a.585.585 0 1 1-1.17 0 .585.585 0 0 1 1.17 0zm5.316 0a.585.585 0 1 1-1.17 0 .585.585 0 0 1 1.17 0z"/>
+                </svg>
                 <p className="font-semibold text-gray-900">Android</p>
                 <p className="text-xs text-gray-500">Samsung, Xiaomi, Pixel</p>
               </div>
