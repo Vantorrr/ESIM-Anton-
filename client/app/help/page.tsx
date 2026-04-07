@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, ChevronDown, ChevronUp, MessageCircle, Mail, Smartphone } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronUp, Mail, Smartphone } from 'lucide-react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
 import { useSmartBack } from '@/lib/useSmartBack'
@@ -113,26 +113,16 @@ export default function HelpPage() {
         {/* Contact Cards */}
         <section className="mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Свяжитесь с нами</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <a
-              href="https://t.me/mojo_mobile_bot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="card-accent p-4"
-            >
-              <MessageCircle size={28} className="mb-2" />
-              <p className="font-semibold">Telegram</p>
-              <p className="text-sm text-white/80">Быстрый ответ</p>
-            </a>
-            <a
-              href="mailto:alkirp40@gmail.com"
-              className="card-accent p-4"
-            >
-              <Mail size={28} className="mb-2" />
-              <p className="font-semibold">Email</p>
-              <p className="text-sm text-white/80">alkirp40@gmail.com</p>
-            </a>
-          </div>
+          <a
+            href="mailto:mojomobile@yandex.ru"
+            className="card-accent p-5 flex items-center gap-4"
+          >
+            <Mail size={28} className="shrink-0" />
+            <div>
+              <p className="font-semibold text-lg">Email</p>
+              <p className="text-sm text-white/80">mojomobile@yandex.ru</p>
+            </div>
+          </a>
         </section>
 
         {/* Installation Guides */}
