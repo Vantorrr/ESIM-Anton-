@@ -166,7 +166,7 @@ function RegionListRow({ group, index }: { group: CountryGroup; index: number })
           <div className="min-w-0">
             <p className="font-medium text-gray-900 truncate">{title}</p>
             <p className="text-xs text-gray-400 mt-0.5">
-              {group.coverageCount > 1 ? `${group.coverageSummary}` : 'Региональный пакет'} • ₽{formatPrice(group.minPrice)}
+              {group.coverageCount > 1 ? `${group.coverageSummary}` : 'Региональный пакет'}
             </p>
           </div>
         </div>
@@ -193,7 +193,7 @@ function GlobalListRow({ group, index }: { group: CountryGroup; index: number })
           <div className="min-w-0">
             <p className="font-medium text-gray-900 truncate">{title}</p>
             <p className="text-xs text-gray-400 mt-0.5">
-              {group.coverageSummary} • ₽{formatPrice(group.minPrice)}
+              {group.coverageSummary}
             </p>
           </div>
         </div>
