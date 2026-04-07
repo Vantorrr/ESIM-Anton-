@@ -56,7 +56,7 @@ export class TelegramNotificationService {
         [
           {
             text: '📱 Открыть Мои eSIM',
-            url: `https://t.me/${this.botUsername}/app?startapp=my-esim`
+            web_app: { url: 'https://mojomobile.ru/my-esim' }
           }
         ]
       ]
@@ -109,7 +109,7 @@ export class TelegramNotificationService {
     const keyboard = {
       inline_keyboard: [[{
         text: '📱 Открыть Мои eSIM',
-        url: `https://t.me/${this.botUsername}/app?startapp=my-esim`,
+        web_app: { url: 'https://mojomobile.ru/my-esim' },
       }]]
     };
 
@@ -161,7 +161,7 @@ ${reason ? `Причина: ${reason}` : 'Попробуйте еще раз и�
         [
           {
             text: '🔄 Попробовать снова',
-            url: `https://t.me/${this.botUsername}/app`
+            web_app: { url: 'https://mojomobile.ru' }
           }
         ]
       ]

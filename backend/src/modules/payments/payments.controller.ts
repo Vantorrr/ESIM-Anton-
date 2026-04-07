@@ -41,8 +41,7 @@ export class PaymentsController {
   async handleSuccess(@Query() query: any, @Res() res: any) {
     const { InvId } = query;
     // Редирект в Telegram Mini App с параметром для открытия страницы my-esim
-    const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'mojo_mobile_bot';
-    const telegramUrl = `https://t.me/${botUsername}/app?startapp=my-esim`;
+    const telegramUrl = 'https://mojomobile.ru/my-esim';
 
     res.send(`
       <!DOCTYPE html>
