@@ -199,7 +199,10 @@ function LoginInner() {
             )}
 
             <p className="text-xs text-center text-muted pt-2">
-              Продолжая, вы принимаете <a href="/offer" className="text-accent underline">публичную оферту</a>
+              Продолжая, вы принимаете{' '}
+              <a href="/offer" className="text-accent underline">публичную оферту</a>
+              {' '}и{' '}
+              <a href="/agreement" className="text-accent underline">пользовательское соглашение</a>
             </p>
           </div>
         )}
