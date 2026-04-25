@@ -142,6 +142,28 @@ export default function Products() {
     }
   }
 
+  const handleDedupe = async () => {
+    try {
+      const dry = await productsApi.dedupe(true)
+      const groups = dry.data.groups
+      const deactivated = dry.data.deactivated
+      if (groups === 0) {
+        alert('🎉 Дубликатов не найдено')
+        return
+      }
+      const ok = confirm(
+        `Найдено ${groups} групп дубликатов (${deactivated} лишних тарифов).\n` +
+        `Скрыть их (isActive=false)? Исторические заказы не пострадают.`
+      )
+      if (!ok) return
+      const real = await productsApi.dedupe(false)
+      alert(`✅ ${real.data.message}`)
+      loadProducts()
+    } catch (err: any) {
+      alert('❌ Ошибка дедупа: ' + (err.response?.data?.message || err.message))
+    }
+  }
+
   const closeEditor = () => {
     setEditingProduct(null)
     setIsCreating(false)
@@ -381,6 +403,14 @@ export default function Products() {
             >
               <RefreshCw className="w-4 h-4" />
               Обновить
+            </button>
+            <button
+              onClick={handleDedupe}
+              className="flex items-center gap-2 px-4 py-2.5 bg-amber-100 text-amber-700 rounded-xl font-medium hover:bg-amber-200 transition-all"
+              title="Найти и скрыть тарифы-дубликаты"
+            >
+              🧹
+              Найти дубли
             </button>
           </div>
           <div className="text-sm text-slate-500">
@@ -659,14 +689,33 @@ export default function Products() {
                         />
                       </td>
                       <td className="py-2 px-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">🌍</span>
-                          <button 
-                            onClick={() => setViewingProduct(product)}
-                            className="font-medium text-blue-600 hover:underline text-left"
-                          >
-                            {product.name}
-                          </button>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">🌍</span>
+                            <button
+                              onClick={() => setViewingProduct(product)}
+                              className="font-medium text-blue-600 hover:underline text-left"
+                            >
+                              {product.name}
+                            </button>
+                          </div>
+                          {Array.isArray(product.tags) && product.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 ml-7">
+                              {product.tags.slice(0, 3).map((tag: string) => (
+                                <span
+                                  key={tag}
+                                  className="px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-medium"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {product.tags.length > 3 && (
+                                <span className="text-[10px] text-slate-400">
+                                  +{product.tags.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="py-2 px-2 font-semibold">
@@ -1050,6 +1099,43 @@ export default function Products() {
                   <option value="blue">🔵 Синий</option>
                   <option value="orange">🟠 Оранжевый</option>
                 </select>
+              </div>
+
+              {/* Теги — короткие пометки для клиентов */}
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  🏷️ Теги (через запятую)
+                </label>
+                <input
+                  type="text"
+                  value={Array.isArray(editingProduct.tags) ? editingProduct.tags.join(', ') : ''}
+                  onChange={(e) => {
+                    const tags = e.target.value
+                      .split(',')
+                      .map((t) => t.trim())
+                      .filter(Boolean)
+                    setEditingProduct({ ...editingProduct, tags })
+                  }}
+                  placeholder="Например: Материковый Китай, Не гонконгский IP, 5G"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Эти пометки видит клиент в карточке тарифа. При синхронизации с провайдером не затираются.
+                </p>
+              </div>
+
+              {/* Примечание — длинный комментарий */}
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  📝 Примечание
+                </label>
+                <textarea
+                  value={editingProduct.notes || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, notes: e.target.value || null })}
+                  placeholder="Особенности активации, ограничения, прочие пояснения..."
+                  rows={2}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                />
               </div>
 
               {/* Активен */}

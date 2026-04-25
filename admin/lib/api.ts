@@ -53,6 +53,9 @@ export const productsApi = {
     api.post('/products/bulk/set-badge', { ids, badge, badgeColor }),
   bulkSetMarkup: (ids: string[], markupPercent: number) => 
     api.post('/products/bulk/set-markup', { ids, markupPercent }),
+  // Найти и скрыть дубликаты тарифов
+  dedupe: (dryRun = false) =>
+    api.post(`/products/dedupe${dryRun ? '?dryRun=true' : ''}`),
 }
 
 export const paymentsApi = {

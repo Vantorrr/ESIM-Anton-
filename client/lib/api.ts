@@ -53,6 +53,34 @@ export interface Product {
   // Бейджи (скидки, ХИТ, etc.)
   badge?: string;
   badgeColor?: string;
+  // Произвольные пометки тарифа («Материковый Китай», «Не гонконгский IP», «5G» и т.д.)
+  tags?: string[];
+  notes?: string;
+}
+
+export interface UsageInfo {
+  available: boolean;
+  reason?: string;
+  usedBytes: number | null;
+  totalBytes: number | null;
+  remainingBytes: number | null;
+  updatedAt: string | null;
+}
+
+export interface TopupPackage {
+  packageCode: string;
+  name: string;
+  slug?: string;
+  location?: string;
+  locationCode?: string;
+  description?: string;
+  price: number;        // в сотых центах USD (как у провайдера)
+  currencyCode: string;
+  volume: number;       // в байтах
+  duration: number;
+  durationUnit: string;
+  speed?: string;
+  supportTopup: boolean;
 }
 
 export interface Order {
@@ -146,6 +174,26 @@ export const ordersApi = {
   // Проверить новые оплаченные заказы
   async checkNew(userId: string): Promise<{ hasNewOrders: boolean; latestOrder: Order | null }> {
     const { data } = await api.get(`/orders/user/${userId}/check-new`);
+    return data;
+  },
+
+  // Получить расход трафика по eSIM
+  async getUsage(orderId: string, force = false): Promise<UsageInfo> {
+    const { data } = await api.get(`/orders/${orderId}/usage`, {
+      params: force ? { force: 'true' } : undefined,
+    });
+    return data;
+  },
+
+  // Получить пакеты пополнения для конкретного eSIM
+  async getTopupPackages(orderId: string): Promise<TopupPackage[]> {
+    const { data } = await api.get(`/orders/${orderId}/topup-packages`);
+    return data;
+  },
+
+  // Запустить пополнение
+  async topup(orderId: string, packageCode: string): Promise<any> {
+    const { data } = await api.post(`/orders/${orderId}/topup`, { packageCode });
     return data;
   },
 };
