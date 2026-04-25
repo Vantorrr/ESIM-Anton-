@@ -79,6 +79,47 @@ export class TelegramNotificationService {
   }
 
   /**
+   * Отправить произвольное текстовое уведомление в Telegram пользователю.
+   * Используется, например, мониторингом трафика для предупреждения о низком остатке.
+   */
+  async sendTextNotification(
+    telegramId: bigint | number | string,
+    text: string,
+    options?: { parseMode?: 'HTML' | 'Markdown'; openMyEsim?: boolean },
+  ) {
+    if (!this.botToken) {
+      this.logger.warn('Cannot send notification - bot token not set');
+      return;
+    }
+
+    const replyMarkup = options?.openMyEsim
+      ? {
+          inline_keyboard: [
+            [
+              {
+                text: '📱 Открыть Мои eSIM',
+                web_app: { url: 'https://mojomobile.ru/my-esim' },
+              },
+            ],
+          ],
+        }
+      : undefined;
+
+    try {
+      await axios.post(`${this.apiUrl}/sendMessage`, {
+        chat_id: telegramId.toString(),
+        text,
+        parse_mode: options?.parseMode || 'HTML',
+        reply_markup: replyMarkup,
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `❌ sendTextNotification failed for ${telegramId}: ${error.message}`,
+      );
+    }
+  }
+
+  /**
    * Отправить eSIM с QR-кодом, ICCID и кодом активации в бот
    */
   async sendEsimDetails(

@@ -254,6 +254,146 @@ export class OrdersService {
   }
 
   /**
+   * Получить usage (расход трафика) по заказу.
+   * Делает запрос к провайдеру по ICCID, кэширует результат в БД (lastUsageBytes/lastUsageAt),
+   * чтобы не дёргать API на каждый рендер.
+   *
+   * @param orderId      id заказа
+   * @param maxAgeSec    если кэш свежее — возвращаем его без запроса к провайдеру (по умолчанию 5 мин)
+   * @param force        принудительно перезапросить у провайдера
+   */
+  async getOrderUsage(orderId: string, maxAgeSec = 300, force = false) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { product: true },
+    });
+
+    if (!order) {
+      throw new BadRequestException('Заказ не найден');
+    }
+
+    if (!order.iccid) {
+      // eSIM ещё не выдана — usage не имеет смысла
+      return {
+        available: false,
+        reason: 'eSIM ещё не выдана',
+        totalBytes: null,
+        usedBytes: null,
+        remainingBytes: null,
+        updatedAt: null,
+      };
+    }
+
+    const cachedFresh =
+      !force &&
+      order.lastUsageAt &&
+      Date.now() - order.lastUsageAt.getTime() < maxAgeSec * 1000;
+
+    let usedBytes: number | null = order.lastUsageBytes ? Number(order.lastUsageBytes) : null;
+    let totalBytes: number | null = null;
+    let updatedAt: Date | null = order.lastUsageAt;
+
+    if (!cachedFresh) {
+      try {
+        const info = await this.esimProviderService.getEsimInfoByIccid(order.iccid);
+        const esim = info?.esimList?.[0] || info?.esim || info;
+
+        // У eSIMaccess поля могут называться orderUsage/totalVolume или dataUsed/dataTotal
+        const used =
+          Number(esim?.orderUsage ?? esim?.dataUsed ?? esim?.usage ?? NaN);
+        const total =
+          Number(esim?.totalVolume ?? esim?.dataTotal ?? esim?.volume ?? NaN);
+
+        if (Number.isFinite(used)) usedBytes = used;
+        if (Number.isFinite(total)) totalBytes = total;
+
+        if (Number.isFinite(used)) {
+          updatedAt = new Date();
+          await this.prisma.order.update({
+            where: { id: orderId },
+            data: {
+              lastUsageBytes: BigInt(Math.max(0, Math.floor(used))),
+              lastUsageAt: updatedAt,
+            },
+          });
+        }
+      } catch (error: any) {
+        this.logger.warn(
+          `Не удалось получить usage по ICCID ${order.iccid}: ${error.message}`,
+        );
+        // Возвращаем кэш если есть, иначе available=false
+        if (usedBytes === null) {
+          return {
+            available: false,
+            reason: 'Провайдер временно недоступен',
+            totalBytes: null,
+            usedBytes: null,
+            remainingBytes: null,
+            updatedAt: null,
+          };
+        }
+      }
+    }
+
+    if (usedBytes === null) {
+      return {
+        available: false,
+        reason: 'Данные ещё не обновлены',
+        totalBytes: null,
+        usedBytes: null,
+        remainingBytes: null,
+        updatedAt: null,
+      };
+    }
+
+    const remainingBytes =
+      totalBytes !== null ? Math.max(0, totalBytes - usedBytes) : null;
+
+    return {
+      available: true,
+      totalBytes,
+      usedBytes,
+      remainingBytes,
+      updatedAt,
+    };
+  }
+
+  /**
+   * Список пакетов пополнения для конкретного заказа (по ICCID).
+   */
+  async getTopupPackagesForOrder(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) throw new BadRequestException('Заказ не найден');
+    if (!order.iccid) {
+      throw new BadRequestException('eSIM ещё не выдана — пополнение недоступно');
+    }
+
+    return this.esimProviderService.getTopupPackagesByIccid(order.iccid);
+  }
+
+  /**
+   * Запустить пополнение eSIM выбранным пакетом.
+   * Возвращает данные провайдера; биллинг (списание со счёта пользователя или
+   * новая оплата) — ответственность вызывающего слоя/платёжного модуля.
+   */
+  async topupOrder(orderId: string, packageCode: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) throw new BadRequestException('Заказ не найден');
+    if (!order.iccid) {
+      throw new BadRequestException('eSIM ещё не выдана — пополнение недоступно');
+    }
+
+    const transactionId = `topup_${order.id}_${Date.now()}`;
+    return this.esimProviderService.topupEsim(order.iccid, packageCode, transactionId);
+  }
+
+  /**
    * Получить все заказы (для админки)
    */
   async findAll(filters?: {

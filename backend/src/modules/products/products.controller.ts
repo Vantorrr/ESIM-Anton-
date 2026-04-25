@@ -30,6 +30,13 @@ export class ProductsController {
     return this.productsService.syncWithProvider();
   }
 
+  @Post('dedupe')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Найти и скрыть дубликаты тарифов в БД' })
+  async dedupe(@Query('dryRun') dryRun?: string) {
+    return this.productsService.dedupeProducts(dryRun === 'true');
+  }
+
   // =====================================================
   // МАССОВЫЕ ОПЕРАЦИИ
   // =====================================================

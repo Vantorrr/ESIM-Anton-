@@ -100,6 +100,11 @@ model EsimProduct {
   isUnlimited   Boolean  @default(false)
   badge         String?
   badgeColor    String?
+  // Произвольные теги-пометки тарифа («Материковый Китай», «Не гонконгский IP», «5G» и т.д.)
+  // Часть тегов проставляется автоматически в syncWithProvider, часть — вручную из админки.
+  tags          String[] @default([])
+  // Длинное человекочитаемое примечание (например, особые условия активации)
+  notes         String?
   orders        Order[]
 
   @@index([country])
@@ -129,6 +134,12 @@ model Order {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   completedAt      DateTime?
+  // Кэш последнего известного использования трафика для активной eSIM (в байтах)
+  lastUsageBytes        BigInt?
+  // Когда usage был последний раз обновлён (для решения, нужно ли перезапрашивать у провайдера)
+  lastUsageAt           DateTime?
+  // Когда было отправлено последнее уведомление о низком остатке — чтобы не спамить
+  lowTrafficNotifiedAt  DateTime?
   product          EsimProduct   @relation(fields: [productId], references: [id])
   user             User          @relation(fields: [userId], references: [id])
   transactions     Transaction[]

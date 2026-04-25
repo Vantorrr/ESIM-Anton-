@@ -71,4 +71,38 @@ export class OrdersController {
     await this.ordersService.updateStatus(id, OrderStatus.PAID);
     return this.ordersService.fulfillOrder(id);
   }
+
+  @Get(':id/usage')
+  @ApiOperation({ summary: 'Расход трафика по eSIM (с кэшированием)' })
+  async getUsage(@Param('id') id: string, @Query('force') force?: string) {
+    const usage = await this.ordersService.getOrderUsage(id, 300, force === 'true');
+
+    // Преобразуем BigInt-подобные значения в Number, чтобы JSON был корректным
+    const toNum = (v: number | null) =>
+      v === null || v === undefined ? null : Number(v);
+
+    return {
+      available: usage.available,
+      reason: 'reason' in usage ? usage.reason : undefined,
+      usedBytes: toNum(usage.usedBytes),
+      totalBytes: toNum(usage.totalBytes),
+      remainingBytes: toNum(usage.remainingBytes),
+      updatedAt: usage.updatedAt,
+    };
+  }
+
+  @Get(':id/topup-packages')
+  @ApiOperation({ summary: 'Список пакетов пополнения для eSIM' })
+  async getTopupPackages(@Param('id') id: string) {
+    return this.ordersService.getTopupPackagesForOrder(id);
+  }
+
+  @Post(':id/topup')
+  @ApiOperation({ summary: 'Пополнить eSIM выбранным пакетом' })
+  async topup(@Param('id') id: string, @Body() body: { packageCode: string }) {
+    if (!body?.packageCode) {
+      throw new BadRequestException('packageCode обязателен');
+    }
+    return this.ordersService.topupOrder(id, body.packageCode);
+  }
 }

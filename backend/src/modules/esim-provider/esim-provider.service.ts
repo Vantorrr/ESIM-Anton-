@@ -167,6 +167,38 @@ export class EsimProviderService {
     throw new BadRequestException('Провайдер не настроен');
   }
 
+  /**
+   * Получить актуальную информацию по eSIM (включая использование трафика).
+   * Используется для отображения остатка в UI и мониторинга низкого остатка.
+   */
+  async getEsimInfoByIccid(iccid: string): Promise<any> {
+    if (!this.esimAccessProvider) {
+      throw new BadRequestException('Провайдер eSIM не настроен');
+    }
+    return this.esimAccessProvider.getEsimInfo(iccid);
+  }
+
+  /**
+   * Список пакетов пополнения, доступных для конкретной eSIM (по её ICCID).
+   * Возвращает только те, где supportTopup=true.
+   */
+  async getTopupPackagesByIccid(iccid: string): Promise<any[]> {
+    if (!this.esimAccessProvider) {
+      throw new BadRequestException('Провайдер eSIM не настроен');
+    }
+    return this.esimAccessProvider.getTopupPackages(iccid);
+  }
+
+  /**
+   * Пополнить eSIM выбранным пакетом.
+   */
+  async topupEsim(iccid: string, packageCode: string, transactionId?: string): Promise<any> {
+    if (!this.esimAccessProvider) {
+      throw new BadRequestException('Провайдер eSIM не настроен');
+    }
+    return this.esimAccessProvider.topupEsim(iccid, packageCode, transactionId);
+  }
+
   async purchaseEsim(packageId: string, email?: string, periodNum?: number, providerPrice?: number): Promise<EsimGoPurchaseResponse> {
     if (this.esimAccessProvider) {
       try {
