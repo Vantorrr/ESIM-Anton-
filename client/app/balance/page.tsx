@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 // Lucide icons removed due to type issues - using emoji instead
 import BottomNav from '@/components/BottomNav'
 import { useSmartBack } from '@/lib/useSmartBack'
+import { useAuth } from '@/components/AuthProvider'
+import { api, paymentsApi } from '@/lib/api'
 
 interface Transaction {
   id: string
@@ -13,23 +15,124 @@ interface Transaction {
   date: string
 }
 
+// Маппинг типа транзакции из бэка (TransactionType) в типы для UI
+function mapTxType(type: string, amount: number): Transaction['type'] {
+  switch (type) {
+    case 'PAYMENT': return 'purchase'
+    case 'REFUND': return 'refund'
+    case 'BONUS_ACCRUAL':
+    case 'REFERRAL_BONUS': return 'bonus'
+    case 'BONUS_SPENT': return 'purchase'
+    default: return amount >= 0 ? 'deposit' : 'purchase'
+  }
+}
+
+function describeTxType(type: string): string {
+  switch (type) {
+    case 'PAYMENT': return 'Оплата заказа'
+    case 'REFUND': return 'Возврат'
+    case 'BONUS_ACCRUAL': return 'Начисление бонусов'
+    case 'BONUS_SPENT': return 'Списание бонусов'
+    case 'REFERRAL_BONUS': return 'Реферальный бонус'
+    default: return type
+  }
+}
+
 export default function BalancePage() {
+  const { user: authUser, isLoading: authLoading } = useAuth()
   const [balance, setBalance] = useState(0)
   const [bonusBalance, setBonusBalance] = useState(0)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [topupOpen, setTopupOpen] = useState(false)
+  const [topupAmount, setTopupAmount] = useState('500')
+  const [topupSubmitting, setTopupSubmitting] = useState(false)
   const handleBack = useSmartBack('/profile')
 
   useEffect(() => {
-    loadData()
-  }, [])
+    if (authLoading) return
+    void loadData()
+  }, [authLoading, authUser?.id])
 
   const loadData = async () => {
-    // TODO: Загрузка из API
-    setBalance(0)
-    setBonusBalance(150)
-    setTransactions([])
-    setLoading(false)
+    setLoading(true)
+    try {
+      let userId: string | null = authUser?.id || null
+
+      if (!userId) {
+        const { getToken } = await import('@/lib/auth')
+        const token = getToken()
+        if (token) {
+          const { data } = await api.get('/auth/me', {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          userId = data.id
+        }
+      }
+
+      if (!userId) {
+        setLoading(false)
+        return
+      }
+
+      const profileRes = await api.get(`/users/${userId}`)
+      const profile = profileRes.data
+      setBalance(Number(profile.balance) || 0)
+      setBonusBalance(Number(profile.bonusBalance) || 0)
+
+      // Подгружаем историю транзакций (если эндпоинта нет — просто пустой список)
+      try {
+        const txRes = await api.get(`/users/${userId}/transactions`)
+        const list = Array.isArray(txRes.data) ? txRes.data : txRes.data?.data || []
+        setTransactions(
+          list.map((t: any) => {
+            const amount = Number(t.amount) || 0
+            const signedAmount =
+              t.type === 'REFUND' || t.type === 'BONUS_ACCRUAL' || t.type === 'REFERRAL_BONUS'
+                ? amount
+                : -amount
+            return {
+              id: t.id,
+              type: mapTxType(t.type, signedAmount),
+              amount: signedAmount,
+              description: describeTxType(t.type),
+              date: new Date(t.createdAt).toLocaleString('ru-RU'),
+            }
+          })
+        )
+      } catch {
+        setTransactions([])
+      }
+    } catch (e) {
+      console.error('Не удалось загрузить баланс:', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleTopupSubmit = async () => {
+    const amount = Number(topupAmount)
+    if (!Number.isFinite(amount) || amount < 100) {
+      alert('Минимальная сумма пополнения — 100 ₽')
+      return
+    }
+
+    setTopupSubmitting(true)
+    try {
+      // Создаём транзакцию пополнения баланса через Robokassa. По успешному
+      // вебхуку бэкенд зачисляет сумму на user.balance и шлёт уведомление в Telegram.
+      const data = await paymentsApi.topupBalance(amount)
+      if (data?.payment?.paymentUrl) {
+        window.location.href = data.payment.paymentUrl
+        return
+      }
+      alert('Платёж создан, но платёжный URL не получен')
+    } catch (e: any) {
+      const msg = e.response?.data?.message || e.message || 'Не удалось создать платёж'
+      alert(`❌ ${msg}`)
+    } finally {
+      setTopupSubmitting(false)
+    }
   }
 
   const getTransactionIcon = (type: Transaction['type']) => {
@@ -72,10 +175,64 @@ export default function BalancePage() {
         </div>
 
         {/* Top Up Button */}
-        <button className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold rounded-2xl transition-colors mb-8 shadow-lg shadow-orange-500/30">
+        <button
+          onClick={() => setTopupOpen(true)}
+          className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold rounded-2xl transition-colors mb-8 shadow-lg shadow-orange-500/30"
+        >
           <span className="text-xl">➕</span>
           Пополнить баланс
         </button>
+
+        {topupOpen && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Пополнение баланса
+              </h2>
+              <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">
+                Сумма, ₽
+              </label>
+              <input
+                type="number"
+                value={topupAmount}
+                onChange={(e) => setTopupAmount(e.target.value)}
+                min={100}
+                step={100}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-lg font-semibold text-center"
+              />
+              <div className="flex gap-2 mt-3 flex-wrap">
+                {[500, 1000, 2000, 5000].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setTopupAmount(String(v))}
+                    className={`flex-1 min-w-[70px] px-3 py-2 rounded-lg text-sm font-medium ${
+                      Number(topupAmount) === v
+                        ? 'bg-[#f77430] text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200'
+                    }`}
+                  >
+                    {v} ₽
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-5">
+                <button
+                  onClick={() => setTopupOpen(false)}
+                  className="flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleTopupSubmit}
+                  disabled={topupSubmitting}
+                  className="flex-1 px-4 py-3 rounded-xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold disabled:opacity-50"
+                >
+                  {topupSubmitting ? 'Создаём...' : 'Оплатить'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Info */}
         <div className="bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-4 mb-6">

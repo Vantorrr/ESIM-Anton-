@@ -37,6 +37,86 @@ export class ProductsService implements OnModuleInit {
       .filter((item, index, arr) => arr.indexOf(item) === index);
   }
 
+  /**
+   * Эвристически определяет теги-пометки тарифа по его названию/описанию/стране.
+   * Используется при синхронизации с провайдером для автоматической простановки.
+   * Кастомные теги, добавленные вручную в админке, НЕ затираются — синхронизация
+   * для существующих продуктов теги не трогает (см. syncWithProvider).
+   *
+   * Важно: country здесь обычно `locationCode` (например "CN"), поэтому проверяем
+   * также `pkg.location` (например "China") и `pkg.name`/`pkg.slug` — иначе
+   * для китайских пакетов авто-теги не срабатывали (PR #1 баг).
+   *
+   * Public для unit-тестов.
+   */
+  inferTagsFromPackage(pkg: any, country: string): string[] {
+    const tags = new Set<string>();
+    const name = `${pkg.name || ''} ${pkg.slug || ''} ${pkg.description || ''}`.toLowerCase();
+    const countryLc = (country || '').toLowerCase();
+    const locationLc = (pkg.location || '').toString().toLowerCase();
+    const looksLikeChina =
+      countryLc.includes('china') ||
+      countryLc === 'cn' ||
+      locationLc.includes('china') ||
+      name.includes('china') ||
+      name.includes('cn ');
+
+    if (looksLikeChina) {
+      // Материковый Китай — выделяем как отдельную пометку, чтобы клиенты видели
+      // что трафик идёт через материковую сеть, а не через Гонконг.
+      const isMainland =
+        name.includes('mainland') ||
+        name.includes('материков') ||
+        // Названия eSIM Access вида "China(no Hong Kong)" / "China Excluding HK"
+        name.includes('no hong kong') ||
+        name.includes('excluding hk') ||
+        name.includes('exclude hk') ||
+        name.includes('non-hk') ||
+        name.includes('non hk') ||
+        name.includes('no hk');
+
+      const hasHkExplicit =
+        name.includes('hk ip') ||
+        name.includes('hong kong ip') ||
+        name.includes('via hk') ||
+        name.includes('via hong kong');
+
+      if (isMainland) {
+        tags.add('Материковый Китай');
+        tags.add('Не гонконгский IP');
+      } else if (hasHkExplicit) {
+        tags.add('Гонконгский IP');
+      }
+    }
+
+    // Скоростные пометки. Используем регекс с границами, чтобы не путать
+    // объём («5GB», «10GB») со скоростью («5G», «4G»).
+    if (/(^|[^\d])5g($|[^bB\d])/.test(name)) tags.add('5G');
+    else if (/(^|[^\d])4g($|[^bB\d])/.test(name) || /\blte\b/.test(name)) {
+      tags.add('4G/LTE');
+    }
+
+    // Тип трафика
+    if (name.includes('/day') || name.includes('daily') || name.includes('day pass')) {
+      tags.add('Дневной лимит');
+    }
+    if (name.includes('hotspot') || name.includes('tethering')) tags.add('Раздача Wi-Fi');
+    if (name.includes('voice') || name.includes('call')) tags.add('Голосовые звонки');
+    if (name.includes('sms')) tags.add('SMS');
+
+    // Региональные пометки
+    if (
+      name.includes('regional') ||
+      name.includes('multi-country') ||
+      name.includes('multi country') ||
+      name.includes('multicountry')
+    ) {
+      tags.add('Мульти-страна');
+    }
+
+    return Array.from(tags);
+  }
+
   private getCoverageRegion(pkg: any): string | undefined {
     const coverageCountries = this.normalizeCoverageCountries(pkg.coverageCountries);
     if (coverageCountries.length > 1) {
@@ -284,6 +364,131 @@ export class ProductsService implements OnModuleInit {
   }
 
   /**
+   * Найти и обработать дубликаты тарифов в БД.
+   *
+   * Алгоритм:
+   *  1. Берём только АКТИВНЫЕ продукты (неактивные уже скрыты, нет смысла трогать).
+   *  2. Группируем по ключу: country|dataAmount|validityDays|isUnlimited|providerPrice
+   *     (округлённый до копеек). Если ключ совпал → это потенциальные дубли.
+   *  3. Считаем кол-во АКТИВНЫХ заказов по каждому продукту в группе. Канонический
+   *     продукт = (есть активные заказы → больше) → (есть теги/notes/бейдж →
+   *     ценнее для админа) → старший по createdAt (стабильный fallback).
+   *  4. Остальные деактивируем (isActive=false). Заказы продолжают работать —
+   *     historic FK не ломается.
+   *
+   * Метод бросает 0 ошибок — все updateMany в одной транзакции, чтобы либо все
+   * группы прошли, либо ни одна (атомарность).
+   */
+  async dedupeProducts(dryRun = false) {
+    this.logger.log(`🧹 Поиск дубликатов тарифов (dryRun=${dryRun})...`);
+
+    const all = await this.prisma.esimProduct.findMany({
+      where: { isActive: true },
+    });
+
+    const groups = new Map<string, typeof all>();
+    for (const p of all) {
+      const key = [
+        p.country,
+        p.dataAmount,
+        p.validityDays,
+        p.isUnlimited ? 'U' : 'S',
+        Number(p.providerPrice).toFixed(2),
+      ].join('|');
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(p);
+    }
+
+    type DupReport = {
+      key: string;
+      kept: { id: string; name: string; activeOrders: number };
+      deactivated: { id: string; name: string; activeOrders: number }[];
+      warnings: string[];
+    };
+    const report: DupReport[] = [];
+
+    // Подсчитаем активные заказы пакетом, чтобы не делать N+1 запросов
+    const allIds = all.map((p) => p.id);
+    const orderCounts = await this.prisma.order.groupBy({
+      by: ['productId'],
+      where: {
+        productId: { in: allIds },
+        status: { in: ['PAID', 'COMPLETED', 'PROCESSING'] },
+      },
+      _count: { _all: true },
+    });
+    const activeOrderMap = new Map(
+      orderCounts.map((row) => [row.productId, row._count._all]),
+    );
+
+    const toDeactivate: string[] = [];
+
+    for (const [key, items] of groups) {
+      if (items.length < 2) continue;
+
+      const enriched = items.map((p) => ({
+        ...p,
+        activeOrders: activeOrderMap.get(p.id) ?? 0,
+      }));
+
+      // Канонический выбор: больше активных заказов → ценнее метаданных → старший
+      const sorted = [...enriched].sort((a, b) => {
+        if (a.activeOrders !== b.activeOrders) return b.activeOrders - a.activeOrders;
+        const aHas = (a.badge ? 1 : 0) + (a.tags.length > 0 ? 1 : 0) + (a.notes ? 1 : 0);
+        const bHas = (b.badge ? 1 : 0) + (b.tags.length > 0 ? 1 : 0) + (b.notes ? 1 : 0);
+        if (aHas !== bHas) return bHas - aHas;
+        return a.createdAt.getTime() - b.createdAt.getTime();
+      });
+
+      const [kept, ...rest] = sorted;
+      const warnings: string[] = [];
+      const restWithOrders = rest.filter((p) => p.activeOrders > 0);
+      if (restWithOrders.length > 0) {
+        warnings.push(
+          `⚠️ У ${restWithOrders.length} скрываемых дублей есть активные заказы — ` +
+            `сами заказы продолжат работать, но новых покупок этих тарифов не будет.`,
+        );
+      }
+
+      report.push({
+        key,
+        kept: { id: kept.id, name: kept.name, activeOrders: kept.activeOrders },
+        deactivated: rest.map((p) => ({
+          id: p.id,
+          name: p.name,
+          activeOrders: p.activeOrders,
+        })),
+        warnings,
+      });
+
+      if (!dryRun) toDeactivate.push(...rest.map((p) => p.id));
+    }
+
+    if (!dryRun && toDeactivate.length > 0) {
+      await this.prisma.esimProduct.updateMany({
+        where: { id: { in: toDeactivate } },
+        data: { isActive: false },
+      });
+    }
+
+    const totalDeactivated = report.reduce((sum, r) => sum + r.deactivated.length, 0);
+    this.logger.log(
+      `🧹 Найдено групп дублей: ${report.length}, лишних тарифов: ${totalDeactivated}`,
+    );
+
+    return {
+      success: true,
+      dryRun,
+      groups: report.length,
+      deactivated: totalDeactivated,
+      report,
+      message: dryRun
+        ? `Найдено ${report.length} групп дубликатов (${totalDeactivated} лишних). Запустите без dryRun чтобы скрыть.`
+        : `Скрыто ${totalDeactivated} дублирующихся тарифов в ${report.length} группах.`,
+    };
+  }
+
+  /**
    * СИНХРОНИЗАЦИЯ V4 - STANDARD + UNLIMITED
    * Volume приходит в KB из eSIM Access API
    * Price приходит в центах USD
@@ -430,9 +635,11 @@ export class ProductsService implements OnModuleInit {
           }
           
           const coverageRegion = this.getCoverageRegion(pkg);
+          const resolvedCountry = pkg.locationCode || pkg.location || 'Unknown';
+          const autoTags = this.inferTagsFromPackage(pkg, resolvedCountry);
 
           const productData = {
-            country: pkg.locationCode || pkg.location || 'Unknown',
+            country: resolvedCountry,
             region: coverageRegion,
             name: pkgName,
             description: description,
@@ -446,17 +653,36 @@ export class ProductsService implements OnModuleInit {
             providerName: 'esimaccess',
             isUnlimited: isUnlimitedByName,
             isActive: true,
+            tags: autoTags,
+            // Кэш поддержки top-up — используется фронтом для скрытия кнопки «Пополнить»
+            // у тарифов, для которых провайдер не даёт продлевать.
+            supportTopup: pkg.supportTopup === true,
           };
           
           const existing = await this.prisma.esimProduct.findFirst({
             where: { providerId: pkg.packageCode },
           });
-          
+
+          // Доп. защита от дублей: если по providerId не нашли, но в БД уже
+          // лежит продукт с такими же ключевыми параметрами — переиспользуем его,
+          // чтобы не плодить визуально одинаковые тарифы.
+          const duplicate = !existing ? await this.prisma.esimProduct.findFirst({
+            where: {
+              country: productData.country,
+              dataAmount: productData.dataAmount,
+              validityDays: productData.validityDays,
+              isUnlimited: productData.isUnlimited,
+              providerPrice: priceRaw,
+              providerName: 'esimaccess',
+            },
+          }) : null;
+
           if (existing) {
             // Для существующих продуктов НЕ затираем кастомные настройки:
             // - ourPrice (кастомная наценка)
             // - isActive (скрытие тарифа)
             // - badge, badgeColor (бейджи)
+            // - tags, notes (могли быть отредактированы вручную)
             // Обновляем только данные от провайдера
             await this.prisma.esimProduct.update({
               where: { id: existing.id },
@@ -474,6 +700,25 @@ export class ProductsService implements OnModuleInit {
                 isUnlimited: productData.isUnlimited,
                 // isActive - НЕ трогаем! Сохраняем настройку скрытия
                 // badge, badgeColor - НЕ трогаем!
+                // tags, notes - НЕ трогаем!
+                supportTopup: productData.supportTopup, // Обновляем — это техническая характеристика
+              },
+            });
+          } else if (duplicate) {
+            // Нашли дубль по параметрам без совпадения providerId — обновляем providerId,
+            // чтобы при следующей синхронизации он попадал в ветку existing,
+            // и не создаём ещё одну строку.
+            this.logger.warn(`🔁 Дубль тарифа: ${pkgName} → переиспользую существующий ${duplicate.id}`);
+            await this.prisma.esimProduct.update({
+              where: { id: duplicate.id },
+              data: {
+                providerId: productData.providerId,
+                name: productData.name,
+                description: productData.description,
+                duration: productData.duration,
+                speed: productData.speed,
+                // tags автоматически дополним если их ещё нет
+                tags: duplicate.tags.length > 0 ? duplicate.tags : productData.tags,
               },
             });
           } else {

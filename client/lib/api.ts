@@ -9,6 +9,20 @@ export const api = axios.create({
   },
 });
 
+// Автоматически прикрепляем JWT-токен пользователя ко всем исходящим запросам.
+// Токен хранится в localStorage (см. lib/auth.ts), здесь его читаем без прямого
+// импорта, чтобы избежать SSR/циклических проблем.
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = window.localStorage.getItem('mojo_auth_token');
+    if (token && !config.headers?.Authorization) {
+      config.headers = config.headers || {};
+      (config.headers as any).Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 // Типы
 export interface User {
   id: string;
@@ -53,6 +67,38 @@ export interface Product {
   // Бейджи (скидки, ХИТ, etc.)
   badge?: string;
   badgeColor?: string;
+  // Произвольные пометки тарифа («Материковый Китай», «Не гонконгский IP», «5G» и т.д.)
+  tags?: string[];
+  notes?: string;
+  // Поддерживает ли провайдер пополнение (top-up) данной eSIM. Для тарифов
+  // с supportTopup=false фронт скрывает кнопку «Пополнить».
+  supportTopup?: boolean;
+}
+
+export interface UsageInfo {
+  available: boolean;
+  reason?: string;
+  stale?: boolean;
+  usedBytes: number | null;
+  totalBytes: number | null;
+  remainingBytes: number | null;
+  updatedAt: string | null;
+}
+
+export interface TopupPackage {
+  packageCode: string;
+  name: string;
+  slug?: string;
+  location?: string;
+  locationCode?: string;
+  description?: string;
+  price: number;        // в сотых центах USD (как у провайдера)
+  currencyCode: string;
+  volume: number;       // в байтах
+  duration: number;
+  durationUnit: string;
+  speed?: string;
+  supportTopup: boolean;
 }
 
 export interface Order {
@@ -148,6 +194,26 @@ export const ordersApi = {
     const { data } = await api.get(`/orders/user/${userId}/check-new`);
     return data;
   },
+
+  // Получить расход трафика по eSIM
+  async getUsage(orderId: string, force = false): Promise<UsageInfo> {
+    const { data } = await api.get(`/orders/${orderId}/usage`, {
+      params: force ? { force: 'true' } : undefined,
+    });
+    return data;
+  },
+
+  // Получить пакеты пополнения для конкретного eSIM
+  async getTopupPackages(orderId: string): Promise<TopupPackage[]> {
+    const { data } = await api.get(`/orders/${orderId}/topup-packages`);
+    return data;
+  },
+
+  // Запустить пополнение
+  async topup(orderId: string, packageCode: string): Promise<any> {
+    const { data } = await api.post(`/orders/${orderId}/topup`, { packageCode });
+    return data;
+  },
 };
 
 export const referralsApi = {
@@ -183,6 +249,20 @@ export const paymentsApi = {
     };
   }> {
     const { data } = await api.post(`/payments/create`, { orderId });
+    return data;
+  },
+
+  // Пополнить личный баланс через Robokassa
+  async topupBalance(amount: number): Promise<{
+    transaction: any;
+    payment: {
+      paymentId: string;
+      paymentUrl: string;
+      amount: number;
+      currency: string;
+    };
+  }> {
+    const { data } = await api.post(`/payments/balance/topup`, { amount });
     return data;
   },
 };

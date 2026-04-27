@@ -21,6 +21,49 @@ interface MyEsim {
   qrCode?: string
   canTopup: boolean
   activationCode?: string
+  // Реальный расход трафика (загружается асинхронно)
+  usage?: {
+    available: boolean
+    reason?: string
+    stale?: boolean
+    usedBytes: number | null
+    totalBytes: number | null
+    remainingBytes: number | null
+    percent: number | null
+  }
+  tags?: string[]
+  // Идёт ли сейчас загрузка/обновление usage по этой eSIM
+  refreshing?: boolean
+}
+
+/**
+ * Простой пул конкурентных запросов с ограничением числа параллельных задач.
+ * Используется для опроса /orders/{id}/usage по списку eSIM, чтобы не открывать
+ * сразу 20+ соединений к API/провайдеру и не словить rate limit.
+ */
+async function runWithConcurrency<T>(
+  tasks: Array<() => Promise<T>>,
+  limit: number,
+): Promise<void> {
+  const queue = [...tasks]
+  const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+    while (queue.length) {
+      const next = queue.shift()
+      if (!next) return
+      try { await next() } catch { /* перехвачено внутри задачи */ }
+    }
+  })
+  await Promise.all(workers)
+}
+
+const USAGE_CONCURRENCY = 5
+
+function formatBytes(bytes: number | null): string {
+  if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) return '—'
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} ГБ`
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(0)} МБ`
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} КБ`
+  return `${bytes} Б`
 }
 
 export default function MyEsimPage() {
@@ -65,21 +108,71 @@ export default function MyEsimPage() {
         iccid: order.iccid || 'Ожидает генерации...',
         country: order.product.country,
         dataAmount: formatDataAmount(order.product.dataAmount),
-        usedData: '0 MB', // TODO: Получать реальное использование
+        usedData: '—',
         validUntil: new Date(new Date(order.createdAt).getTime() + order.product.validityDays * 24 * 60 * 60 * 1000).toLocaleDateString(),
-        status: 'active', // TODO: Реальный статус от провайдера
+        status: 'active',
         qrCode: order.qrCode,
         activationCode: order.activationCode,
-        canTopup: true
+        // Кнопку «Пополнить» скрываем только если провайдер ЯВНО не поддерживает
+        // top-up (supportTopup === false). Если поле ещё не известно (undefined,
+        // например для тарифов, купленных до раскатки этого изменения) — оставляем
+        // кнопку, а недоступность увидим уже на странице топ-апа («пакетов нет»).
+        canTopup: order.product.supportTopup !== false,
+        tags: order.product.tags,
       }));
 
       setEsims(mappedEsims);
+
+      // Подгружаем реальный usage параллельно с лимитом — чтобы не открывать сразу
+      // 20+ HTTP-запросов и не упереться в rate-limit провайдера.
+      const candidates = mappedEsims.filter(
+        (e) => e.iccid && !e.iccid.startsWith('Ожидает'),
+      )
+      const tasks = candidates.map((esim) => () => fetchUsageInto(esim.id))
+      await runWithConcurrency(tasks, USAGE_CONCURRENCY)
     } catch (error) {
       console.error('Ошибка загрузки eSIM:', error);
     } finally {
       setLoading(false);
     }
   }
+
+  /**
+   * Загружает usage для конкретной eSIM и пишет в state.
+   * `force=true` принудительно дёргает провайдера, минуя серверный кэш —
+   * используется при ручном refresh.
+   */
+  const fetchUsageInto = async (esimId: string, force = false) => {
+    setEsims((prev) =>
+      prev.map((e) => (e.id === esimId ? { ...e, refreshing: true } : e)),
+    )
+    try {
+      const u = await ordersApi.getUsage(esimId, force)
+      const percent =
+        u.totalBytes && u.usedBytes !== null
+          ? Math.min(100, Math.round((u.usedBytes / u.totalBytes) * 100))
+          : null
+      setEsims((prev) =>
+        prev.map((e) =>
+          e.id === esimId
+            ? {
+                ...e,
+                refreshing: false,
+                usedData: u.usedBytes !== null ? formatBytes(u.usedBytes) : '—',
+                usage: { ...u, percent },
+              }
+            : e,
+        ),
+      )
+    } catch (err) {
+      console.warn('Не удалось получить usage для', esimId, err)
+      setEsims((prev) =>
+        prev.map((e) => (e.id === esimId ? { ...e, refreshing: false } : e)),
+      )
+    }
+  }
+
+  const refreshUsage = (esimId: string) => fetchUsageInto(esimId, true)
 
   const getStatusConfig = (status: MyEsim['status']) => {
     const configs = {
@@ -189,21 +282,74 @@ export default function MyEsimPage() {
                     </div>
                   </div>
                   
+                  {/* Теги */}
+                  {esim.tags && esim.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-3">
+                      {esim.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Data Usage */}
                   {esim.status === 'active' && (
                     <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-gray-500 dark:text-gray-400">Использовано</span>
-                        <span className="font-medium text-gray-900 dark:text-white">
-                          {esim.usedData} / {esim.dataAmount}
-                        </span>
-                      </div>
-                      <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-[#f77430] rounded-full"
-                          style={{ width: '30%' }}
-                        />
-                      </div>
+                      {esim.usage?.available && esim.usage.percent !== null ? (
+                        <>
+                          <div className="flex justify-between text-sm mb-2">
+                            <span className="text-gray-500 dark:text-gray-400">
+                              Использовано
+                              {esim.usage.stale && (
+                                <span className="ml-1 text-amber-600 dark:text-amber-400" title="Данные могут быть устаревшими">
+                                  (устар.)
+                                </span>
+                              )}
+                            </span>
+                            <span className="font-medium text-gray-900 dark:text-white inline-flex items-center gap-2">
+                              {formatBytes(esim.usage.usedBytes)} / {formatBytes(esim.usage.totalBytes)}
+                              <button
+                                type="button"
+                                onClick={() => refreshUsage(esim.id)}
+                                disabled={esim.refreshing}
+                                aria-label="Обновить расход"
+                                className="text-gray-400 hover:text-[#f77430] disabled:opacity-50 transition-colors"
+                              >
+                                <RefreshCw size={14} className={esim.refreshing ? 'animate-spin' : ''} />
+                              </button>
+                            </span>
+                          </div>
+                          <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                esim.usage.percent >= 90 ? 'bg-red-500'
+                                  : esim.usage.percent >= 70 ? 'bg-amber-500'
+                                  : 'bg-[#f77430]'
+                              }`}
+                              style={{ width: `${esim.usage.percent}%` }}
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {esim.usage?.reason || 'Расход обновляется...'}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => refreshUsage(esim.id)}
+                            disabled={esim.refreshing}
+                            aria-label="Обновить расход"
+                            className="text-gray-400 hover:text-[#f77430] disabled:opacity-50 transition-colors"
+                          >
+                            <RefreshCw size={14} className={esim.refreshing ? 'animate-spin' : ''} />
+                          </button>
+                        </div>
+                      )}
                       <p className="text-xs text-gray-400 mt-2">
                         Действует до {esim.validUntil}
                       </p>
@@ -222,7 +368,10 @@ export default function MyEsimPage() {
                       </button>
                     )}
                     {esim.canTopup && esim.status === 'active' && (
-                      <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#f77430] hover:bg-[#f2622a] text-white rounded-xl font-medium text-sm transition-colors">
+                      <button
+                        onClick={() => router.push(`/topup/${esim.id}`)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#f77430] hover:bg-[#f2622a] text-white rounded-xl font-medium text-sm transition-colors"
+                      >
                         <RefreshCw size={18} />
                         Пополнить
                       </button>

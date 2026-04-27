@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Param, Body, Query, Res, Header, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query, Res, Header, HttpCode, UseGuards, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { TransactionStatus, TransactionType } from '@prisma/client';
+import { JwtUserGuard, CurrentUser, AuthUser } from '@/common/auth/jwt-user.guard';
 
 @ApiTags('payments')
 @Controller('payments')
@@ -13,6 +14,24 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Создать платеж для заказа' })
   async createPayment(@Body() dto: { orderId: string }) {
     return this.paymentsService.createPayment(dto.orderId);
+  }
+
+  /**
+   * Пополнение личного баланса пользователя через Robokassa.
+   * Требует JWT юзера; userId берётся из токена, а не из тела (нельзя пополнять чужой баланс).
+   */
+  @Post('balance/topup')
+  @UseGuards(JwtUserGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Создать платёж для пополнения личного баланса (Robokassa)' })
+  async createBalanceTopup(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: { amount: number },
+  ) {
+    if (!dto?.amount || !Number.isFinite(Number(dto.amount))) {
+      throw new BadRequestException('amount обязателен (число)');
+    }
+    return this.paymentsService.createBalanceTopupPayment(user.id, Number(dto.amount));
   }
 
   /**
