@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
+import { JwtAdminGuard } from '@/common/auth/jwt-user.guard';
 
 @ApiTags('products')
 @Controller('products')
@@ -31,8 +32,9 @@ export class ProductsController {
   }
 
   @Post('dedupe')
+  @UseGuards(JwtAdminGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Найти и скрыть дубликаты тарифов в БД' })
+  @ApiOperation({ summary: 'Найти и скрыть дубликаты тарифов в БД (только админ)' })
   async dedupe(@Query('dryRun') dryRun?: string) {
     return this.productsService.dedupeProducts(dryRun === 'true');
   }

@@ -2,10 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, RefreshCw, Wifi, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Wifi, AlertCircle, CheckCircle2, Wallet, CreditCard } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
-import { ordersApi, type TopupPackage, type Order } from '@/lib/api'
+import { ordersApi, userApi, api, type TopupPackage, type Order } from '@/lib/api'
 import { useSmartBack } from '@/lib/useSmartBack'
+import { useAuth } from '@/components/AuthProvider'
+
+// Расширяем тип TopupPackage из api.ts: бэкенд теперь добавляет priceRub/priceUsd
+interface TopupPackagePriced extends TopupPackage {
+  priceRub?: number
+  priceUsd?: number
+}
 
 function formatVolume(bytes: number): string {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} ГБ`
@@ -18,18 +25,42 @@ export default function TopupPage() {
   const params = useParams()
   const orderId = String(params?.orderId || '')
   const handleBack = useSmartBack('/my-esim')
+  const { user: authUser, isLoading: authLoading } = useAuth()
 
   const [order, setOrder] = useState<Order | null>(null)
-  const [packages, setPackages] = useState<TopupPackage[]>([])
+  const [packages, setPackages] = useState<TopupPackagePriced[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [balance, setBalance] = useState<number | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<'balance' | 'card'>('card')
 
   useEffect(() => {
     if (!orderId) return
     void loadData()
   }, [orderId])
+
+  // Подгружаем актуальный баланс пользователя — нужен для подсветки кнопки
+  // «С баланса» и проверки достаточности средств перед сабмитом.
+  useEffect(() => {
+    if (authLoading) return
+    if (!authUser?.id) return
+    void loadBalance(authUser.id)
+  }, [authLoading, authUser?.id])
+
+  const loadBalance = async (userId: string) => {
+    try {
+      const u = await userApi.getProfile(userId)
+      const b = Number(u.balance) || 0
+      setBalance(b)
+      // Если баланса хватает — по умолчанию предлагаем оплату с баланса
+      // (один клик вместо редиректа в Robokassa).
+      if (b > 0) setPaymentMethod('balance')
+    } catch (e) {
+      console.warn('Не удалось получить баланс:', e)
+    }
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -44,30 +75,49 @@ export default function TopupPage() {
       }
 
       const pkgs = await ordersApi.getTopupPackages(orderId)
-      setPackages(pkgs.filter((p) => p.supportTopup !== false))
+      setPackages(
+        (pkgs as TopupPackagePriced[]).filter((p) => p.supportTopup !== false),
+      )
     } catch (e: any) {
       setError(
         e.response?.data?.message ||
           e.message ||
-          'Не удалось загрузить пакеты пополнения'
+          'Не удалось загрузить пакеты пополнения',
       )
     } finally {
       setLoading(false)
     }
   }
 
-  const handleTopup = async (pkg: TopupPackage) => {
-    if (!confirm(`Подтвердите пополнение пакетом «${pkg.name}»`)) return
+  const handleTopup = async (pkg: TopupPackagePriced) => {
+    const priceRub = Number(pkg.priceRub || 0)
+    if (paymentMethod === 'balance' && balance !== null && priceRub > balance) {
+      setError(`Недостаточно средств: нужно ${priceRub}₽, на балансе ${balance}₽. Пополните баланс.`)
+      return
+    }
+    const confirmText =
+      paymentMethod === 'balance'
+        ? `Списать ${priceRub}₽ с баланса и пополнить «${pkg.name}»?`
+        : `Перейти к оплате «${pkg.name}» картой (${priceRub}₽)?`
+    if (!confirm(confirmText)) return
+
     setSubmitting(pkg.packageCode)
     setError(null)
     setSuccess(null)
     try {
-      await ordersApi.topup(orderId, pkg.packageCode)
+      const { data } = await api.post(`/orders/${orderId}/topup`, {
+        packageCode: pkg.packageCode,
+        paymentMethod,
+      })
+      if (data?.method === 'card' && data?.payment?.paymentUrl) {
+        window.location.href = data.payment.paymentUrl
+        return
+      }
       setSuccess(`✅ eSIM пополнена пакетом «${pkg.name}»`)
       setTimeout(() => router.push('/my-esim'), 1500)
     } catch (e: any) {
       setError(
-        e.response?.data?.message || e.message || 'Не удалось выполнить пополнение'
+        e.response?.data?.message || e.message || 'Не удалось выполнить пополнение',
       )
     } finally {
       setSubmitting(null)
@@ -105,6 +155,49 @@ export default function TopupPage() {
           </div>
         )}
 
+        {/* Способ оплаты */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm">
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">
+            Способ оплаты
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('balance')}
+              className={`flex flex-col items-start gap-1 px-4 py-3 rounded-xl border-2 transition-colors ${
+                paymentMethod === 'balance'
+                  ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20'
+                  : 'border-gray-200 dark:border-gray-700'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Wallet size={18} className="text-[#f77430]" />
+                <span className="font-medium text-gray-900 dark:text-white">С баланса</span>
+              </div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {balance !== null ? `Доступно ${balance} ₽` : '—'}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('card')}
+              className={`flex flex-col items-start gap-1 px-4 py-3 rounded-xl border-2 transition-colors ${
+                paymentMethod === 'card'
+                  ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20'
+                  : 'border-gray-200 dark:border-gray-700'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <CreditCard size={18} className="text-[#f77430]" />
+                <span className="font-medium text-gray-900 dark:text-white">Картой</span>
+              </div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Через Robokassa
+              </span>
+            </button>
+          </div>
+        </div>
+
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 flex items-start gap-3">
             <AlertCircle className="text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" size={20} />
@@ -137,7 +230,11 @@ export default function TopupPage() {
         ) : (
           <div className="space-y-3">
             {packages.map((pkg) => {
-              const priceUsd = pkg.price / 10000
+              const priceRub = Number(pkg.priceRub || 0)
+              const insufficient =
+                paymentMethod === 'balance' &&
+                balance !== null &&
+                priceRub > balance
               return (
                 <div
                   key={pkg.packageCode}
@@ -155,24 +252,35 @@ export default function TopupPage() {
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-lg text-gray-900 dark:text-white">
-                        ${priceUsd.toFixed(2)}
+                        {priceRub} ₽
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => handleTopup(pkg)}
-                    disabled={submitting !== null}
-                    className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#f77430] hover:bg-[#f2622a] text-white rounded-xl font-medium text-sm transition-colors disabled:opacity-50"
+                    disabled={submitting !== null || insufficient}
+                    className={`mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 ${
+                      insufficient
+                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                        : 'bg-[#f77430] hover:bg-[#f2622a] text-white'
+                    }`}
                   >
                     {submitting === pkg.packageCode ? (
                       <>
                         <RefreshCw size={16} className="animate-spin" />
                         Отправка...
                       </>
+                    ) : insufficient ? (
+                      <>Не хватает {priceRub - (balance || 0)} ₽</>
+                    ) : paymentMethod === 'balance' ? (
+                      <>
+                        <Wallet size={16} />
+                        Списать с баланса
+                      </>
                     ) : (
                       <>
-                        <RefreshCw size={16} />
-                        Пополнить
+                        <CreditCard size={16} />
+                        Оплатить картой
                       </>
                     )}
                   </button>
@@ -183,7 +291,7 @@ export default function TopupPage() {
         )}
 
         <p className="text-xs text-gray-400 text-center mt-4">
-          Списание с баланса Mojo mobile или оплата картой подключаются на следующем шаге.
+          После успешной оплаты данные обновятся автоматически.
         </p>
       </div>
 

@@ -9,11 +9,15 @@ export class TelegramNotificationService {
   private readonly apiUrl: string;
 
   private readonly botUsername: string;
+  private readonly miniAppUrl: string;
+  private readonly siteUrl: string;
 
   constructor(private configService: ConfigService) {
     this.botToken = this.configService.get('TELEGRAM_BOT_TOKEN') || '';
     this.botUsername = this.configService.get('TELEGRAM_BOT_USERNAME') || 'mojo_mobile_bot';
     this.apiUrl = `https://api.telegram.org/bot${this.botToken}`;
+    this.miniAppUrl = this.configService.get('MINI_APP_URL') || 'https://mojomobile.ru/my-esim';
+    this.siteUrl = this.configService.get('SITE_URL') || 'https://mojomobile.ru';
     
     if (this.botToken) {
       this.logger.log('✅ Telegram Notification Service initialized');
@@ -56,7 +60,7 @@ export class TelegramNotificationService {
         [
           {
             text: '📱 Открыть Мои eSIM',
-            web_app: { url: 'https://mojomobile.ru/my-esim' }
+            web_app: { url: this.miniAppUrl }
           }
         ]
       ]
@@ -98,7 +102,7 @@ export class TelegramNotificationService {
             [
               {
                 text: '📱 Открыть Мои eSIM',
-                web_app: { url: 'https://mojomobile.ru/my-esim' },
+                web_app: { url: this.miniAppUrl },
               },
             ],
           ],
@@ -150,7 +154,7 @@ export class TelegramNotificationService {
     const keyboard = {
       inline_keyboard: [[{
         text: '📱 Открыть Мои eSIM',
-        web_app: { url: 'https://mojomobile.ru/my-esim' },
+        web_app: { url: this.miniAppUrl },
       }]]
     };
 
@@ -202,7 +206,7 @@ ${reason ? `Причина: ${reason}` : 'Попробуйте еще раз и�
         [
           {
             text: '🔄 Попробовать снова',
-            web_app: { url: 'https://mojomobile.ru' }
+            web_app: { url: this.siteUrl }
           }
         ]
       ]

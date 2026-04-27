@@ -9,6 +9,20 @@ export const api = axios.create({
   },
 });
 
+// Автоматически прикрепляем JWT-токен пользователя ко всем исходящим запросам.
+// Токен хранится в localStorage (см. lib/auth.ts), здесь его читаем без прямого
+// импорта, чтобы избежать SSR/циклических проблем.
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = window.localStorage.getItem('mojo_auth_token');
+    if (token && !config.headers?.Authorization) {
+      config.headers = config.headers || {};
+      (config.headers as any).Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 // Типы
 export interface User {
   id: string;
@@ -56,11 +70,15 @@ export interface Product {
   // Произвольные пометки тарифа («Материковый Китай», «Не гонконгский IP», «5G» и т.д.)
   tags?: string[];
   notes?: string;
+  // Поддерживает ли провайдер пополнение (top-up) данной eSIM. Для тарифов
+  // с supportTopup=false фронт скрывает кнопку «Пополнить».
+  supportTopup?: boolean;
 }
 
 export interface UsageInfo {
   available: boolean;
   reason?: string;
+  stale?: boolean;
   usedBytes: number | null;
   totalBytes: number | null;
   remainingBytes: number | null;
@@ -231,6 +249,20 @@ export const paymentsApi = {
     };
   }> {
     const { data } = await api.post(`/payments/create`, { orderId });
+    return data;
+  },
+
+  // Пополнить личный баланс через Robokassa
+  async topupBalance(amount: number): Promise<{
+    transaction: any;
+    payment: {
+      paymentId: string;
+      paymentUrl: string;
+      amount: number;
+      currency: string;
+    };
+  }> {
+    const { data } = await api.post(`/payments/balance/topup`, { amount });
     return data;
   },
 };

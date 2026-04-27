@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { ProductsService } from '../products/products.service';
 import { UsersService } from '../users/users.service';
@@ -6,7 +11,25 @@ import { EsimProviderService } from '../esim-provider/esim-provider.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { TelegramNotificationService } from '../telegram/telegram-notification.service';
 import { EmailService } from '../notifications/email.service';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
+import {
+  OrderStatus,
+  Prisma,
+  TransactionStatus,
+  TransactionType,
+} from '@prisma/client';
+
+/**
+ * Сколько секунд жить кэшу usage по умолчанию.
+ * Активная eSIM меняет показания не каждый момент — 5 минут это разумный
+ * компромисс между отзывчивостью UI и нагрузкой на eSIM Access API.
+ */
+const DEFAULT_USAGE_CACHE_SEC = 300;
+/**
+ * Если кэш старше N секунд — даже при ошибке провайдера не показываем его
+ * (могут быть сильно устаревшие данные → introduce in error).
+ */
+const STALE_CACHE_LIMIT_SEC = 24 * 60 * 60;
 
 @Injectable()
 export class OrdersService {
@@ -20,7 +43,24 @@ export class OrdersService {
     private promoCodesService: PromoCodesService,
     private telegramNotification: TelegramNotificationService,
     private emailService: EmailService,
+    private systemSettingsService: SystemSettingsService,
   ) {}
+
+  /**
+   * Гарантирует, что заказ существует и принадлежит пользователю.
+   * Бросает 404 если не найден, 403 если чужой.
+   */
+  async assertOwnership(orderId: string, userId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, userId: true },
+    });
+    if (!order) throw new BadRequestException('Заказ не найден');
+    if (order.userId !== userId) {
+      throw new ForbiddenException('Заказ принадлежит другому пользователю');
+    }
+    return order;
+  }
 
   /**
    * Создать заказ
@@ -169,13 +209,22 @@ export class OrdersService {
   }
 
   /**
-   * Выдать eSIM (вызывается после успешной оплаты)
+   * Выдать eSIM (вызывается после успешной оплаты).
+   *
+   * Если у заказа выставлены `parentOrderId` и `topupPackageCode` — это пополнение
+   * существующей eSIM, тогда вместо покупки нового профиля делаем top-up
+   * к ICCID родительского заказа.
    */
   async fulfillOrder(orderId: string) {
     const order = await this.findById(orderId);
 
     if (order.status !== OrderStatus.PAID) {
       throw new BadRequestException('Заказ еще не оплачен');
+    }
+
+    // === Top-up flow ===
+    if (order.parentOrderId && order.topupPackageCode) {
+      return this.fulfillTopupOrder(order as any);
     }
 
     try {
@@ -255,14 +304,25 @@ export class OrdersService {
 
   /**
    * Получить usage (расход трафика) по заказу.
-   * Делает запрос к провайдеру по ICCID, кэширует результат в БД (lastUsageBytes/lastUsageAt),
-   * чтобы не дёргать API на каждый рендер.
    *
-   * @param orderId      id заказа
-   * @param maxAgeSec    если кэш свежее — возвращаем его без запроса к провайдеру (по умолчанию 5 мин)
-   * @param force        принудительно перезапросить у провайдера
+   * Поведение:
+   *  - если eSIM ещё не выдана (нет ICCID) → available:false с причиной;
+   *  - если в БД есть свежий кэш (lastUsageAt < maxAgeSec назад) — отдаём его сразу;
+   *  - иначе запрашиваем у провайдера, кэшируем `lastUsageBytes` и `lastUsageTotalBytes`;
+   *  - при ошибке провайдера, если есть НЕ устаревший (< STALE_CACHE_LIMIT_SEC) кэш —
+   *    отдаём его с пометкой `stale=true`, иначе available:false.
+   *
+   * Поля eSIM Access (`/esim/query` → `obj.esimList[0]`):
+   *   - `orderUsage` — потрачено (в байтах);
+   *   - `totalVolume` — всего (в байтах).
+   * Запасные имена (`dataUsed`/`dataTotal`/`usage`/`volume`) оставлены для устойчивости
+   * к небольшим расхождениям в версиях API.
    */
-  async getOrderUsage(orderId: string, maxAgeSec = 300, force = false) {
+  async getOrderUsage(
+    orderId: string,
+    maxAgeSec = DEFAULT_USAGE_CACHE_SEC,
+    force = false,
+  ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: { product: true },
@@ -273,7 +333,6 @@ export class OrdersService {
     }
 
     if (!order.iccid) {
-      // eSIM ещё не выдана — usage не имеет смысла
       return {
         available: false,
         reason: 'eSIM ещё не выдана',
@@ -281,85 +340,118 @@ export class OrdersService {
         usedBytes: null,
         remainingBytes: null,
         updatedAt: null,
+        stale: false,
       };
     }
 
+    const now = Date.now();
+    const cachedAt = order.lastUsageAt?.getTime() ?? null;
     const cachedFresh =
-      !force &&
-      order.lastUsageAt &&
-      Date.now() - order.lastUsageAt.getTime() < maxAgeSec * 1000;
+      !force && cachedAt !== null && now - cachedAt < maxAgeSec * 1000;
 
-    let usedBytes: number | null = order.lastUsageBytes ? Number(order.lastUsageBytes) : null;
-    let totalBytes: number | null = null;
+    let usedBytes: number | null =
+      order.lastUsageBytes !== null && order.lastUsageBytes !== undefined
+        ? Number(order.lastUsageBytes)
+        : null;
+    let totalBytes: number | null =
+      order.lastUsageTotalBytes !== null && order.lastUsageTotalBytes !== undefined
+        ? Number(order.lastUsageTotalBytes)
+        : null;
     let updatedAt: Date | null = order.lastUsageAt;
+    let stale = false;
 
-    if (!cachedFresh) {
-      try {
-        const info = await this.esimProviderService.getEsimInfoByIccid(order.iccid);
-        const esim = info?.esimList?.[0] || info?.esim || info;
+    if (cachedFresh) {
+      return this.buildUsageResponse(usedBytes, totalBytes, updatedAt, false);
+    }
 
-        // У eSIMaccess поля могут называться orderUsage/totalVolume или dataUsed/dataTotal
-        const used =
-          Number(esim?.orderUsage ?? esim?.dataUsed ?? esim?.usage ?? NaN);
-        const total =
-          Number(esim?.totalVolume ?? esim?.dataTotal ?? esim?.volume ?? NaN);
+    try {
+      const info = await this.esimProviderService.getEsimInfoByIccid(order.iccid);
+      const esim = info?.esimList?.[0] || info?.esim || info;
 
-        if (Number.isFinite(used)) usedBytes = used;
-        if (Number.isFinite(total)) totalBytes = total;
+      const used = Number(esim?.orderUsage ?? esim?.dataUsed ?? esim?.usage ?? NaN);
+      const total = Number(
+        esim?.totalVolume ?? esim?.dataTotal ?? esim?.volume ?? NaN,
+      );
 
-        if (Number.isFinite(used)) {
-          updatedAt = new Date();
-          await this.prisma.order.update({
-            where: { id: orderId },
-            data: {
-              lastUsageBytes: BigInt(Math.max(0, Math.floor(used))),
-              lastUsageAt: updatedAt,
-            },
-          });
-        }
-      } catch (error: any) {
-        this.logger.warn(
-          `Не удалось получить usage по ICCID ${order.iccid}: ${error.message}`,
-        );
-        // Возвращаем кэш если есть, иначе available=false
-        if (usedBytes === null) {
-          return {
-            available: false,
-            reason: 'Провайдер временно недоступен',
-            totalBytes: null,
-            usedBytes: null,
-            remainingBytes: null,
-            updatedAt: null,
-          };
-        }
+      if (Number.isFinite(used)) usedBytes = Math.max(0, Math.floor(used));
+      if (Number.isFinite(total)) totalBytes = Math.max(0, Math.floor(total));
+
+      if (Number.isFinite(used)) {
+        updatedAt = new Date();
+        await this.prisma.order.update({
+          where: { id: orderId },
+          data: {
+            lastUsageBytes: BigInt(usedBytes!),
+            // total пишем только если действительно пришёл, чтобы не затереть кэш на null
+            ...(Number.isFinite(total)
+              ? { lastUsageTotalBytes: BigInt(totalBytes!) }
+              : {}),
+            lastUsageAt: updatedAt,
+          },
+        });
+      }
+    } catch (error: any) {
+      this.logger.warn(
+        `Не удалось получить usage по ICCID ${order.iccid}: ${error.message}`,
+      );
+
+      // Если есть кэш и он не слишком старый — отдаём его как stale
+      if (
+        usedBytes !== null &&
+        cachedAt !== null &&
+        now - cachedAt < STALE_CACHE_LIMIT_SEC * 1000
+      ) {
+        stale = true;
+      } else {
+        return {
+          available: false,
+          reason: 'Провайдер временно недоступен, попробуйте через минуту',
+          totalBytes: null,
+          usedBytes: null,
+          remainingBytes: null,
+          updatedAt: null,
+          stale: false,
+        };
       }
     }
 
     if (usedBytes === null) {
       return {
         available: false,
-        reason: 'Данные ещё не обновлены',
+        reason: 'Данные о расходе ещё не поступили от провайдера',
         totalBytes: null,
         usedBytes: null,
         remainingBytes: null,
         updatedAt: null,
+        stale: false,
       };
     }
 
+    return this.buildUsageResponse(usedBytes, totalBytes, updatedAt, stale);
+  }
+
+  private buildUsageResponse(
+    usedBytes: number,
+    totalBytes: number | null,
+    updatedAt: Date | null,
+    stale: boolean,
+  ) {
     const remainingBytes =
       totalBytes !== null ? Math.max(0, totalBytes - usedBytes) : null;
-
     return {
       available: true,
       totalBytes,
       usedBytes,
       remainingBytes,
       updatedAt,
+      stale,
     };
   }
 
   /**
    * Список пакетов пополнения для конкретного заказа (по ICCID).
+   * Дополнительно конвертирует цену провайдера в RUB по системным настройкам,
+   * чтобы фронт не дублировал логику ценообразования.
    */
   async getTopupPackagesForOrder(orderId: string) {
     const order = await this.prisma.order.findUnique({
@@ -371,26 +463,249 @@ export class OrdersService {
       throw new BadRequestException('eSIM ещё не выдана — пополнение недоступно');
     }
 
-    return this.esimProviderService.getTopupPackagesByIccid(order.iccid);
+    const [packages, pricing] = await Promise.all([
+      this.esimProviderService.getTopupPackagesByIccid(order.iccid),
+      this.systemSettingsService.getPricingSettings(),
+    ]);
+
+    return packages
+      .filter((p: any) => p.supportTopup !== false)
+      .map((p: any) => {
+        const priceUsd = Number(p.price) / 10000;
+        const priceRub = Math.round(
+          priceUsd * (1 + pricing.defaultMarkupPercent / 100) * pricing.exchangeRate,
+        );
+        return {
+          ...p,
+          priceUsd,
+          priceRub,
+        };
+      });
   }
 
   /**
-   * Запустить пополнение eSIM выбранным пакетом.
-   * Возвращает данные провайдера; биллинг (списание со счёта пользователя или
-   * новая оплата) — ответственность вызывающего слоя/платёжного модуля.
+   * Создать заказ-пополнение существующей eSIM.
+   *
+   * Поток:
+   *  1. Проверяем владельца исходного заказа и наличие ICCID.
+   *  2. Ищем пакет у провайдера, считаем стоимость в RUB по настройкам ценообразования.
+   *  3. Если paymentMethod=balance — атомарно списываем с balance, ставим статус PAID
+   *     и сразу запускаем fulfill (вызовет /esim/topup у провайдера).
+   *  4. Если paymentMethod=card — создаём заказ в PENDING, фронт продолжит через
+   *     обычный платёжный flow `/payments/create`.
+   *
+   * Возвращает: { order, paymentMethod, fulfillment? } — для balance уже выполненный
+   * заказ; для card нужно создать платёж следующим шагом.
    */
-  async topupOrder(orderId: string, packageCode: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
+  async createTopupOrder(parentOrderId: string, packageCode: string, requesterId: string, paymentMethod: 'balance' | 'card' = 'card') {
+    if (!packageCode) {
+      throw new BadRequestException('packageCode обязателен');
+    }
+
+    const parent = await this.prisma.order.findUnique({
+      where: { id: parentOrderId },
+      include: { product: true, user: true },
     });
 
-    if (!order) throw new BadRequestException('Заказ не найден');
-    if (!order.iccid) {
+    if (!parent) throw new BadRequestException('Исходный заказ не найден');
+    if (parent.userId !== requesterId) {
+      throw new ForbiddenException('Заказ принадлежит другому пользователю');
+    }
+    if (!parent.iccid) {
       throw new BadRequestException('eSIM ещё не выдана — пополнение недоступно');
     }
 
-    const transactionId = `topup_${order.id}_${Date.now()}`;
-    return this.esimProviderService.topupEsim(order.iccid, packageCode, transactionId);
+    // Получаем пакеты топ-апа и валидируем переданный packageCode
+    const packages = await this.esimProviderService.getTopupPackagesByIccid(parent.iccid);
+    const pkg = packages.find((p: any) => p.packageCode === packageCode);
+    if (!pkg) {
+      throw new BadRequestException('Пакет пополнения не найден или больше недоступен');
+    }
+    if (pkg.supportTopup === false) {
+      throw new BadRequestException('Этот пакет не поддерживает пополнение');
+    }
+
+    // Считаем цену в RUB по тем же правилам, что и для основных тарифов
+    const pricing = await this.systemSettingsService.getPricingSettings();
+    const priceUsd = Number(pkg.price) / 10000;
+    const priceRub = Math.round(
+      priceUsd * (1 + pricing.defaultMarkupPercent / 100) * pricing.exchangeRate,
+    );
+
+    if (priceRub <= 0) {
+      throw new BadRequestException('Не удалось рассчитать стоимость пополнения');
+    }
+
+    // === Balance flow: атомарно списываем и оплачиваем ===
+    if (paymentMethod === 'balance') {
+      const userBalance = Number(parent.user.balance);
+      if (userBalance < priceRub) {
+        throw new BadRequestException(
+          `Недостаточно средств на балансе. Нужно ${priceRub}₽, есть ${userBalance}₽.`,
+        );
+      }
+
+      const created = await this.prisma.$transaction(async (tx) => {
+        // Повторно проверяем баланс ВНУТРИ транзакции, чтобы избежать race condition
+        // (две одновременных кнопки «Пополнить» не должны увести баланс в минус).
+        const userFresh = await tx.user.findUnique({
+          where: { id: requesterId },
+          select: { balance: true },
+        });
+        if (!userFresh || Number(userFresh.balance) < priceRub) {
+          throw new BadRequestException('Недостаточно средств на балансе');
+        }
+
+        await tx.user.update({
+          where: { id: requesterId },
+          data: { balance: { decrement: new Prisma.Decimal(priceRub) } },
+        });
+
+        const newOrder = await tx.order.create({
+          data: {
+            userId: requesterId,
+            productId: parent.productId,
+            quantity: 1,
+            productPrice: new Prisma.Decimal(priceRub),
+            totalAmount: new Prisma.Decimal(priceRub),
+            status: OrderStatus.PAID,
+            parentOrderId: parent.id,
+            topupPackageCode: packageCode,
+          },
+          include: { product: true, user: true },
+        });
+
+        await tx.transaction.create({
+          data: {
+            userId: requesterId,
+            orderId: newOrder.id,
+            type: TransactionType.PAYMENT,
+            status: TransactionStatus.SUCCEEDED,
+            amount: new Prisma.Decimal(priceRub),
+            paymentProvider: 'balance',
+            paymentMethod: 'balance',
+            metadata: { purpose: 'topup', packageCode, parentOrderId: parent.id } as any,
+          },
+        });
+
+        return newOrder;
+      });
+
+      // fulfill вне транзакции — обращение к внешнему API не должно держать локи
+      try {
+        const fulfilled = await this.fulfillOrder(created.id);
+        return { order: fulfilled, paymentMethod: 'balance' as const };
+      } catch (error: any) {
+        // Откатываем списание с баланса при провале провайдера
+        await this.prisma.$transaction([
+          this.prisma.user.update({
+            where: { id: requesterId },
+            data: { balance: { increment: new Prisma.Decimal(priceRub) } },
+          }),
+          this.prisma.transaction.create({
+            data: {
+              userId: requesterId,
+              orderId: created.id,
+              type: TransactionType.REFUND,
+              status: TransactionStatus.SUCCEEDED,
+              amount: new Prisma.Decimal(priceRub),
+              paymentProvider: 'balance',
+              metadata: { purpose: 'topup_refund', reason: error.message } as any,
+            },
+          }),
+          this.prisma.order.update({
+            where: { id: created.id },
+            data: { status: OrderStatus.FAILED, errorMessage: error.message },
+          }),
+        ]);
+        throw new BadRequestException(
+          `Пополнение не выполнено: ${error.message}. Деньги возвращены на баланс.`,
+        );
+      }
+    }
+
+    // === Card flow: создаём заказ в PENDING, фронт продолжит через /payments/create ===
+    const newOrder = await this.prisma.order.create({
+      data: {
+        userId: requesterId,
+        productId: parent.productId,
+        quantity: 1,
+        productPrice: new Prisma.Decimal(priceRub),
+        totalAmount: new Prisma.Decimal(priceRub),
+        status: OrderStatus.PENDING,
+        parentOrderId: parent.id,
+        topupPackageCode: packageCode,
+      },
+      include: { product: true, user: true },
+    });
+
+    return { order: newOrder, paymentMethod: 'card' as const };
+  }
+
+  /**
+   * Внутренний метод: выполнить top-up через провайдера для уже PAID-заказа-пополнения.
+   * Не вызывается напрямую из контроллеров; запускается из fulfillOrder.
+   */
+  private async fulfillTopupOrder(order: any) {
+    const parent = await this.prisma.order.findUnique({
+      where: { id: order.parentOrderId },
+      select: { iccid: true, userId: true },
+    });
+    if (!parent || !parent.iccid) {
+      await this.updateStatus(order.id, OrderStatus.FAILED, {
+        errorMessage: 'У родительского заказа нет ICCID',
+      });
+      throw new BadRequestException('Родительская eSIM не найдена');
+    }
+
+    try {
+      const result = await this.esimProviderService.topupEsim(
+        parent.iccid,
+        order.topupPackageCode,
+        `topup_${order.id}_${Date.now()}`,
+      );
+
+      const updated = await this.updateStatus(order.id, OrderStatus.COMPLETED, {
+        providerOrderId: result.orderNo,
+        providerResponse: result as any,
+        // Сбрасываем кэш usage у родителя — чтобы при следующем запросе мы
+        // пошли к провайдеру за свежими цифрами с учётом нового объёма.
+      });
+      await this.prisma.order.update({
+        where: { id: order.parentOrderId },
+        data: {
+          lastUsageAt: null,
+          lastUsageTotalBytes: null,
+          lowTrafficNotifiedAt: null,
+        },
+      });
+
+      // Уведомляем пользователя об успешном пополнении
+      const user = await this.prisma.user.findUnique({
+        where: { id: order.userId },
+        select: { telegramId: true },
+      });
+      if (user?.telegramId) {
+        try {
+          await this.telegramNotification.sendTextNotification(
+            user.telegramId,
+            '✅ <b>Пополнение eSIM выполнено</b>\n\n' +
+              'Свежий объём трафика уже доступен. ' +
+              'Откройте приложение, чтобы посмотреть остаток.',
+            { openMyEsim: true },
+          );
+        } catch (e: any) {
+          this.logger.warn(`Топ-ап уведомление не отправилось: ${e.message}`);
+        }
+      }
+
+      return updated;
+    } catch (error: any) {
+      await this.updateStatus(order.id, OrderStatus.FAILED, {
+        errorMessage: error.message,
+      });
+      throw error;
+    }
   }
 
   /**

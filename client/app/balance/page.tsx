@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import BottomNav from '@/components/BottomNav'
 import { useSmartBack } from '@/lib/useSmartBack'
 import { useAuth } from '@/components/AuthProvider'
-import { api } from '@/lib/api'
+import { api, paymentsApi } from '@/lib/api'
 
 interface Transaction {
   id: string
@@ -119,10 +119,9 @@ export default function BalancePage() {
 
     setTopupSubmitting(true)
     try {
-      // Создаём «псевдо-заказ» на пополнение баланса через тот же платёжный шлюз.
-      // На бэке должен быть эндпоинт /payments/topup, но даже если его пока нет —
-      // покажем понятную ошибку клиенту вместо молчаливой кнопки.
-      const { data } = await api.post('/payments/topup', { amount })
+      // Создаём транзакцию пополнения баланса через Robokassa. По успешному
+      // вебхуку бэкенд зачисляет сумму на user.balance и шлёт уведомление в Telegram.
+      const data = await paymentsApi.topupBalance(amount)
       if (data?.payment?.paymentUrl) {
         window.location.href = data.payment.paymentUrl
         return
@@ -130,7 +129,7 @@ export default function BalancePage() {
       alert('Платёж создан, но платёжный URL не получен')
     } catch (e: any) {
       const msg = e.response?.data?.message || e.message || 'Не удалось создать платёж'
-      alert(`❌ ${msg}\n\nПополнение баланса будет доступно после подключения платёжного эндпоинта.`)
+      alert(`❌ ${msg}`)
     } finally {
       setTopupSubmitting(false)
     }

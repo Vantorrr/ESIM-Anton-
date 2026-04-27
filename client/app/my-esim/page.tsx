@@ -25,13 +25,38 @@ interface MyEsim {
   usage?: {
     available: boolean
     reason?: string
+    stale?: boolean
     usedBytes: number | null
     totalBytes: number | null
     remainingBytes: number | null
     percent: number | null
   }
   tags?: string[]
+  // Идёт ли сейчас загрузка/обновление usage по этой eSIM
+  refreshing?: boolean
 }
+
+/**
+ * Простой пул конкурентных запросов с ограничением числа параллельных задач.
+ * Используется для опроса /orders/{id}/usage по списку eSIM, чтобы не открывать
+ * сразу 20+ соединений к API/провайдеру и не словить rate limit.
+ */
+async function runWithConcurrency<T>(
+  tasks: Array<() => Promise<T>>,
+  limit: number,
+): Promise<void> {
+  const queue = [...tasks]
+  const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+    while (queue.length) {
+      const next = queue.shift()
+      if (!next) return
+      try { await next() } catch { /* перехвачено внутри задачи */ }
+    }
+  })
+  await Promise.all(workers)
+}
+
+const USAGE_CONCURRENCY = 5
 
 function formatBytes(bytes: number | null): string {
   if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) return '—'
@@ -88,42 +113,66 @@ export default function MyEsimPage() {
         status: 'active',
         qrCode: order.qrCode,
         activationCode: order.activationCode,
-        canTopup: true,
+        // Кнопку «Пополнить» скрываем только если провайдер ЯВНО не поддерживает
+        // top-up (supportTopup === false). Если поле ещё не известно (undefined,
+        // например для тарифов, купленных до раскатки этого изменения) — оставляем
+        // кнопку, а недоступность увидим уже на странице топ-апа («пакетов нет»).
+        canTopup: order.product.supportTopup !== false,
         tags: order.product.tags,
       }));
 
       setEsims(mappedEsims);
 
-      // Подгружаем реальный usage по каждой eSIM в фоне (не блокируем UI)
-      mappedEsims.forEach(async (esim) => {
-        if (!esim.iccid || esim.iccid.startsWith('Ожидает')) return
-        try {
-          const u = await ordersApi.getUsage(esim.id)
-          const percent =
-            u.totalBytes && u.usedBytes !== null
-              ? Math.min(100, Math.round((u.usedBytes / u.totalBytes) * 100))
-              : null
-          setEsims((prev) =>
-            prev.map((e) =>
-              e.id === esim.id
-                ? {
-                    ...e,
-                    usedData: u.usedBytes !== null ? formatBytes(u.usedBytes) : '—',
-                    usage: { ...u, percent },
-                  }
-                : e
-            )
-          )
-        } catch (err) {
-          console.warn('Не удалось получить usage для', esim.id, err)
-        }
-      })
+      // Подгружаем реальный usage параллельно с лимитом — чтобы не открывать сразу
+      // 20+ HTTP-запросов и не упереться в rate-limit провайдера.
+      const candidates = mappedEsims.filter(
+        (e) => e.iccid && !e.iccid.startsWith('Ожидает'),
+      )
+      const tasks = candidates.map((esim) => () => fetchUsageInto(esim.id))
+      await runWithConcurrency(tasks, USAGE_CONCURRENCY)
     } catch (error) {
       console.error('Ошибка загрузки eSIM:', error);
     } finally {
       setLoading(false);
     }
   }
+
+  /**
+   * Загружает usage для конкретной eSIM и пишет в state.
+   * `force=true` принудительно дёргает провайдера, минуя серверный кэш —
+   * используется при ручном refresh.
+   */
+  const fetchUsageInto = async (esimId: string, force = false) => {
+    setEsims((prev) =>
+      prev.map((e) => (e.id === esimId ? { ...e, refreshing: true } : e)),
+    )
+    try {
+      const u = await ordersApi.getUsage(esimId, force)
+      const percent =
+        u.totalBytes && u.usedBytes !== null
+          ? Math.min(100, Math.round((u.usedBytes / u.totalBytes) * 100))
+          : null
+      setEsims((prev) =>
+        prev.map((e) =>
+          e.id === esimId
+            ? {
+                ...e,
+                refreshing: false,
+                usedData: u.usedBytes !== null ? formatBytes(u.usedBytes) : '—',
+                usage: { ...u, percent },
+              }
+            : e,
+        ),
+      )
+    } catch (err) {
+      console.warn('Не удалось получить usage для', esimId, err)
+      setEsims((prev) =>
+        prev.map((e) => (e.id === esimId ? { ...e, refreshing: false } : e)),
+      )
+    }
+  }
+
+  const refreshUsage = (esimId: string) => fetchUsageInto(esimId, true)
 
   const getStatusConfig = (status: MyEsim['status']) => {
     const configs = {
@@ -253,9 +302,25 @@ export default function MyEsimPage() {
                       {esim.usage?.available && esim.usage.percent !== null ? (
                         <>
                           <div className="flex justify-between text-sm mb-2">
-                            <span className="text-gray-500 dark:text-gray-400">Использовано</span>
-                            <span className="font-medium text-gray-900 dark:text-white">
+                            <span className="text-gray-500 dark:text-gray-400">
+                              Использовано
+                              {esim.usage.stale && (
+                                <span className="ml-1 text-amber-600 dark:text-amber-400" title="Данные могут быть устаревшими">
+                                  (устар.)
+                                </span>
+                              )}
+                            </span>
+                            <span className="font-medium text-gray-900 dark:text-white inline-flex items-center gap-2">
                               {formatBytes(esim.usage.usedBytes)} / {formatBytes(esim.usage.totalBytes)}
+                              <button
+                                type="button"
+                                onClick={() => refreshUsage(esim.id)}
+                                disabled={esim.refreshing}
+                                aria-label="Обновить расход"
+                                className="text-gray-400 hover:text-[#f77430] disabled:opacity-50 transition-colors"
+                              >
+                                <RefreshCw size={14} className={esim.refreshing ? 'animate-spin' : ''} />
+                              </button>
                             </span>
                           </div>
                           <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -270,9 +335,20 @@ export default function MyEsimPage() {
                           </div>
                         </>
                       ) : (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {esim.usage?.reason || 'Расход обновляется...'}
-                        </p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {esim.usage?.reason || 'Расход обновляется...'}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => refreshUsage(esim.id)}
+                            disabled={esim.refreshing}
+                            aria-label="Обновить расход"
+                            className="text-gray-400 hover:text-[#f77430] disabled:opacity-50 transition-colors"
+                          >
+                            <RefreshCw size={14} className={esim.refreshing ? 'animate-spin' : ''} />
+                          </button>
+                        </div>
                       )}
                       <p className="text-xs text-gray-400 mt-2">
                         Действует до {esim.validUntil}

@@ -40,39 +40,77 @@ export class ProductsService implements OnModuleInit {
   /**
    * Эвристически определяет теги-пометки тарифа по его названию/описанию/стране.
    * Используется при синхронизации с провайдером для автоматической простановки.
-   * Кастомные теги, добавленные вручную в админке, не затираются — синхронизация
+   * Кастомные теги, добавленные вручную в админке, НЕ затираются — синхронизация
    * для существующих продуктов теги не трогает (см. syncWithProvider).
+   *
+   * Важно: country здесь обычно `locationCode` (например "CN"), поэтому проверяем
+   * также `pkg.location` (например "China") и `pkg.name`/`pkg.slug` — иначе
+   * для китайских пакетов авто-теги не срабатывали (PR #1 баг).
+   *
+   * Public для unit-тестов.
    */
-  private inferTagsFromPackage(pkg: any, country: string): string[] {
+  inferTagsFromPackage(pkg: any, country: string): string[] {
     const tags = new Set<string>();
     const name = `${pkg.name || ''} ${pkg.slug || ''} ${pkg.description || ''}`.toLowerCase();
     const countryLc = (country || '').toLowerCase();
+    const locationLc = (pkg.location || '').toString().toLowerCase();
+    const looksLikeChina =
+      countryLc.includes('china') ||
+      countryLc === 'cn' ||
+      locationLc.includes('china') ||
+      name.includes('china') ||
+      name.includes('cn ');
 
-    // Гонконг / материковый Китай — частая путаница у клиентов
-    if (countryLc.includes('china') || countryLc === 'cn' || name.includes('china')) {
-      if (name.includes('mainland') || name.includes('материков')) {
+    if (looksLikeChina) {
+      // Материковый Китай — выделяем как отдельную пометку, чтобы клиенты видели
+      // что трафик идёт через материковую сеть, а не через Гонконг.
+      const isMainland =
+        name.includes('mainland') ||
+        name.includes('материков') ||
+        // Названия eSIM Access вида "China(no Hong Kong)" / "China Excluding HK"
+        name.includes('no hong kong') ||
+        name.includes('excluding hk') ||
+        name.includes('exclude hk') ||
+        name.includes('non-hk') ||
+        name.includes('non hk') ||
+        name.includes('no hk');
+
+      const hasHkExplicit =
+        name.includes('hk ip') ||
+        name.includes('hong kong ip') ||
+        name.includes('via hk') ||
+        name.includes('via hong kong');
+
+      if (isMainland) {
         tags.add('Материковый Китай');
-      }
-      if (name.includes('non-hk') || name.includes('non hk') || name.includes('no hk')) {
         tags.add('Не гонконгский IP');
-      }
-      if (name.includes('hk ip') || name.includes('hong kong ip')) {
+      } else if (hasHkExplicit) {
         tags.add('Гонконгский IP');
       }
     }
 
-    // Скоростные пометки
-    if (name.includes('5g')) tags.add('5G');
-    else if (name.includes('4g') || name.includes('lte')) tags.add('4G/LTE');
+    // Скоростные пометки. Используем регекс с границами, чтобы не путать
+    // объём («5GB», «10GB») со скоростью («5G», «4G»).
+    if (/(^|[^\d])5g($|[^bB\d])/.test(name)) tags.add('5G');
+    else if (/(^|[^\d])4g($|[^bB\d])/.test(name) || /\blte\b/.test(name)) {
+      tags.add('4G/LTE');
+    }
 
     // Тип трафика
-    if (name.includes('/day') || name.includes('daily')) tags.add('Дневной лимит');
+    if (name.includes('/day') || name.includes('daily') || name.includes('day pass')) {
+      tags.add('Дневной лимит');
+    }
     if (name.includes('hotspot') || name.includes('tethering')) tags.add('Раздача Wi-Fi');
     if (name.includes('voice') || name.includes('call')) tags.add('Голосовые звонки');
     if (name.includes('sms')) tags.add('SMS');
 
     // Региональные пометки
-    if (name.includes('regional') || name.includes('multi-country') || name.includes('multi country')) {
+    if (
+      name.includes('regional') ||
+      name.includes('multi-country') ||
+      name.includes('multi country') ||
+      name.includes('multicountry')
+    ) {
       tags.add('Мульти-страна');
     }
 
@@ -327,17 +365,26 @@ export class ProductsService implements OnModuleInit {
 
   /**
    * Найти и обработать дубликаты тарифов в БД.
-   * Дубликаты — продукты с одинаковыми (country, dataAmount, validityDays,
-   * isUnlimited, providerPrice). Из каждой группы оставляем самый «канонический»
-   * (активный, с заполненными бейджем/тегами, самый старый), остальные:
-   *   - dryRun=true → только перечисляем
-   *   - dryRun=false → деактивируем (isActive=false), не удаляем,
-   *     чтобы исторические заказы остались валидны.
+   *
+   * Алгоритм:
+   *  1. Берём только АКТИВНЫЕ продукты (неактивные уже скрыты, нет смысла трогать).
+   *  2. Группируем по ключу: country|dataAmount|validityDays|isUnlimited|providerPrice
+   *     (округлённый до копеек). Если ключ совпал → это потенциальные дубли.
+   *  3. Считаем кол-во АКТИВНЫХ заказов по каждому продукту в группе. Канонический
+   *     продукт = (есть активные заказы → больше) → (есть теги/notes/бейдж →
+   *     ценнее для админа) → старший по createdAt (стабильный fallback).
+   *  4. Остальные деактивируем (isActive=false). Заказы продолжают работать —
+   *     historic FK не ломается.
+   *
+   * Метод бросает 0 ошибок — все updateMany в одной транзакции, чтобы либо все
+   * группы прошли, либо ни одна (атомарность).
    */
   async dedupeProducts(dryRun = false) {
     this.logger.log(`🧹 Поиск дубликатов тарифов (dryRun=${dryRun})...`);
 
-    const all = await this.prisma.esimProduct.findMany();
+    const all = await this.prisma.esimProduct.findMany({
+      where: { isActive: true },
+    });
 
     const groups = new Map<string, typeof all>();
     for (const p of all) {
@@ -354,17 +401,39 @@ export class ProductsService implements OnModuleInit {
 
     type DupReport = {
       key: string;
-      kept: { id: string; name: string };
-      deactivated: { id: string; name: string }[];
+      kept: { id: string; name: string; activeOrders: number };
+      deactivated: { id: string; name: string; activeOrders: number }[];
+      warnings: string[];
     };
     const report: DupReport[] = [];
+
+    // Подсчитаем активные заказы пакетом, чтобы не делать N+1 запросов
+    const allIds = all.map((p) => p.id);
+    const orderCounts = await this.prisma.order.groupBy({
+      by: ['productId'],
+      where: {
+        productId: { in: allIds },
+        status: { in: ['PAID', 'COMPLETED', 'PROCESSING'] },
+      },
+      _count: { _all: true },
+    });
+    const activeOrderMap = new Map(
+      orderCounts.map((row) => [row.productId, row._count._all]),
+    );
+
+    const toDeactivate: string[] = [];
 
     for (const [key, items] of groups) {
       if (items.length < 2) continue;
 
-      // Сортируем: сначала активные, потом с бейджами/тегами, потом по дате создания (старые лучше)
-      const sorted = [...items].sort((a, b) => {
-        if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+      const enriched = items.map((p) => ({
+        ...p,
+        activeOrders: activeOrderMap.get(p.id) ?? 0,
+      }));
+
+      // Канонический выбор: больше активных заказов → ценнее метаданных → старший
+      const sorted = [...enriched].sort((a, b) => {
+        if (a.activeOrders !== b.activeOrders) return b.activeOrders - a.activeOrders;
         const aHas = (a.badge ? 1 : 0) + (a.tags.length > 0 ? 1 : 0) + (a.notes ? 1 : 0);
         const bHas = (b.badge ? 1 : 0) + (b.tags.length > 0 ? 1 : 0) + (b.notes ? 1 : 0);
         if (aHas !== bHas) return bHas - aHas;
@@ -372,22 +441,40 @@ export class ProductsService implements OnModuleInit {
       });
 
       const [kept, ...rest] = sorted;
+      const warnings: string[] = [];
+      const restWithOrders = rest.filter((p) => p.activeOrders > 0);
+      if (restWithOrders.length > 0) {
+        warnings.push(
+          `⚠️ У ${restWithOrders.length} скрываемых дублей есть активные заказы — ` +
+            `сами заказы продолжат работать, но новых покупок этих тарифов не будет.`,
+        );
+      }
+
       report.push({
         key,
-        kept: { id: kept.id, name: kept.name },
-        deactivated: rest.map(p => ({ id: p.id, name: p.name })),
+        kept: { id: kept.id, name: kept.name, activeOrders: kept.activeOrders },
+        deactivated: rest.map((p) => ({
+          id: p.id,
+          name: p.name,
+          activeOrders: p.activeOrders,
+        })),
+        warnings,
       });
 
-      if (!dryRun) {
-        await this.prisma.esimProduct.updateMany({
-          where: { id: { in: rest.map(p => p.id) } },
-          data: { isActive: false },
-        });
-      }
+      if (!dryRun) toDeactivate.push(...rest.map((p) => p.id));
+    }
+
+    if (!dryRun && toDeactivate.length > 0) {
+      await this.prisma.esimProduct.updateMany({
+        where: { id: { in: toDeactivate } },
+        data: { isActive: false },
+      });
     }
 
     const totalDeactivated = report.reduce((sum, r) => sum + r.deactivated.length, 0);
-    this.logger.log(`🧹 Найдено групп дублей: ${report.length}, лишних тарифов: ${totalDeactivated}`);
+    this.logger.log(
+      `🧹 Найдено групп дублей: ${report.length}, лишних тарифов: ${totalDeactivated}`,
+    );
 
     return {
       success: true,
@@ -567,6 +654,9 @@ export class ProductsService implements OnModuleInit {
             isUnlimited: isUnlimitedByName,
             isActive: true,
             tags: autoTags,
+            // Кэш поддержки top-up — используется фронтом для скрытия кнопки «Пополнить»
+            // у тарифов, для которых провайдер не даёт продлевать.
+            supportTopup: pkg.supportTopup === true,
           };
           
           const existing = await this.prisma.esimProduct.findFirst({
@@ -611,6 +701,7 @@ export class ProductsService implements OnModuleInit {
                 // isActive - НЕ трогаем! Сохраняем настройку скрытия
                 // badge, badgeColor - НЕ трогаем!
                 // tags, notes - НЕ трогаем!
+                supportTopup: productData.supportTopup, // Обновляем — это техническая характеристика
               },
             });
           } else if (duplicate) {

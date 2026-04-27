@@ -105,6 +105,9 @@ model EsimProduct {
   tags          String[] @default([])
   // Длинное человекочитаемое примечание (например, особые условия активации)
   notes         String?
+  // Поддерживает ли провайдер пополнение для этого пакета (кэшируется при синхронизации,
+  // чтобы не запрашивать список пакетов пополнения до того, как пользователь жмёт «Пополнить»)
+  supportTopup  Boolean  @default(false)
   orders        Order[]
 
   @@index([country])
@@ -136,10 +139,20 @@ model Order {
   completedAt      DateTime?
   // Кэш последнего известного использования трафика для активной eSIM (в байтах)
   lastUsageBytes        BigInt?
+  // Кэш общего объёма трафика (приходит у провайдера вместе с usage),
+  // нужен чтобы шкала прогресса работала и без свежего запроса к eSIM Access
+  lastUsageTotalBytes   BigInt?
   // Когда usage был последний раз обновлён (для решения, нужно ли перезапрашивать у провайдера)
   lastUsageAt           DateTime?
   // Когда было отправлено последнее уведомление о низком остатке — чтобы не спамить
   lowTrafficNotifiedAt  DateTime?
+  // Top-up flow: если этот заказ — пополнение существующей eSIM, тут лежит id
+  // родительского заказа (по которому изначально куплена eSIM, к этому ICCID идёт topup)
+  parentOrderId         String?
+  parentOrder           Order?   @relation("OrderTopups", fields: [parentOrderId], references: [id])
+  topups                Order[]  @relation("OrderTopups")
+  // packageCode провайдера, выбранный для пополнения (при выдаче будет передан в /esim/topup)
+  topupPackageCode      String?
   product          EsimProduct   @relation(fields: [productId], references: [id])
   user             User          @relation(fields: [userId], references: [id])
   transactions     Transaction[]
@@ -147,6 +160,7 @@ model Order {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+  @@index([parentOrderId])
   @@map("orders")
 }
 
