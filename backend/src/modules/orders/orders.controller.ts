@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
-import { PaymentsService } from '../payments/payments.service';
 import { OrderStatus } from '@prisma/client';
 import { JwtUserGuard, CurrentUser, AuthUser } from '@/common/auth/jwt-user.guard';
 
@@ -18,10 +17,7 @@ import { JwtUserGuard, CurrentUser, AuthUser } from '@/common/auth/jwt-user.guar
 @ApiBearerAuth()
 @Controller('orders')
 export class OrdersController {
-  constructor(
-    private readonly ordersService: OrdersService,
-    private readonly paymentsService: PaymentsService,
-  ) {}
+  constructor(private readonly ordersService: OrdersService) {}
 
   @Get()
   @ApiOperation({ summary: 'Получить все заказы' })
@@ -165,16 +161,11 @@ export class OrdersController {
       method,
     );
 
-    // Для card-flow сразу инициируем оплату — фронту проще
-    if (result.paymentMethod === 'card') {
-      const payment = await this.paymentsService.createPayment(result.order.id);
-      return {
-        method: 'card' as const,
-        order: result.order,
-        payment: payment.payment,
-      };
-    }
-
-    return { method: 'balance' as const, order: result.order };
+    // Для card-flow клиент должен сам вызвать POST /payments/create с order.id
+    // (это разрывает цикл OrdersModule ↔ PaymentsModule на уровне TS-импортов)
+    return {
+      method: result.paymentMethod,
+      order: result.order,
+    };
   }
 }

@@ -17,6 +17,7 @@ import { EsimProviderModule } from './modules/esim-provider/esim-provider.module
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 import { TelegramModule } from './modules/telegram/telegram.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { TrafficMonitorModule } from './modules/notifications/traffic-monitor.module';
 import { PromoCodesModule } from './modules/promo-codes/promo-codes.module';
 
 @Module({
@@ -49,6 +50,7 @@ import { PromoCodesModule } from './modules/promo-codes/promo-codes.module';
     SystemSettingsModule,
     TelegramModule,
     NotificationsModule,
+    TrafficMonitorModule,
     PromoCodesModule,
   ],
 })

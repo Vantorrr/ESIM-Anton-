@@ -8,7 +8,6 @@ import { PromoCodesModule } from '../promo-codes/promo-codes.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
-import { PaymentsModule } from '../payments/payments.module';
 
 @Module({
   imports: [
@@ -19,7 +18,6 @@ import { PaymentsModule } from '../payments/payments.module';
     TelegramModule,
     SystemSettingsModule,
     forwardRef(() => NotificationsModule),
-    forwardRef(() => PaymentsModule),
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { OrdersService } from '../orders/orders.service';
 import { TelegramNotificationService } from '../telegram/telegram-notification.service';
@@ -19,7 +19,6 @@ export class PaymentsService {
 
   constructor(
     private prisma: PrismaService,
-    @Inject(forwardRef(() => OrdersService))
     private ordersService: OrdersService,
     private configService: ConfigService,
     private telegramNotification: TelegramNotificationService,

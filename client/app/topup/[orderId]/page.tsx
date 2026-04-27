@@ -109,9 +109,16 @@ export default function TopupPage() {
         packageCode: pkg.packageCode,
         paymentMethod,
       })
-      if (data?.method === 'card' && data?.payment?.paymentUrl) {
-        window.location.href = data.payment.paymentUrl
-        return
+      if (data?.method === 'card' && data?.order?.id) {
+        const { data: pay } = await api.post('/payments/create', {
+          orderId: data.order.id,
+        })
+        const url = pay?.payment?.paymentUrl || pay?.paymentUrl
+        if (url) {
+          window.location.href = url
+          return
+        }
+        throw new Error('Не получен URL оплаты')
       }
       setSuccess(`✅ eSIM пополнена пакетом «${pkg.name}»`)
       setTimeout(() => router.push('/my-esim'), 1500)
