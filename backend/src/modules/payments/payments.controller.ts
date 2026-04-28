@@ -17,21 +17,34 @@ export class PaymentsController {
   }
 
   /**
-   * Пополнение личного баланса пользователя через Robokassa.
-   * Требует JWT юзера; userId берётся из токена, а не из тела (нельзя пополнять чужой баланс).
+   * Пополнение личного баланса пользователя.
+   *
+   * По умолчанию (`provider` не передан или `cloudpayments`) — возвращает
+   * данные для CloudPayments-виджета: `{ invoiceId, amount, publicId, ... }`.
+   * Клиент открывает виджет, оплата проходит, наш `cloudpayments/pay` webhook
+   * зачислит баланс.
+   *
+   * При `provider=robokassa` — старый flow с редиректом на Robokassa
+   * (оставлен на случай fallback-сценариев).
+   *
+   * userId берём строго из JWT — нельзя пополнить чужой баланс.
    */
   @Post('balance/topup')
   @UseGuards(JwtUserGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Создать платёж для пополнения личного баланса (Robokassa)' })
+  @ApiOperation({ summary: 'Создать платёж для пополнения личного баланса' })
   async createBalanceTopup(
     @CurrentUser() user: AuthUser,
-    @Body() dto: { amount: number },
+    @Body() dto: { amount: number; provider?: 'cloudpayments' | 'robokassa' },
   ) {
     if (!dto?.amount || !Number.isFinite(Number(dto.amount))) {
       throw new BadRequestException('amount обязателен (число)');
     }
-    return this.paymentsService.createBalanceTopupPayment(user.id, Number(dto.amount));
+    const provider = dto.provider ?? 'cloudpayments';
+    if (provider === 'robokassa') {
+      return this.paymentsService.createBalanceTopupPayment(user.id, Number(dto.amount));
+    }
+    return this.paymentsService.prepareCloudPaymentsBalanceTopup(user.id, Number(dto.amount));
   }
 
   /**

@@ -356,7 +356,12 @@ export class EsimAccessProvider {
   }
 
   /**
-   * Получить информацию об eSIM по ICCID
+   * Получить информацию об eSIM по ICCID.
+   *
+   * Возвращает `response.data.obj` целиком — там лежит `esimList[]` с usage,
+   * статусом, сроком и SMDP. Точная форма зависит от версии API провайдера,
+   * поэтому при первой проблеме можно посмотреть полное тело в debug-логах
+   * (включается через LOG_LEVEL=debug в env).
    */
   async getEsimInfo(iccid: string): Promise<any> {
     try {
@@ -369,11 +374,29 @@ export class EsimAccessProvider {
       });
 
       if (!response.data?.success) {
+        // На всякий случай пишем тело — без него очень сложно понять, что
+        // отдаёт провайдер при «success: false»
+        this.logger.warn(
+          `⚠️ Провайдер вернул success=false для ICCID ${iccid}: ${JSON.stringify(response.data)}`,
+        );
         throw new Error(response.data?.errorMsg || 'Ошибка получения информации об eSIM');
       }
 
-      this.logger.log(`✅ Информация об eSIM получена`);
-      return response.data.obj;
+      const obj = response.data.obj;
+      const esimCount = Array.isArray(obj?.esimList) ? obj.esimList.length : 0;
+      this.logger.log(`✅ Информация об eSIM получена (esimList: ${esimCount})`);
+
+      // Полное тело — только в debug, чтобы не засорять prod-логи на каждый
+      // cron-проход монитора трафика; включается LOG_LEVEL=debug
+      this.logger.debug(`getEsimInfo raw response for ${iccid}: ${JSON.stringify(response.data)}`);
+
+      if (esimCount === 0) {
+        this.logger.warn(
+          `⚠️ esimList пуст для ICCID ${iccid}. Возможно, провайдер ещё не отдаёт расход или ICCID не найден.`,
+        );
+      }
+
+      return obj;
     } catch (error) {
       this.logger.error('❌ Ошибка получения информации об eSIM:', error.message);
       throw error;

@@ -123,9 +123,19 @@ REDIS_URL="redis://localhost:6379"
 TELEGRAM_BOT_TOKEN="your_bot_token"
 TELEGRAM_WEBHOOK_URL="https://yourdomain.com/webhook"
 
-# Payments
-YUKASSA_SHOP_ID="your_shop_id"
-YUKASSA_SECRET_KEY="your_secret_key"
+# Payments — CloudPayments (основной шлюз)
+CLOUDPAYMENTS_PUBLIC_ID="pk_xxx"
+CLOUDPAYMENTS_API_SECRET="xxx"
+# Опционально: false = HMAC-проверка вебхука выключена (только для локалки!)
+CLOUDPAYMENTS_ENFORCE_HMAC="true"
+# Public ID для виджета на клиенте (Next.js)
+NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID="pk_xxx"
+
+# Payments — Robokassa (резервный/dormant, оставлен для совместимости)
+ROBOKASSA_LOGIN="your_merchant_login"
+ROBOKASSA_PASSWORD1="your_password1"
+ROBOKASSA_PASSWORD2="your_password2"
+ROBOKASSA_TEST_MODE="false"
 
 # eSIM Provider
 ESIM_PROVIDER_API_URL="https://api.provider.com"
@@ -139,6 +149,24 @@ JWT_EXPIRES_IN="7d"
 ADMIN_EMAIL="admin@example.com"
 ADMIN_PASSWORD="secure_password"
 ```
+
+### 💳 Payments — детали интеграции
+
+**CloudPayments** — основной платёжный шлюз для:
+- покупки eSIM картой (виджет на `/pay/[orderId]` → Order.id как `InvoiceId`);
+- пополнения eSIM (виджет на `/topup/[orderId]` → создаётся child Order, его id → `InvoiceId`, `data.purpose: 'esim_topup'`);
+- пополнения личного баланса (виджет на `/balance` → бэк создаёт pending-`Transaction`, её id → `InvoiceId`, `data.purpose: 'balance_topup'`).
+
+Бэкенд принимает три вебхука:
+- `POST /api/payments/cloudpayments/check` — резервирует платёж;
+- `POST /api/payments/cloudpayments/pay` — атомарно зачисляет (Order → PAID + fulfill, либо `User.balance += amount`);
+- `POST /api/payments/cloudpayments/fail` — помечает Transaction как FAILED.
+
+Все три проверяют `Content-HMAC` заголовок (HMAC-SHA256 от raw body на `CLOUDPAYMENTS_API_SECRET`). Без валидной подписи возвращается `403`. Для локальной разработки можно временно выключить через `CLOUDPAYMENTS_ENFORCE_HMAC=false`.
+
+Идемпотентность: `pay`-callback не может зачислить дважды — есть guard по уникальной `TransactionId` от CloudPayments + атомарный `updateMany WHERE status=PENDING` для balance_topup.
+
+**Robokassa** — резервный путь. Код полностью рабочий и оставлен на случай fallback (`POST /api/payments/balance/topup` с `provider: 'robokassa'`), но из UI больше не вызывается.
 
 ## 📊 База данных
 

@@ -83,6 +83,15 @@ export interface UsageInfo {
   totalBytes: number | null;
   remainingBytes: number | null;
   updatedAt: string | null;
+  // Нормализованный статус eSIM (приходит с провайдера, кэшируется в БД).
+  // Возможные значения: ACTIVE | NOT_INSTALLED | EXPIRED | USED_UP | CANCELLED | UNKNOWN
+  status?: string | null;
+  activatedAt?: string | null;
+  expiresAt?: string | null;
+  // Прогресс трафика и срока в процентах [0..100], считаются на бэке.
+  percentTraffic?: number | null;
+  percentTime?: number | null;
+  validityDaysLeft?: number | null;
 }
 
 export interface TopupPackage {
@@ -117,6 +126,12 @@ export interface Order {
   activationCode?: string;
   createdAt: string;
   completedAt?: string;
+  // Снимок последнего известного состояния eSIM от провайдера.
+  // Заполняется при выдаче eSIM и обновляется при каждом /usage-запросе.
+  esimStatus?: string | null;
+  smdpAddress?: string | null;
+  activatedAt?: string | null;
+  expiresAt?: string | null;
 }
 
 export interface ReferralStats {
@@ -252,8 +267,25 @@ export const paymentsApi = {
     return data;
   },
 
-  // Пополнить личный баланс через Robokassa
-  async topupBalance(amount: number): Promise<{
+  // Подготовить пополнение личного баланса через CloudPayments.
+  // Возвращает данные для открытия виджета `cp.CloudPayments`.
+  async prepareCloudPaymentsBalanceTopup(amount: number): Promise<{
+    provider: 'cloudpayments';
+    invoiceId: string;
+    amount: number;
+    currency: string;
+    publicId: string;
+    accountId: string;
+    description: string;
+    data: { purpose: 'balance_topup'; userId: string; amount: number };
+  }> {
+    const { data } = await api.post(`/payments/balance/topup`, { amount });
+    return data;
+  },
+
+  // Старый Robokassa-flow пополнения. Оставлен на случай fallback,
+  // но из UI больше не вызывается.
+  async topupBalanceRobokassa(amount: number): Promise<{
     transaction: any;
     payment: {
       paymentId: string;
@@ -262,7 +294,10 @@ export const paymentsApi = {
       currency: string;
     };
   }> {
-    const { data } = await api.post(`/payments/balance/topup`, { amount });
+    const { data } = await api.post(`/payments/balance/topup`, {
+      amount,
+      provider: 'robokassa',
+    });
     return data;
   },
 };

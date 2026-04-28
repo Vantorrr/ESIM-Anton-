@@ -146,6 +146,15 @@ model Order {
   lastUsageAt           DateTime?
   // Когда было отправлено последнее уведомление о низком остатке — чтобы не спамить
   lowTrafficNotifiedAt  DateTime?
+  // Кэш статуса eSIM, нормализованный по EsimStatus enum (см. esim-status.ts)
+  // Возможные значения: NOT_INSTALLED | ACTIVE | EXPIRED | USED_UP | CANCELLED | UNKNOWN
+  esimStatus            String?
+  // SM-DP+ адрес от провайдера (нужен для построения LPA-строки и Universal Link Apple)
+  smdpAddress           String?
+  // Когда eSIM была впервые активирована (effectiveTime от провайдера)
+  activatedAt           DateTime?
+  // Когда eSIM истекает (expiredTime от провайдера) — приоритетнее createdAt+validityDays
+  expiresAt             DateTime?
   // Top-up flow: если этот заказ — пополнение существующей eSIM, тут лежит id
   // родительского заказа (по которому изначально куплена eSIM, к этому ICCID идёт topup)
   parentOrderId         String?

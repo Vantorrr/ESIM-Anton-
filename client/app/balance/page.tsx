@@ -6,6 +6,7 @@ import BottomNav from '@/components/BottomNav'
 import { useSmartBack } from '@/lib/useSmartBack'
 import { useAuth } from '@/components/AuthProvider'
 import { api, paymentsApi } from '@/lib/api'
+import { payCloudPayments } from '@/lib/cloudpayments'
 
 interface Transaction {
   id: string
@@ -119,14 +120,32 @@ export default function BalancePage() {
 
     setTopupSubmitting(true)
     try {
-      // Создаём транзакцию пополнения баланса через Robokassa. По успешному
-      // вебхуку бэкенд зачисляет сумму на user.balance и шлёт уведомление в Telegram.
-      const data = await paymentsApi.topupBalance(amount)
-      if (data?.payment?.paymentUrl) {
-        window.location.href = data.payment.paymentUrl
-        return
+      // 1) Готовим pending-Transaction в БД и получаем invoiceId для виджета.
+      const prep = await paymentsApi.prepareCloudPaymentsBalanceTopup(amount)
+
+      // 2) Открываем CloudPayments-виджет. После успешной оплаты CloudPayments
+      // дёрнет наш `cloudpayments/pay` webhook, который атомарно поднимет баланс.
+      const result = await payCloudPayments({
+        publicId: prep.publicId,
+        description: prep.description,
+        amount: prep.amount,
+        currency: prep.currency,
+        invoiceId: prep.invoiceId,
+        accountId: prep.accountId,
+        data: prep.data,
+      })
+
+      if (!result.success) {
+        throw new Error(result.reason || 'Платёж не был завершён')
       }
-      alert('Платёж создан, но платёжный URL не получен')
+
+      // 3) Закрываем форму и обновляем баланс/историю.
+      setTopupOpen(false)
+      setTopupAmount('')
+      // Маленькая пауза, чтобы webhook успел зачислить баланс
+      setTimeout(() => {
+        void loadData()
+      }, 1500)
     } catch (e: any) {
       const msg = e.response?.data?.message || e.message || 'Не удалось создать платёж'
       alert(`❌ ${msg}`)

@@ -142,28 +142,6 @@ export default function Products() {
     }
   }
 
-  const handleDedupe = async () => {
-    try {
-      const dry = await productsApi.dedupe(true)
-      const groups = dry.data.groups
-      const deactivated = dry.data.deactivated
-      if (groups === 0) {
-        alert('🎉 Дубликатов не найдено')
-        return
-      }
-      const ok = confirm(
-        `Найдено ${groups} групп дубликатов (${deactivated} лишних тарифов).\n` +
-        `Скрыть их (isActive=false)? Исторические заказы не пострадают.`
-      )
-      if (!ok) return
-      const real = await productsApi.dedupe(false)
-      alert(`✅ ${real.data.message}`)
-      loadProducts()
-    } catch (err: any) {
-      alert('❌ Ошибка дедупа: ' + (err.response?.data?.message || err.message))
-    }
-  }
-
   const closeEditor = () => {
     setEditingProduct(null)
     setIsCreating(false)
@@ -403,14 +381,6 @@ export default function Products() {
             >
               <RefreshCw className="w-4 h-4" />
               Обновить
-            </button>
-            <button
-              onClick={handleDedupe}
-              className="flex items-center gap-2 px-4 py-2.5 bg-amber-100 text-amber-700 rounded-xl font-medium hover:bg-amber-200 transition-all"
-              title="Найти и скрыть тарифы-дубликаты"
-            >
-              🧹
-              Найти дубли
             </button>
           </div>
           <div className="text-sm text-slate-500">

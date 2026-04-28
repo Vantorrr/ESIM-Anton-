@@ -16,6 +16,28 @@ import {
   isMultiProduct,
 } from '@/lib/productCoverage'
 
+// Видимые в каталоге теги (whitelist). Остальные авто-теги (5G/4G/Безлимит/...) скрываем —
+// они и так есть в описании тарифа. Заказчик специально просил оставить пометку
+// «Материковый Китай», т.к. для китайских направлений принципиально, через какую сеть идёт IP.
+const VISIBLE_TAGS = new Set<string>([
+  'Материковый Китай',
+  'Не гонконгский IP',
+  'Гонконгский IP',
+])
+
+const visibleTags = (tags?: string[]): string[] =>
+  (tags ?? []).filter((t) => VISIBLE_TAGS.has(t))
+
+const tagBadgeClass = (tag: string): string => {
+  if (tag === 'Материковый Китай' || tag === 'Не гонконгский IP') {
+    return 'bg-red-50 text-red-700 border-red-200'
+  }
+  if (tag === 'Гонконгский IP') {
+    return 'bg-blue-50 text-blue-700 border-blue-200'
+  }
+  return 'bg-gray-50 text-gray-700 border-gray-200'
+}
+
 export default function CountryPage() {
   const params = useParams()
   const router = useRouter()
@@ -262,6 +284,19 @@ export default function CountryPage() {
                       После лимита: {product.speed}
                     </p>
                   )}
+                  {/* Whitelist-теги (Китай и т.п.) */}
+                  {visibleTags(product.tags).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {visibleTags(product.tags).map((tag) => (
+                        <span
+                          key={tag}
+                          className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${tagBadgeClass(tag)}`}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex items-center gap-3">
@@ -370,6 +405,31 @@ export default function CountryPage() {
                   <p className="text-xs text-gray-500 mt-1">Звонки и SMS в тариф не входят.</p>
                 </div>
               </div>
+              {(visibleTags(selectedProd.tags).length > 0 || selectedProd.notes) && (
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <div className="w-10 h-10 rounded-xl bg-yellow-100 flex items-center justify-center shrink-0">
+                    <span className="text-lg">ℹ️</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-400 uppercase">Примечание</p>
+                    {visibleTags(selectedProd.tags).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {visibleTags(selectedProd.tags).map((tag) => (
+                          <span
+                            key={tag}
+                            className={`text-[11px] font-medium px-2 py-0.5 rounded border ${tagBadgeClass(tag)}`}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {selectedProd.notes && (
+                      <p className="text-sm text-gray-700 mt-1 whitespace-pre-line">{selectedProd.notes}</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

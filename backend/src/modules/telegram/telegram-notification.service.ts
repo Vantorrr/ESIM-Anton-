@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import { buildEsimActivationLinks } from '@/common/utils/esim-links';
 
 @Injectable()
 export class TelegramNotificationService {
@@ -124,7 +125,12 @@ export class TelegramNotificationService {
   }
 
   /**
-   * Отправить eSIM с QR-кодом, ICCID и кодом активации в бот
+   * Отправить eSIM с QR-кодом, ICCID, кодом активации и ссылками установки.
+   *
+   * Если переданы `smdpAddress` и `activationCode` — добавляем универсальную
+   * LPA-строку и кнопку «Установить на iPhone» (Apple Universal Link).
+   * Для Android универсальной ссылки нет — ведём пользователя в mini-app
+   * на страницу инструкции (которая уже умеет копировать LPA в буфер).
    */
   async sendEsimDetails(
     telegramId: bigint | number | string,
@@ -134,9 +140,13 @@ export class TelegramNotificationService {
       iccid?: string;
       qrCode?: string;
       activationCode?: string;
+      smdpAddress?: string;
+      orderId?: string;
     }
   ) {
     if (!this.botToken) return;
+
+    const links = buildEsimActivationLinks(details.smdpAddress, details.activationCode);
 
     const lines = [
       `🎉 <b>Ваша eSIM готова к установке!</b>`,
@@ -145,19 +155,43 @@ export class TelegramNotificationService {
       `📶 <b>Трафик:</b> ${details.dataAmount}`,
     ];
     if (details.iccid) lines.push(`🔢 <b>ICCID:</b> <code>${details.iccid}</code>`);
-    if (details.activationCode) {
+
+    // Приоритет — полная LPA-строка (smdp+ac), fallback — голый activationCode
+    if (links.lpa) {
       lines.push(``, `📋 <b>Код активации (LPA):</b>`);
+      lines.push(`<code>${links.lpa}</code>`);
+    } else if (details.activationCode) {
+      lines.push(``, `📋 <b>Код активации:</b>`);
       lines.push(`<code>${details.activationCode}</code>`);
     }
-    lines.push(``, `📲 <i>Отсканируйте QR-код ниже в настройках телефона → Мобильные данные → Добавить тариф</i>`);
+    lines.push(``, `📲 <i>Отсканируйте QR-код или нажмите кнопку ниже для быстрой установки</i>`);
 
-    const keyboard = {
-      inline_keyboard: [[{
-        text: '📱 Открыть Мои eSIM',
-        web_app: { url: this.miniAppUrl },
-      }]]
-    };
+    // Собираем клавиатуру: ссылки активации + кнопка mini-app
+    const keyboardRows: any[][] = [];
+    if (links.appleUniversalLink) {
+      keyboardRows.push([{
+        text: '📲 Установить на iPhone',
+        url: links.appleUniversalLink,
+      }]);
+    }
+    // Android intent в Telegram не открывается, поэтому ведём в mini-app —
+    // там у нас есть «Скопировать LPA» + пошаговая инструкция
+    if (links.lpa) {
+      keyboardRows.push([{
+        text: '🤖 Установить на Android',
+        web_app: {
+          url: details.orderId
+            ? `${this.miniAppUrl}/my-esim?activate=${encodeURIComponent(details.orderId)}`
+            : `${this.miniAppUrl}/my-esim`,
+        },
+      }]);
+    }
+    keyboardRows.push([{
+      text: '📱 Открыть Мои eSIM',
+      web_app: { url: `${this.miniAppUrl}/my-esim` },
+    }]);
 
+    const keyboard = { inline_keyboard: keyboardRows };
     const chatId = telegramId.toString();
 
     try {

@@ -2,6 +2,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 // Фикс для сериализации BigInt в JSON (telegramId из Prisma)
@@ -9,8 +10,24 @@ import { AppModule } from './app.module';
   return this.toString();
 };
 
+/**
+ * Сохраняем raw тело запроса в `req.rawBody` для эндпоинтов, где нужна
+ * проверка HMAC по точному байтовому представлению (CloudPayments-вебхуки).
+ * Прицельно оборачиваем только URL-encoded и JSON парсеры, остальной мир
+ * (multipart, etc.) мы не трогаем.
+ */
+const rawBodyVerify = (req: any, _res: any, buf: Buffer) => {
+  if (buf?.length) {
+    req.rawBody = buf;
+  }
+};
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+
+  // Подключаем парсеры с verify, чтобы получить rawBody
+  app.use(json({ verify: rawBodyVerify, limit: '10mb' }));
+  app.use(urlencoded({ extended: true, verify: rawBodyVerify, limit: '10mb' }));
 
   // Global prefix
   app.setGlobalPrefix('api');

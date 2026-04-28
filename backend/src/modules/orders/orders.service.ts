@@ -241,6 +241,8 @@ export class OrdersService {
         activationCode: esimData.activation_code,
         providerOrderId: esimData.order_id,
         providerResponse: esimData as any,
+        // Сохраняем SMDP сразу — он нужен для построения LPA-ссылки активации
+        ...(esimData.smdp_address ? { smdpAddress: esimData.smdp_address } : {}),
       });
 
       // Начисляем кэшбэк
@@ -262,6 +264,8 @@ export class OrdersService {
         iccid: esimData.iccid,
         qrCode: esimData.qr_code,
         activationCode: esimData.activation_code,
+        smdpAddress: esimData.smdp_address,
+        orderId: order.id,
       };
 
       // Telegram — отправляем QR + детали
@@ -303,20 +307,18 @@ export class OrdersService {
   }
 
   /**
-   * Получить usage (расход трафика) по заказу.
+   * Получить usage (расход трафика) и snapshot статуса по заказу.
+   *
+   * Возвращает не только расход, но и нормализованный статус eSIM, даты
+   * активации/истечения, SMDP — всё, что нужно для карточки в /my-esim.
    *
    * Поведение:
    *  - если eSIM ещё не выдана (нет ICCID) → available:false с причиной;
-   *  - если в БД есть свежий кэш (lastUsageAt < maxAgeSec назад) — отдаём его сразу;
-   *  - иначе запрашиваем у провайдера, кэшируем `lastUsageBytes` и `lastUsageTotalBytes`;
+   *  - если в БД есть свежий кэш (lastUsageAt < maxAgeSec назад) — отдаём его сразу
+   *    (включая закэшированные esimStatus/expiresAt/activatedAt/smdpAddress);
+   *  - иначе запрашиваем snapshot у провайдера, обновляем кэш атомарно;
    *  - при ошибке провайдера, если есть НЕ устаревший (< STALE_CACHE_LIMIT_SEC) кэш —
    *    отдаём его с пометкой `stale=true`, иначе available:false.
-   *
-   * Поля eSIM Access (`/esim/query` → `obj.esimList[0]`):
-   *   - `orderUsage` — потрачено (в байтах);
-   *   - `totalVolume` — всего (в байтах).
-   * Запасные имена (`dataUsed`/`dataTotal`/`usage`/`volume`) оставлены для устойчивости
-   * к небольшим расхождениям в версиях API.
    */
   async getOrderUsage(
     orderId: string,
@@ -333,15 +335,7 @@ export class OrdersService {
     }
 
     if (!order.iccid) {
-      return {
-        available: false,
-        reason: 'eSIM ещё не выдана',
-        totalBytes: null,
-        usedBytes: null,
-        remainingBytes: null,
-        updatedAt: null,
-        stale: false,
-      };
+      return this.buildUnavailableResponse(order, 'eSIM ещё не выдана');
     }
 
     const now = Date.now();
@@ -360,36 +354,63 @@ export class OrdersService {
     let updatedAt: Date | null = order.lastUsageAt;
     let stale = false;
 
+    // Метаданные снапшота — стартуем с того, что в кэше
+    let esimStatus: string | null = order.esimStatus ?? null;
+    let activatedAt: Date | null = order.activatedAt ?? null;
+    let expiresAt: Date | null = order.expiresAt ?? null;
+    let smdpAddress: string | null = order.smdpAddress ?? null;
+    let activationCode: string | null = order.activationCode ?? null;
+
     if (cachedFresh) {
-      return this.buildUsageResponse(usedBytes, totalBytes, updatedAt, false);
+      return this.buildUsageResponse(order, {
+        usedBytes,
+        totalBytes,
+        updatedAt,
+        stale: false,
+        esimStatus,
+        activatedAt,
+        expiresAt,
+        smdpAddress,
+        activationCode,
+      });
     }
 
     try {
-      const info = await this.esimProviderService.getEsimInfoByIccid(order.iccid);
-      const esim = info?.esimList?.[0] || info?.esim || info;
+      const snapshot = await this.esimProviderService.getEsimSnapshot(order.iccid);
 
-      const used = Number(esim?.orderUsage ?? esim?.dataUsed ?? esim?.usage ?? NaN);
-      const total = Number(
-        esim?.totalVolume ?? esim?.dataTotal ?? esim?.volume ?? NaN,
-      );
-
-      if (Number.isFinite(used)) usedBytes = Math.max(0, Math.floor(used));
-      if (Number.isFinite(total)) totalBytes = Math.max(0, Math.floor(total));
-
-      if (Number.isFinite(used)) {
-        updatedAt = new Date();
-        await this.prisma.order.update({
-          where: { id: orderId },
-          data: {
-            lastUsageBytes: BigInt(usedBytes!),
-            // total пишем только если действительно пришёл, чтобы не затереть кэш на null
-            ...(Number.isFinite(total)
-              ? { lastUsageTotalBytes: BigInt(totalBytes!) }
-              : {}),
-            lastUsageAt: updatedAt,
-          },
-        });
+      if (snapshot.usedBytes !== null) {
+        usedBytes = Math.max(0, Math.floor(snapshot.usedBytes));
       }
+      if (snapshot.totalBytes !== null) {
+        totalBytes = Math.max(0, Math.floor(snapshot.totalBytes));
+      }
+      if (snapshot.activatedAt) activatedAt = snapshot.activatedAt;
+      if (snapshot.expiresAt) expiresAt = snapshot.expiresAt;
+      if (snapshot.smdpAddress) smdpAddress = snapshot.smdpAddress;
+      if (snapshot.activationCode) activationCode = snapshot.activationCode;
+      esimStatus = snapshot.status;
+
+      // Кэшируем всё что обновилось — даже если usedBytes нет (для статуса/срока)
+      updatedAt = new Date();
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          ...(snapshot.usedBytes !== null
+            ? { lastUsageBytes: BigInt(usedBytes!) }
+            : {}),
+          ...(snapshot.totalBytes !== null
+            ? { lastUsageTotalBytes: BigInt(totalBytes!) }
+            : {}),
+          lastUsageAt: updatedAt,
+          esimStatus: esimStatus,
+          ...(snapshot.activatedAt ? { activatedAt: snapshot.activatedAt } : {}),
+          ...(snapshot.expiresAt ? { expiresAt: snapshot.expiresAt } : {}),
+          ...(snapshot.smdpAddress ? { smdpAddress: snapshot.smdpAddress } : {}),
+          ...(snapshot.activationCode && !order.activationCode
+            ? { activationCode: snapshot.activationCode }
+            : {}),
+        },
+      });
     } catch (error: any) {
       this.logger.warn(
         `Не удалось получить usage по ICCID ${order.iccid}: ${error.message}`,
@@ -402,49 +423,119 @@ export class OrdersService {
         now - cachedAt < STALE_CACHE_LIMIT_SEC * 1000
       ) {
         stale = true;
+      } else if (esimStatus || expiresAt) {
+        // Расхода нет, но статус/срок раньше успели закэшировать — отдаём то что есть
+        stale = true;
       } else {
-        return {
-          available: false,
-          reason: 'Провайдер временно недоступен, попробуйте через минуту',
-          totalBytes: null,
-          usedBytes: null,
-          remainingBytes: null,
-          updatedAt: null,
-          stale: false,
-        };
+        return this.buildUnavailableResponse(
+          order,
+          'Провайдер временно недоступен, попробуйте через минуту',
+        );
       }
     }
 
-    if (usedBytes === null) {
-      return {
-        available: false,
-        reason: 'Данные о расходе ещё не поступили от провайдера',
-        totalBytes: null,
-        usedBytes: null,
-        remainingBytes: null,
-        updatedAt: null,
-        stale: false,
-      };
-    }
+    return this.buildUsageResponse(order, {
+      usedBytes,
+      totalBytes,
+      updatedAt,
+      stale,
+      esimStatus,
+      activatedAt,
+      expiresAt,
+      smdpAddress,
+      activationCode,
+    });
+  }
 
-    return this.buildUsageResponse(usedBytes, totalBytes, updatedAt, stale);
+  /**
+   * Расчёт fallback-срока действия из createdAt + product.validityDays.
+   * Используется когда провайдер ещё не отдаёт expiredTime (eSIM не активирована).
+   */
+  private fallbackExpiresAt(order: { createdAt: Date; product: { validityDays: number } | null }): Date | null {
+    if (!order.product?.validityDays) return null;
+    return new Date(order.createdAt.getTime() + order.product.validityDays * 86400 * 1000);
+  }
+
+  private buildUnavailableResponse(
+    order: { createdAt: Date; product: { validityDays: number } | null; esimStatus: string | null; activatedAt: Date | null; expiresAt: Date | null },
+    reason: string,
+  ) {
+    return {
+      available: false,
+      reason,
+      totalBytes: null,
+      usedBytes: null,
+      remainingBytes: null,
+      updatedAt: null,
+      stale: false,
+      status: order.esimStatus ?? null,
+      activatedAt: order.activatedAt ?? null,
+      expiresAt: order.expiresAt ?? this.fallbackExpiresAt(order),
+      percentTraffic: null,
+      percentTime: null,
+      validityDaysLeft: null,
+    };
   }
 
   private buildUsageResponse(
-    usedBytes: number,
-    totalBytes: number | null,
-    updatedAt: Date | null,
-    stale: boolean,
+    order: { createdAt: Date; product: { validityDays: number } | null },
+    snap: {
+      usedBytes: number | null;
+      totalBytes: number | null;
+      updatedAt: Date | null;
+      stale: boolean;
+      esimStatus: string | null;
+      activatedAt: Date | null;
+      expiresAt: Date | null;
+      smdpAddress: string | null;
+      activationCode: string | null;
+    },
   ) {
+    const { usedBytes, totalBytes, updatedAt, stale, esimStatus, activatedAt, smdpAddress, activationCode } = snap;
+    const expiresAt = snap.expiresAt ?? this.fallbackExpiresAt(order);
+
     const remainingBytes =
-      totalBytes !== null ? Math.max(0, totalBytes - usedBytes) : null;
+      totalBytes !== null && usedBytes !== null
+        ? Math.max(0, totalBytes - usedBytes)
+        : null;
+
+    const percentTraffic =
+      totalBytes !== null && totalBytes > 0 && usedBytes !== null
+        ? Math.min(100, Math.max(0, Math.round((usedBytes / totalBytes) * 100)))
+        : null;
+
+    let percentTime: number | null = null;
+    let validityDaysLeft: number | null = null;
+    if (expiresAt) {
+      const now = Date.now();
+      const exp = expiresAt.getTime();
+      // Базовая точка для прогресса по времени: момент активации, иначе createdAt заказа
+      const start = (activatedAt ?? order.createdAt).getTime();
+      const total = Math.max(1, exp - start);
+      const consumed = Math.max(0, Math.min(total, now - start));
+      percentTime = Math.round((consumed / total) * 100);
+      const msLeft = exp - now;
+      validityDaysLeft = msLeft > 0 ? Math.ceil(msLeft / 86400000) : 0;
+    }
+
     return {
-      available: true,
+      available: usedBytes !== null,
       totalBytes,
       usedBytes,
       remainingBytes,
       updatedAt,
       stale,
+      status: esimStatus,
+      activatedAt,
+      expiresAt,
+      percentTraffic,
+      percentTime,
+      validityDaysLeft,
+      smdpAddress,
+      activationCode,
+      ...(usedBytes === null
+        ? { reason: 'Данные о расходе ещё не поступили от провайдера' }
+        : {}),
     };
   }
 

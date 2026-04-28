@@ -156,6 +156,65 @@ export class PaymentsService {
    * в `handleWebhook` мы атомарно увеличим `user.balance`, ничего не выдавая
    * через провайдера eSIM.
    */
+  /**
+   * Создать pending-Transaction под пополнение баланса через CloudPayments.
+   *
+   * Возвращает данные для виджета: `{ invoiceId, amount, publicId, accountId }`.
+   * Виджет на клиенте откроется, проведёт оплату, а CloudPayments выстрелит
+   * `check`/`pay` вебхуки в `CloudPaymentsService.handle*BalanceTopup`.
+   *
+   * Robokassa-флоу остаётся доступным через
+   * `createBalanceTopupPaymentRobokassa` для совместимости.
+   */
+  async prepareCloudPaymentsBalanceTopup(userId: string, amount: number) {
+    if (!Number.isFinite(amount) || amount < 100) {
+      throw new BadRequestException('Минимальная сумма пополнения — 100 ₽');
+    }
+    if (amount > 100000) {
+      throw new BadRequestException('Максимальная сумма пополнения — 100 000 ₽');
+    }
+
+    const publicId = process.env.CLOUDPAYMENTS_PUBLIC_ID;
+    if (!publicId) {
+      throw new BadRequestException('CloudPayments не настроен');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true },
+    });
+    if (!user) throw new BadRequestException('Пользователь не найден');
+
+    const transaction = await this.prisma.transaction.create({
+      data: {
+        userId,
+        orderId: null,
+        type: TransactionType.PAYMENT,
+        status: TransactionStatus.PENDING,
+        amount: new Prisma.Decimal(amount),
+        paymentProvider: 'cloudpayments',
+        paymentMethod: 'balance_topup',
+        metadata: { purpose: 'balance_topup', userId, amount } as any,
+      },
+    });
+
+    return {
+      provider: 'cloudpayments' as const,
+      invoiceId: transaction.id,
+      amount: Number(amount),
+      currency: 'RUB',
+      publicId,
+      accountId: userId,
+      description: `Пополнение баланса Mojo mobile #${transaction.id.slice(-6)}`,
+      data: { purpose: 'balance_topup' as const, userId, amount: Number(amount) },
+    };
+  }
+
+  /**
+   * Старый Robokassa-флоу пополнения баланса.
+   * Оставлен на случай, если CloudPayments по какой-то причине упадёт или
+   * понадобится альтернативный провайдер (используется через `?provider=robokassa`).
+   */
   async createBalanceTopupPayment(userId: string, amount: number) {
     if (!Number.isFinite(amount) || amount < 100) {
       throw new BadRequestException('Минимальная сумма пополнения — 100 ₽');

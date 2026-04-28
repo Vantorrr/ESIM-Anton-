@@ -114,6 +114,13 @@ export class OrdersController {
       totalBytes: toNum(usage.totalBytes),
       remainingBytes: toNum(usage.remainingBytes),
       updatedAt: usage.updatedAt,
+      // Статус и срок жизни для UI: бейдж и второй прогресс-бар
+      status: 'status' in usage ? usage.status : null,
+      activatedAt: 'activatedAt' in usage ? usage.activatedAt : null,
+      expiresAt: 'expiresAt' in usage ? usage.expiresAt : null,
+      percentTraffic: 'percentTraffic' in usage ? usage.percentTraffic : null,
+      percentTime: 'percentTime' in usage ? usage.percentTime : null,
+      validityDaysLeft: 'validityDaysLeft' in usage ? usage.validityDaysLeft : null,
     };
   }
 

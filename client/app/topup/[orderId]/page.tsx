@@ -7,6 +7,7 @@ import BottomNav from '@/components/BottomNav'
 import { ordersApi, userApi, api, type TopupPackage, type Order } from '@/lib/api'
 import { useSmartBack } from '@/lib/useSmartBack'
 import { useAuth } from '@/components/AuthProvider'
+import { payCloudPayments } from '@/lib/cloudpayments'
 
 // Расширяем тип TopupPackage из api.ts: бэкенд теперь добавляет priceRub/priceUsd
 interface TopupPackagePriced extends TopupPackage {
@@ -110,15 +111,29 @@ export default function TopupPage() {
         paymentMethod,
       })
       if (data?.method === 'card' && data?.order?.id) {
-        const { data: pay } = await api.post('/payments/create', {
-          orderId: data.order.id,
-        })
-        const url = pay?.payment?.paymentUrl || pay?.paymentUrl
-        if (url) {
-          window.location.href = url
-          return
+        const publicId = process.env.NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID
+        if (!publicId) {
+          throw new Error('Платёжный шлюз не настроен (NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID)')
         }
-        throw new Error('Не получен URL оплаты')
+        const result = await payCloudPayments({
+          publicId,
+          description: `Пополнение eSIM ${order?.product?.country ?? ''} #${data.order.id.slice(-8)}`,
+          amount: Number(data.order.totalAmount ?? priceRub),
+          currency: 'RUB',
+          invoiceId: data.order.id,
+          accountId: authUser?.id || '',
+          email: authUser?.email || undefined,
+          data: {
+            purpose: 'esim_topup',
+            parentOrderId: orderId,
+          },
+        })
+        if (!result.success) {
+          throw new Error(result.reason || 'Оплата не была завершена')
+        }
+        setSuccess(`✅ Оплата прошла, eSIM пополняется...`)
+        setTimeout(() => router.push('/my-esim'), 1500)
+        return
       }
       setSuccess(`✅ eSIM пополнена пакетом «${pkg.name}»`)
       setTimeout(() => router.push('/my-esim'), 1500)
@@ -199,7 +214,7 @@ export default function TopupPage() {
                 <span className="font-medium text-gray-900 dark:text-white">Картой</span>
               </div>
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                Через Robokassa
+                Visa, MasterCard, МИР
               </span>
             </button>
           </div>

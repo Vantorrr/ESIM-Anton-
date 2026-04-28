@@ -2,6 +2,22 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import { EsimAccessProvider } from './providers/esimaccess.provider';
+import { EsimStatus, mapEsimAccessStatus } from './esim-status';
+
+/**
+ * Нормализованный snapshot eSIM, собранный из ответа провайдера.
+ * Используется в `OrdersService.getOrderUsage` и кэшируется в БД.
+ */
+export interface EsimSnapshot {
+  usedBytes: number | null;
+  totalBytes: number | null;
+  status: EsimStatus;
+  rawStatus: string | null;
+  activatedAt: Date | null;
+  expiresAt: Date | null;
+  smdpAddress: string | null;
+  activationCode: string | null;
+}
 
 /**
  * Интерфейсы для eSIM Go API
@@ -176,6 +192,82 @@ export class EsimProviderService {
       throw new BadRequestException('Провайдер eSIM не настроен');
     }
     return this.esimAccessProvider.getEsimInfo(iccid);
+  }
+
+  /**
+   * Высокоуровневый метод: получить нормализованный snapshot eSIM от провайдера.
+   *
+   * Делает один запрос к eSIM Access (`getEsimInfo`) и аккуратно парсит из
+   * ответа все поля, которые нужны UI и БД-кэшу: байты использования,
+   * общий объём, статус (нормализованный через `mapEsimAccessStatus`),
+   * даты активации/истечения, SMDP-адрес и activation code (для LPA).
+   *
+   * Если провайдер вернул success=false / пустой esimList / 5xx — пробрасывает
+   * ошибку наверх, в `OrdersService.getOrderUsage` есть catch с откатом на
+   * последний кэш.
+   */
+  async getEsimSnapshot(iccid: string): Promise<EsimSnapshot> {
+    if (!this.esimAccessProvider) {
+      throw new BadRequestException('Провайдер eSIM не настроен');
+    }
+    const obj = await this.esimAccessProvider.getEsimInfo(iccid);
+    // У eSIM Access одна карта на ICCID, но защищаемся от вариаций ответа
+    const esim = obj?.esimList?.[0] || obj?.esim || obj || {};
+
+    const used = pickFiniteNumber(
+      esim?.orderUsage,
+      esim?.dataUsed,
+      esim?.usage,
+      esim?.usageInfo?.used,
+      esim?.dataUsedBytes,
+      esim?.traffic?.used,
+    );
+    const total = pickFiniteNumber(
+      esim?.totalVolume,
+      esim?.dataTotal,
+      esim?.volume,
+      esim?.usageInfo?.total,
+      esim?.dataTotalBytes,
+      esim?.traffic?.total,
+    );
+
+    const rawStatus = pickString(esim?.esimStatus, esim?.status, esim?.smdpStatus);
+    const status = mapEsimAccessStatus(rawStatus);
+
+    const activatedAt = parseProviderDate(
+      esim?.effectiveTime,
+      esim?.activatedAt,
+      esim?.activatedTime,
+      esim?.startTime,
+    );
+    const expiresAt = parseProviderDate(
+      esim?.expiredTime,
+      esim?.expiresAt,
+      esim?.expireTime,
+      esim?.endTime,
+    );
+
+    const smdpAddress = pickString(esim?.smdpAddress, esim?.smdp, esim?.smDpAddress);
+    const activationCode = pickString(
+      esim?.lpaCode,
+      esim?.lpa,
+      esim?.ac,
+      esim?.activationCode,
+      esim?.matchingCode,
+      esim?.matchingId,
+      esim?.confirmationCode,
+    );
+
+    return {
+      usedBytes: used,
+      totalBytes: total,
+      status,
+      rawStatus,
+      activatedAt,
+      expiresAt,
+      smdpAddress,
+      activationCode,
+    };
   }
 
   /**
@@ -379,4 +471,64 @@ export class EsimProviderService {
 
     return result;
   }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Утилиты парсинга, локальные для этого файла
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Возвращает первое значение из списка, которое можно представить как
+ * конечное число. Полезно для разбора расхождений в названии полей API.
+ */
+function pickFiniteNumber(...candidates: unknown[]): number | null {
+  for (const c of candidates) {
+    if (c === null || c === undefined || c === '') continue;
+    const n = Number(c);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function pickString(...candidates: unknown[]): string | null {
+  for (const c of candidates) {
+    if (c === null || c === undefined) continue;
+    const s = String(c).trim();
+    if (s) return s;
+  }
+  return null;
+}
+
+/**
+ * eSIM Access отдаёт даты по-разному: ISO-строка, миллисекунды как число,
+ * иногда секунды. Принимаем всё это и валидируем результат.
+ */
+function parseProviderDate(...candidates: unknown[]): Date | null {
+  for (const c of candidates) {
+    if (c === null || c === undefined || c === '') continue;
+    if (c instanceof Date) {
+      return Number.isNaN(c.getTime()) ? null : c;
+    }
+    if (typeof c === 'number') {
+      // если меньше 10^12 — скорее всего это секунды unix, иначе миллисекунды
+      const ms = c < 1e12 ? c * 1000 : c;
+      const d = new Date(ms);
+      if (!Number.isNaN(d.getTime())) return d;
+      continue;
+    }
+    if (typeof c === 'string') {
+      const trimmed = c.trim();
+      // числовая строка
+      if (/^-?\d+$/.test(trimmed)) {
+        const n = Number(trimmed);
+        const ms = n < 1e12 ? n * 1000 : n;
+        const d = new Date(ms);
+        if (!Number.isNaN(d.getTime())) return d;
+        continue;
+      }
+      const d = new Date(trimmed);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+  }
+  return null;
 }
