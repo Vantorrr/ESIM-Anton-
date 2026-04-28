@@ -2,34 +2,20 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
-// Фикс для сериализации BigInt в JSON (telegramId из Prisma)
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
 };
 
-/**
- * Сохраняем raw тело запроса в `req.rawBody` для эндпоинтов, где нужна
- * проверка HMAC по точному байтовому представлению (CloudPayments-вебхуки).
- * Прицельно оборачиваем только URL-encoded и JSON парсеры, остальной мир
- * (multipart, etc.) мы не трогаем.
- */
-const rawBodyVerify = (req: any, _res: any, buf: Buffer) => {
-  if (buf?.length) {
-    req.rawBody = buf;
-  }
-};
-
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  // `rawBody: true` — нативный механизм NestJS 10: для каждого запроса
+  // буферизует исходное тело и кладёт его в `req.rawBody`. Нужно для
+  // HMAC-SHA256-проверки CloudPayments-вебхуков (см. cloudpayments.controller).
+  // Не требует прямой зависимости от `express` в package.json — работает
+  // через @nestjs/platform-express.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
-  // Подключаем парсеры с verify, чтобы получить rawBody
-  app.use(json({ verify: rawBodyVerify, limit: '10mb' }));
-  app.use(urlencoded({ extended: true, verify: rawBodyVerify, limit: '10mb' }));
-
-  // Global prefix
   app.setGlobalPrefix('api');
 
   // CORS
