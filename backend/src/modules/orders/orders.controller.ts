@@ -47,21 +47,49 @@ export class OrdersController {
     return this.ordersService.checkNewOrders(userId);
   }
 
+  /**
+   * Создать заказ.
+   *
+   * Требует JWT — `userId` берём из токена (body.userId игнорируется,
+   * чтобы нельзя было подменить чужого пользователя).
+   *
+   * При `paymentMethod === 'balance'` — атомарно списываем с баланса и сразу
+   * вызываем `fulfillOrder` (eSIM выдаётся синхронно, ответ — `COMPLETED`).
+   * При недостатке баланса — `400` с понятным сообщением.
+   *
+   * Иначе — поведение как раньше: создаём `PENDING`-заказ, фронт открывает
+   * CloudPayments-виджет и продолжает через webhooks.
+   */
   @Post()
-  @ApiOperation({ summary: 'Создать заказ' })
+  @UseGuards(JwtUserGuard)
+  @ApiOperation({ summary: 'Создать заказ (с баланса или картой)' })
   async create(
+    @CurrentUser() user: AuthUser,
     @Body()
     createDto: {
-      userId: string;
       productId: string;
       quantity?: number;
       useBonuses?: number;
       periodNum?: number;
       promoCode?: string;
+      paymentMethod?: 'card' | 'balance';
     },
   ) {
+    if (!createDto?.productId) {
+      throw new BadRequestException('productId обязателен');
+    }
+
+    if (createDto.paymentMethod === 'balance') {
+      return this.ordersService.createWithBalance(user.id, createDto.productId, {
+        quantity: createDto.quantity,
+        useBonuses: createDto.useBonuses,
+        periodNum: createDto.periodNum,
+        promoCode: createDto.promoCode,
+      });
+    }
+
     return this.ordersService.create(
-      createDto.userId,
+      user.id,
       createDto.productId,
       createDto.quantity,
       createDto.useBonuses,

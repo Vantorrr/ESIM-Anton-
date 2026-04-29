@@ -734,6 +734,169 @@ export class OrdersService {
   }
 
   /**
+   * Купить eSIM с баланса пользователя — атомарное списание + немедленный fulfill.
+   *
+   * Поток:
+   *  1. Считаем итоговую сумму через тот же `create()` (применяя промокод/бонусы/лояльность),
+   *     но кладём заказ сразу в PAID и атомарно списываем balance внутри транзакции.
+   *  2. Если баланса не хватает — `BadRequestException` с понятным текстом «Не хватает X ₽».
+   *  3. После транзакции вызываем `fulfillOrder` (вне tx — внешний API не должен держать локи).
+   *  4. Если провайдер отказал — refund (balance += amount) + Order.FAILED.
+   *
+   * Возвращает выполненный заказ с QR-кодом / ICCID.
+   */
+  async createWithBalance(
+    userId: string,
+    productId: string,
+    opts?: {
+      quantity?: number;
+      useBonuses?: number;
+      periodNum?: number;
+      promoCode?: string;
+    },
+  ) {
+    const quantity = opts?.quantity ?? 1;
+    const useBonuses = opts?.useBonuses ?? 0;
+
+    const [user, product] = await Promise.all([
+      this.usersService.findById(userId),
+      this.productsService.findById(productId),
+    ]);
+
+    if (!product.isActive) {
+      throw new BadRequestException('Продукт недоступен');
+    }
+
+    const days = product.isUnlimited && opts?.periodNum ? opts.periodNum : 1;
+    let totalAmount = Number(product.ourPrice) * quantity * days;
+    let discount = 0;
+    let promoDiscount = 0;
+
+    if (opts?.promoCode) {
+      const discountPercent = await this.promoCodesService.use(opts.promoCode);
+      promoDiscount = (totalAmount * discountPercent) / 100;
+      totalAmount -= promoDiscount;
+    }
+
+    if (user.loyaltyLevel) {
+      discount = (totalAmount * Number(user.loyaltyLevel.discount)) / 100;
+      totalAmount -= discount;
+    }
+
+    const bonusToUse = Math.min(useBonuses, Number(user.bonusBalance), totalAmount);
+    totalAmount -= bonusToUse;
+    if (totalAmount < 0) totalAmount = 0;
+
+    const priceRub = Math.round(totalAmount * 100) / 100;
+
+    if (priceRub <= 0) {
+      throw new BadRequestException(
+        'Заказ бесплатный — используйте обычный POST /orders + /fulfill-free',
+      );
+    }
+
+    const userBalance = Number(user.balance);
+    if (userBalance < priceRub) {
+      throw new BadRequestException(
+        `Не хватает ${(priceRub - userBalance).toFixed(2)} ₽ на балансе. Пополните и повторите.`,
+      );
+    }
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const userFresh = await tx.user.findUnique({
+        where: { id: userId },
+        select: { balance: true },
+      });
+      if (!userFresh || Number(userFresh.balance) < priceRub) {
+        throw new BadRequestException('Недостаточно средств на балансе');
+      }
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { balance: { decrement: new Prisma.Decimal(priceRub) } },
+      });
+
+      if (bonusToUse > 0) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { bonusBalance: { decrement: new Prisma.Decimal(bonusToUse) } },
+        });
+      }
+
+      const newOrder = await tx.order.create({
+        data: {
+          userId,
+          productId,
+          quantity,
+          ...(product.isUnlimited && days > 1 ? { periodNum: days } : {}),
+          productPrice: product.ourPrice,
+          discount: new Prisma.Decimal(discount),
+          promoCode: opts?.promoCode ? opts.promoCode.trim().toUpperCase() : null,
+          promoDiscount: new Prisma.Decimal(promoDiscount),
+          bonusUsed: new Prisma.Decimal(bonusToUse),
+          totalAmount: new Prisma.Decimal(priceRub),
+          status: OrderStatus.PAID,
+        },
+        include: { product: true, user: true },
+      });
+
+      await tx.transaction.create({
+        data: {
+          userId,
+          orderId: newOrder.id,
+          type: TransactionType.PAYMENT,
+          status: TransactionStatus.SUCCEEDED,
+          amount: new Prisma.Decimal(priceRub),
+          paymentProvider: 'balance',
+          paymentMethod: 'balance',
+          metadata: { purpose: 'esim_purchase_balance' } as any,
+        },
+      });
+
+      return newOrder;
+    });
+
+    try {
+      const fulfilled = await this.fulfillOrder(created.id);
+      return { order: fulfilled, paymentMethod: 'balance' as const };
+    } catch (error: any) {
+      // Откатываем списание при провале провайдера
+      await this.prisma.$transaction([
+        this.prisma.user.update({
+          where: { id: userId },
+          data: { balance: { increment: new Prisma.Decimal(priceRub) } },
+        }),
+        ...(bonusToUse > 0
+          ? [
+              this.prisma.user.update({
+                where: { id: userId },
+                data: { bonusBalance: { increment: new Prisma.Decimal(bonusToUse) } },
+              }),
+            ]
+          : []),
+        this.prisma.transaction.create({
+          data: {
+            userId,
+            orderId: created.id,
+            type: TransactionType.REFUND,
+            status: TransactionStatus.SUCCEEDED,
+            amount: new Prisma.Decimal(priceRub),
+            paymentProvider: 'balance',
+            metadata: { purpose: 'esim_purchase_refund', reason: error.message } as any,
+          },
+        }),
+        this.prisma.order.update({
+          where: { id: created.id },
+          data: { status: OrderStatus.FAILED, errorMessage: error.message },
+        }),
+      ]);
+      throw new BadRequestException(
+        `Покупка не выполнена: ${error.message}. Деньги возвращены на баланс.`,
+      );
+    }
+  }
+
+  /**
    * Внутренний метод: выполнить top-up через провайдера для уже PAID-заказа-пополнения.
    * Не вызывается напрямую из контроллеров; запускается из fulfillOrder.
    */

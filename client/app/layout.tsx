@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import TelegramRedirectHandler from '@/components/TelegramRedirectHandler'
 import { AuthProvider } from '@/components/AuthProvider'
 import InstallBanner from '@/components/InstallBanner'
+import TelegramBackButtonProvider from '@/components/TelegramBackButtonProvider'
 
 const inter = Inter({ subsets: ['latin', 'cyrillic'], weight: ['500', '700'] })
 
@@ -65,7 +66,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function(){
-                var SW_VER = 'v2';
+                var SW_VER = 'v3';
                 if ('serviceWorker' in navigator && !sessionStorage.getItem('sw_reset_'+SW_VER)) {
                   caches.keys().then(function(names){
                     names.forEach(function(n){ caches.delete(n); });
@@ -111,6 +112,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthProvider>
           <TelegramRedirectHandler />
+          <TelegramBackButtonProvider />
           <InstallBanner />
           {children}
         </AuthProvider>

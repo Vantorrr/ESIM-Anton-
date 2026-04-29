@@ -181,13 +181,26 @@ export const productsApi = {
 };
 
 export const ordersApi = {
-  // Создать заказ
+  /**
+   * Создать заказ. `userId` бэкенд берёт из JWT (в body не нужен).
+   *
+   * При `paymentMethod: 'balance'` — бэк атомарно списывает с баланса и сразу
+   * выдаёт eSIM, ответ возвращает `{ order, paymentMethod: 'balance' }`
+   * с уже выполненным заказом (qrCode/iccid внутри).
+   *
+   * Без `paymentMethod` (или `'card'`) — поведение прежнее: создаётся PENDING
+   * заказ, фронт продолжает через CloudPayments виджет.
+   */
   async create(orderData: {
-    userId: string;
+    userId?: string;
     productId: string;
-    quantity: number;
-    bonusToUse?: number;
-  }): Promise<Order> {
+    quantity?: number;
+    useBonuses?: number;
+    periodNum?: number;
+    promoCode?: string;
+    paymentMethod?: 'card' | 'balance';
+    email?: string;
+  }): Promise<any> {
     const { data } = await api.post('/orders', orderData);
     return data;
   },

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Wifi, Clock, Tag, CreditCard, ChevronRight, Mail } from 'lucide-react'
+import { ArrowLeft, Wifi, Clock, Tag, CreditCard, Mail, Wallet } from 'lucide-react'
 import { productsApi, Product, userApi, ordersApi, paymentsApi, promoApi } from '@/lib/api'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
 import { getCoverageItems, getCoverageScopeLabel, getCoverageSummary } from '@/lib/productCoverage'
@@ -24,6 +24,11 @@ export default function ProductPage() {
   const [selectedDays, setSelectedDays] = useState(7)
   const [email, setEmail] = useState('')
   const [emailSaved, setEmailSaved] = useState(false)
+  const [balance, setBalance] = useState<number | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<'balance' | 'card'>('card')
+  // autoBuy=1 — пользователь вернулся с /balance после успешного пополнения,
+  // нужно сразу запустить покупку с баланса. Гард не даёт вызвать дважды.
+  const autoBuyTriggeredRef = useRef(false)
 
   const isDaily = product?.isUnlimited
   const basePrice = isDaily ? product.ourPrice * selectedDays : product?.ourPrice ?? 0
@@ -54,6 +59,37 @@ export default function ProductPage() {
     }
   }, [authUser])
 
+  // Загружаем актуальный баланс пользователя для тоггла «С баланса / Картой».
+  useEffect(() => {
+    let cancelled = false
+    const loadBalance = async () => {
+      if (!authUser?.id) {
+        if (!cancelled) setBalance(0)
+        return
+      }
+      try {
+        const profile = await userApi.getProfile(authUser.id)
+        if (!cancelled) setBalance(Number(profile.balance) || 0)
+      } catch {
+        if (!cancelled) setBalance(0)
+      }
+    }
+    loadBalance()
+    return () => {
+      cancelled = true
+    }
+  }, [authUser?.id])
+
+  // Если баланса хватает, по умолчанию выбираем оплату с баланса (один клик
+  // вместо открытия виджета). Если не хватает — оставляем «Картой».
+  useEffect(() => {
+    if (balance !== null && totalPrice > 0 && balance >= totalPrice) {
+      setPaymentMethod('balance')
+    } else {
+      setPaymentMethod('card')
+    }
+  }, [balance, totalPrice])
+
   const loadProduct = async () => {
     try {
       const data = await productsApi.getById(params.id as string)
@@ -79,11 +115,23 @@ export default function ProductPage() {
     router.push('/')
   }
 
-  const handlePurchase = async () => {
+  /**
+   * Покупка тарифа.
+   *
+   * Поведение зависит от `methodOverride`/`paymentMethod`:
+   *  - `'balance'` && баланса хватает → POST /orders {paymentMethod:'balance'},
+   *    бэк атомарно списывает и сразу выдаёт eSIM, мы редиректим в /my-esim;
+   *  - `'balance'` && баланса не хватает → редирект в /balance с auto-topup
+   *    на нужную разницу и `returnTo` обратно сюда с `autoBuy=1`;
+   *  - `'card'` → текущий CloudPayments-flow с PENDING заказом и виджетом.
+   */
+  const handlePurchase = async (methodOverride?: 'balance' | 'card') => {
     if (!product) return
-    
+
+    const method = methodOverride ?? paymentMethod
+
     setPurchasing(true)
-    
+
     try {
       const { getToken } = await import('@/lib/auth')
       let user: any = authUser
@@ -102,7 +150,6 @@ export default function ProductPage() {
 
       if (!user) throw new Error('Пользователь не найден')
 
-      // Сохраняем email в профиль если его ещё нет
       const userEmail = email.trim() || user.email || ''
       if (userEmail && !user.email) {
         try {
@@ -113,29 +160,59 @@ export default function ProductPage() {
           })
         } catch { /* non-critical */ }
       }
-      
-      // Проверяем есть ли уже PENDING заказ на этот продукт (чтобы не создавать дубли)
+
+      const tg = (window as any).Telegram?.WebApp
+
+      // === Ветка «Покупка с баланса» ===
+      if (method === 'balance') {
+        const userBalance = Number(balance ?? 0)
+        // Если баланса не хватает — редирект на /balance с auto-topup и returnTo
+        if (userBalance < totalPrice) {
+          const need = Math.ceil(totalPrice - userBalance)
+          const currentUrl = window.location.pathname + window.location.search
+          // autoBuy=1 в returnTo — после возврата автоматически вызовем покупку
+          const sep = currentUrl.includes('?') ? '&' : '?'
+          const returnTo = `${currentUrl}${sep}autoBuy=1`
+          router.push(`/balance?topup=${need}&returnTo=${encodeURIComponent(returnTo)}`)
+          return
+        }
+
+        const createPayload: any = { productId: product.id, quantity: 1, paymentMethod: 'balance' }
+        if (isDaily && selectedDays > 1) createPayload.periodNum = selectedDays
+        if (promoApplied && promoCode.trim()) createPayload.promoCode = promoCode.trim()
+        if (userEmail) createPayload.email = userEmail
+
+        await ordersApi.create(createPayload)
+
+        if (tg?.showAlert) {
+          tg.showAlert('eSIM выдана! Открываю «Мои eSIM»…', () => router.push('/my-esim'))
+        } else {
+          router.push('/my-esim')
+        }
+        return
+      }
+
+      // === Ветка «Картой» — старый flow с CloudPayments ===
       let order;
       try {
         const myOrders = await ordersApi.getMy(user.id);
         const pending = (Array.isArray(myOrders) ? myOrders : []).find(
           (o: any) => o.productId === product.id && o.status === 'PENDING'
         );
-        const createPayload: any = { userId: user.id, productId: product.id, quantity: 1 };
+        const createPayload: any = { productId: product.id, quantity: 1 };
         if (isDaily && selectedDays > 1) createPayload.periodNum = selectedDays;
         if (promoApplied && promoCode.trim()) createPayload.promoCode = promoCode.trim();
         if (userEmail) createPayload.email = userEmail;
         order = pending || await ordersApi.create(createPayload);
       } catch {
-        const createPayload: any = { userId: user.id, productId: product.id, quantity: 1 };
+        const createPayload: any = { productId: product.id, quantity: 1 };
         if (isDaily && selectedDays > 1) createPayload.periodNum = selectedDays;
         if (promoApplied && promoCode.trim()) createPayload.promoCode = promoCode.trim();
         if (userEmail) createPayload.email = userEmail;
         order = await ordersApi.create(createPayload);
       }
-      
+
       const orderTotal = Number(order.totalAmount ?? totalPrice)
-      const tg = (window as any).Telegram?.WebApp
 
       if (orderTotal <= 0) {
         const { api: apiClient } = await import('@/lib/api')
@@ -159,32 +236,26 @@ export default function ProductPage() {
         invoiceId: order.id,
         accountId: user.id,
       }, {
-        onSuccess: function (options: any) {
+        onSuccess: function () {
           if (tg?.showAlert) {
-            tg.showAlert('Оплата прошла успешно!', () => {
-               router.push('/my-esim');
-            });
+            tg.showAlert('Оплата прошла успешно!', () => router.push('/my-esim'))
           } else {
-             alert('Оплата прошла успешно!');
-             router.push('/my-esim');
+            alert('Оплата прошла успешно!')
+            router.push('/my-esim')
           }
         },
-        onFail: function (reason: any, options: any) {
-          console.error('Payment failed:', reason);
-          if (tg?.showAlert) {
-             tg.showAlert('Оплата не прошла. Попробуйте еще раз.');
-          } else {
-             alert('Оплата не прошла');
-          }
+        onFail: function (reason: any) {
+          console.error('Payment failed:', reason)
+          if (tg?.showAlert) tg.showAlert('Оплата не прошла. Попробуйте еще раз.')
+          else alert('Оплата не прошла')
         },
-        onComplete: function (paymentResult: any, options: any) {
-        }
-      });
+        onComplete: function () {},
+      })
 
     } catch (error: any) {
       console.error('Ошибка создания заказа:', error);
       const errorMsg = error?.response?.data?.message || error.message || 'Ошибка при создании заказа';
-      
+
       const tg = (window as any).Telegram?.WebApp;
       if (tg?.showAlert) {
         tg.showAlert(errorMsg);
@@ -195,6 +266,19 @@ export default function ProductPage() {
       setPurchasing(false);
     }
   }
+
+  // Авто-докупка после возврата с /balance: дождёмся загрузки product+balance,
+  // удостоверимся что баланса теперь хватает, и один раз дёрнем покупку.
+  useEffect(() => {
+    if (autoBuyTriggeredRef.current) return
+    if (searchParams.get('autoBuy') !== '1') return
+    if (!product || balance === null) return
+    if (totalPrice <= 0 || balance < totalPrice) return
+
+    autoBuyTriggeredRef.current = true
+    void handlePurchase('balance')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product, balance, totalPrice, searchParams])
 
   if (loading) {
     return (
@@ -540,15 +624,58 @@ export default function ProductPage() {
         )}
       </div>
 
-      {/* Payment method */}
+      {/* Payment method — тоггл «С баланса / Картой» */}
       <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Способ оплаты</h3>
-        <div className="flex items-center justify-between py-2 px-3 rounded-xl border border-gray-200 bg-white cursor-pointer hover:bg-gray-50 transition-colors">
-          <div className="flex items-center gap-3">
-            <CreditCard size={20} className="text-[#f77430]" />
-            <span className="text-sm font-medium text-primary">Банковская карта</span>
-          </div>
-          <ChevronRight size={18} className="text-gray-400" />
+        <div className="grid grid-cols-2 gap-2">
+          {(() => {
+            const userBalance = Number(balance ?? 0)
+            const enoughBalance = userBalance >= totalPrice && totalPrice > 0
+            return (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('balance')}
+                  className={`flex flex-col items-start text-left px-3 py-3 rounded-xl border transition-all ${
+                    paymentMethod === 'balance'
+                      ? 'border-[#f77430] bg-orange-50'
+                      : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Wallet size={18} className={paymentMethod === 'balance' ? 'text-[#f77430]' : 'text-gray-500'} />
+                    <span className={`text-sm font-medium ${paymentMethod === 'balance' ? 'text-[#f77430]' : 'text-primary'}`}>
+                      С баланса
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-500 mt-1">
+                    {balance === null
+                      ? '…'
+                      : enoughBalance
+                        ? `Доступно ₽${formatPrice(userBalance)}`
+                        : `Не хватает ₽${formatPrice(totalPrice - userBalance)}`}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('card')}
+                  className={`flex flex-col items-start text-left px-3 py-3 rounded-xl border transition-all ${
+                    paymentMethod === 'card'
+                      ? 'border-[#f77430] bg-orange-50'
+                      : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <CreditCard size={18} className={paymentMethod === 'card' ? 'text-[#f77430]' : 'text-gray-500'} />
+                    <span className={`text-sm font-medium ${paymentMethod === 'card' ? 'text-[#f77430]' : 'text-primary'}`}>
+                      Картой
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-500 mt-1">Visa, MC, МИР</span>
+                </button>
+              </>
+            )
+          })()}
         </div>
       </div>
 
@@ -559,20 +686,32 @@ export default function ProductPage() {
         style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
       >
         <div className="max-w-lg mx-auto">
-          <button
-            onClick={handlePurchase}
-            disabled={purchasing}
-            className="w-full py-4 rounded-2xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold text-lg transition-colors shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2"
-          >
-            {purchasing ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Обработка...</span>
-              </>
-            ) : (
-              <span>Оплатить ₽{formatPrice(totalPrice)}</span>
-            )}
-          </button>
+          {(() => {
+            const userBalance = Number(balance ?? 0)
+            const enoughBalance = userBalance >= totalPrice && totalPrice > 0
+            const showTopupCta = paymentMethod === 'balance' && !enoughBalance && totalPrice > 0 && balance !== null
+            const need = Math.max(0, Math.ceil(totalPrice - userBalance))
+            return (
+              <button
+                onClick={() => handlePurchase()}
+                disabled={purchasing}
+                className="w-full py-4 rounded-2xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold text-lg transition-colors shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2"
+              >
+                {purchasing ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Обработка...</span>
+                  </>
+                ) : showTopupCta ? (
+                  <span>Пополнить на ₽{formatPrice(need)} и купить</span>
+                ) : paymentMethod === 'balance' ? (
+                  <span>Купить с баланса · ₽{formatPrice(totalPrice)}</span>
+                ) : (
+                  <span>Оплатить картой · ₽{formatPrice(totalPrice)}</span>
+                )}
+              </button>
+            )
+          })()}
         </div>
       </div>
     </div>

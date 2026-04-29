@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 // Lucide icons removed due to type issues - using emoji instead
 import BottomNav from '@/components/BottomNav'
 import { useSmartBack } from '@/lib/useSmartBack'
@@ -41,6 +42,8 @@ function describeTxType(type: string): string {
 
 export default function BalancePage() {
   const { user: authUser, isLoading: authLoading } = useAuth()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [balance, setBalance] = useState(0)
   const [bonusBalance, setBonusBalance] = useState(0)
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -50,10 +53,30 @@ export default function BalancePage() {
   const [topupSubmitting, setTopupSubmitting] = useState(false)
   const handleBack = useSmartBack('/profile')
 
+  // Когда нас прислали с продукта/тарифа в формате ?topup=NN&returnTo=...,
+  // запоминаем returnTo чтобы после успешного пополнения вернуться обратно
+  // и (при наличии autoBuy=1 в returnTo) автоматически докупить тариф.
+  const returnTo = searchParams.get('returnTo')
+  const requestedTopup = searchParams.get('topup')
+  const autoOpenedRef = useRef(false)
+
   useEffect(() => {
     if (authLoading) return
     void loadData()
   }, [authLoading, authUser?.id])
+
+  // Авто-открытие формы топапа при заходе с ?topup=NN — один раз за сессию.
+  useEffect(() => {
+    if (autoOpenedRef.current) return
+    if (!requestedTopup) return
+    const n = Number(requestedTopup)
+    if (!Number.isFinite(n) || n <= 0) return
+    autoOpenedRef.current = true
+    // Округляем до сотен в большую сторону, минимум 100 ₽
+    const rounded = Math.max(100, Math.ceil(n / 100) * 100)
+    setTopupAmount(String(rounded))
+    setTopupOpen(true)
+  }, [requestedTopup])
 
   const loadData = async () => {
     setLoading(true)
@@ -146,6 +169,15 @@ export default function BalancePage() {
       setTimeout(() => {
         void loadData()
       }, 1500)
+
+      // 4) Если нас прислали из карточки тарифа (returnTo) — возвращаем туда
+      // через небольшую задержку, чтобы успел отобразиться обновлённый баланс
+      // и autoBuy=1 на product-странице сработал на свежих данных.
+      if (returnTo) {
+        setTimeout(() => {
+          router.push(returnTo)
+        }, 1800)
+      }
     } catch (e: any) {
       const msg = e.response?.data?.message || e.message || 'Не удалось создать платёж'
       alert(`❌ ${msg}`)
