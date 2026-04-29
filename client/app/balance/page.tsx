@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 // Lucide icons removed due to type issues - using emoji instead
 import BottomNav from '@/components/BottomNav'
@@ -40,7 +40,20 @@ function describeTxType(type: string): string {
   }
 }
 
+/**
+ * Next.js 14 prerender падает на `useSearchParams()` без Suspense-обёртки.
+ * Поэтому сама страница — тонкая обёртка с Suspense, вся клиентская логика
+ * вынесена в `BalancePageInner`.
+ */
 export default function BalancePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 dark:bg-gray-900" />}>
+      <BalancePageInner />
+    </Suspense>
+  )
+}
+
+function BalancePageInner() {
   const { user: authUser, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
