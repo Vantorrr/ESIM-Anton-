@@ -248,8 +248,8 @@ function BalancePageInner() {
         </button>
 
         {topupOpen && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md">
+          <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto my-auto">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Пополнение баланса
               </h2>
