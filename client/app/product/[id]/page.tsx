@@ -83,7 +83,12 @@ export default function ProductPage() {
   // Если баланса хватает, по умолчанию выбираем оплату с баланса (один клик
   // вместо открытия виджета). Если не хватает — оставляем «Картой».
   useEffect(() => {
-    if (balance !== null && totalPrice > 0 && balance >= totalPrice) {
+    if (totalPrice <= 0) {
+      setPaymentMethod('card')
+      return
+    }
+
+    if (balance !== null && balance >= totalPrice) {
       setPaymentMethod('balance')
     } else {
       setPaymentMethod('card')
@@ -164,7 +169,7 @@ export default function ProductPage() {
       const tg = (window as any).Telegram?.WebApp
 
       // === Ветка «Покупка с баланса» ===
-      if (method === 'balance') {
+      if (method === 'balance' && totalPrice > 0) {
         const userBalance = Number(balance ?? 0)
         // Если баланса не хватает — редирект на /balance с auto-topup и returnTo
         if (userBalance < totalPrice) {
