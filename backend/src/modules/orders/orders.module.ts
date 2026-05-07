@@ -8,6 +8,8 @@ import { PromoCodesModule } from '../promo-codes/promo-codes.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
+import { ReferralsModule } from '../referrals/referrals.module';
+import { LoyaltyModule } from '../loyalty/loyalty.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { SystemSettingsModule } from '../system-settings/system-settings.module'
     PromoCodesModule,
     TelegramModule,
     SystemSettingsModule,
+    ReferralsModule,
+    LoyaltyModule,
     forwardRef(() => NotificationsModule),
   ],
   controllers: [OrdersController],

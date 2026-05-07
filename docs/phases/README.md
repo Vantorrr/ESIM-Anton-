@@ -31,10 +31,10 @@
   - Отдельно проверить незакрытые routes `products`, `promo-codes`, `system-settings`, `loyalty`, `users`, `payments`.
   - Документ: [phase-3-admin-auth-and-api-security.md](./phase-3-admin-auth-and-api-security.md)
 
-- [ ] **Phase 4: Loyalty & Referral Wiring**
-  - Зафиксировать единую completion boundary вокруг `OrdersService.fulfillOrder()` и payment callbacks.
-  - Подключить referral bonus к успешной покупке с идемпотентностью и чтением настроек из `SystemSettings`.
-  - Подключить пересчёт `loyaltyLevel` после обновления `totalSpent` и проверить влияние на последующие покупки.
+- [x] **Phase 4: Loyalty & Referral Wiring**
+  - Completion boundary сведена к `OrdersService.fulfillOrder()` для card, balance и free-order purchase flows.
+  - Referral bonus подключён к completed purchase, читает runtime settings из `SystemSettings` и защищён от повторного начисления по `orderId`.
+  - После роста `totalSpent` выполняется пересчёт `loyaltyLevel`; top-up flow отдельно исключён из этих side effects.
   - Документ: [phase-4-loyalty-and-referral-wiring.md](./phase-4-loyalty-and-referral-wiring.md)
 
 - [ ] **Phase 5: eSIM Usage, Status & Activation**

@@ -12,7 +12,7 @@
 - referral settings читаются из `SystemSettings`, а не только из env/default;
 - loyalty level пересчитывается после изменения `totalSpent`;
 - cashback, referral bonus и loyalty level update имеют явный порядок side effects в одном purchase lifecycle;
-- клиентские баги 1.5 и 1.8 из [../info/bug-resolution.md](../info/bug-resolution.md) переведены из `confirmed-gap/partially-fixed` в проверяемое состояние.
+- клиентский баг 1.8 из [../info/bug-resolution.md](../info/bug-resolution.md) закрыт кодом и unit-тестами, а баг 1.5 доведён до runtime-backed состояния по purchase awarding.
 
 ## Оценка
 
@@ -21,7 +21,7 @@
 ## Зависит от
 
 - [phase-2-runtime-verification.md](./phase-2-runtime-verification.md)
-- желательно после [phase-3-admin-auth-and-api-security.md](./phase-3-admin-auth-and-api-security.md), если будут меняться admin settings flows
+- для production-safe rollout настроек учитывать незавершённую [phase-3-admin-auth-and-api-security.md](./phase-3-admin-auth-and-api-security.md): purchase wiring работает, но admin write security для `system-settings` должна закрываться отдельно.
 
 ## Пререквизиты
 
@@ -35,7 +35,7 @@
 - Начисления должны происходить идемпотентно: повторный webhook или повторный fulfill не должен начислять бонус дважды.
 - Runtime-настройки, изменяемые из админки, должны читаться из `SystemSettings`.
 - Loyalty discount и loyalty level update должны иметь чёткий порядок: скидка применяется к текущему уровню до покупки, новый уровень рассчитывается после успешной покупки.
-- Top-up заказы нужно отдельно классифицировать: входят ли они в `totalSpent`, cashback и referral bonus, или бизнес-логика должна исключать их.
+- Top-up заказы исключаются из `totalSpent`, cashback и referral bonus: они идут через `fulfillTopupOrder()`, а purchase side effects остаются только на первоначальной покупке eSIM.
 - Источник истины для completion boundary должен быть один: если side effect вешается на `fulfillOrder()`, нельзя параллельно дублировать его в webhook handlers.
 
 ## Шаги (журналы)
@@ -52,6 +52,7 @@
 - Изменение referral percent в admin settings влияет на следующее начисление без изменения env.
 - После successful order `User.totalSpent` растёт, а loyalty level пересчитывается.
 - Повторный вызов webhook/fulfill не создаёт повторный referral bonus.
+- Card flow, balance flow и `POST /orders/:id/fulfill-free` сходятся в тот же `OrdersService.fulfillOrder()` boundary.
 
 
 ## Журнал
@@ -62,6 +63,12 @@
   - `ReferralsService.awardReferralBonus()` существует, но не найден в call graph purchase/payment flows и читает `REFERRAL_BONUS_PERCENT` из `ConfigService`, а не из `SystemSettings`.
   - `SystemSettingsService` уже умеет хранить `REFERRAL_BONUS_PERCENT`, `REFERRAL_MIN_PAYOUT`, `REFERRAL_ENABLED`, поэтому задача фазы не в создании настроек, а в их runtime wiring.
   - Перед реализацией нужно отдельно решить политику для top-up заказов и обеспечить идемпотентность при повторных payment callbacks.
+- **[2026-05-07] Реализация фазы:**
+  - `OrdersService.fulfillOrder()` стал единой completion boundary для card webhook, purchase from balance и free-order flow; top-up по-прежнему идёт через отдельный `fulfillTopupOrder()`.
+  - После выдачи eSIM `applyPurchaseCompletionEffects()` начисляет cashback, увеличивает `User.totalSpent`, вызывает `ReferralsService.awardReferralBonus()` для `referredById` и затем `LoyaltyService.updateUserLevel()`.
+  - `ReferralsService.awardReferralBonus()` переведён на `SystemSettingsService.getReferralSettings()` и проверяет уже существующий `REFERRAL_BONUS` transaction по `orderId`, чтобы не начислять бонус повторно.
+  - Денежные side effects после уже успешной выдачи eSIM больше не переводят заказ обратно в `FAILED`: ошибка логируется, а заказ остаётся `COMPLETED`.
+  - Unit-тесты добавлены в `backend/src/modules/referrals/referrals.service.spec.ts` и `backend/src/modules/orders/orders.service.spec.ts`; также backend проходит `npx tsc --noEmit -p tsconfig.json`.
 
 
 ## Ссылки на ранее созданные фазы и шаги, которые нужно учитывать при разработке этой фазы и ссылка назад на главный файл фазы из каждого шага.

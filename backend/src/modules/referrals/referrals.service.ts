@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
-import { ConfigService } from '@nestjs/config';
 import { TransactionType, TransactionStatus } from '@prisma/client';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 @Injectable()
 export class ReferralsService {
   constructor(
     private prisma: PrismaService,
-    private configService: ConfigService,
+    private systemSettingsService: SystemSettingsService,
   ) {}
 
   /**
@@ -37,9 +37,37 @@ export class ReferralsService {
   /**
    * Начислить реферальный бонус
    */
-  async awardReferralBonus(referrerId: string, orderAmount: number) {
-    const bonusPercent = this.configService.get<number>('REFERRAL_BONUS_PERCENT', 5);
-    const bonusAmount = (orderAmount * bonusPercent) / 100;
+  async awardReferralBonus(referrerId: string, orderAmount: number, orderId?: string) {
+    const settings = await this.systemSettingsService.getReferralSettings();
+    const bonusPercent = Number(settings.bonusPercent);
+    const bonusAmount = Math.round(orderAmount * bonusPercent) / 100;
+
+    if (!settings.enabled) {
+      return { awarded: false, reason: 'disabled', bonusAmount: 0 };
+    }
+
+    if (bonusAmount <= 0) {
+      return { awarded: false, reason: 'zero-bonus', bonusAmount: 0 };
+    }
+
+    if (orderId) {
+      const existingBonus = await this.prisma.transaction.findFirst({
+        where: {
+          userId: referrerId,
+          orderId,
+          type: TransactionType.REFERRAL_BONUS,
+          status: TransactionStatus.SUCCEEDED,
+        },
+      });
+
+      if (existingBonus) {
+        return {
+          awarded: false,
+          reason: 'already-awarded',
+          bonusAmount: Number(existingBonus.amount),
+        };
+      }
+    }
 
     // Начисляем бонус рефереру
     await this.prisma.user.update({
@@ -55,17 +83,20 @@ export class ReferralsService {
     await this.prisma.transaction.create({
       data: {
         userId: referrerId,
+        orderId,
         type: TransactionType.REFERRAL_BONUS,
         status: TransactionStatus.SUCCEEDED,
         amount: bonusAmount,
         metadata: {
           orderAmount,
           bonusPercent,
+          minPayout: settings.minPayout,
+          source: orderId ? 'completed_order' : 'manual_award',
         },
       },
     });
 
-    return { bonusAmount };
+    return { awarded: true, bonusAmount };
   }
 
   /**

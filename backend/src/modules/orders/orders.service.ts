@@ -13,6 +13,8 @@ import { TelegramNotificationService } from '../telegram/telegram-notification.s
 import { EmailService } from '../notifications/email.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { EsimStatus } from '../esim-provider/esim-status';
+import { ReferralsService } from '../referrals/referrals.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 import {
   OrderStatus,
   Prisma,
@@ -45,6 +47,8 @@ export class OrdersService {
     private telegramNotification: TelegramNotificationService,
     private emailService: EmailService,
     private systemSettingsService: SystemSettingsService,
+    private referralsService: ReferralsService,
+    private loyaltyService: LoyaltyService,
   ) {}
 
   /**
@@ -145,11 +149,47 @@ export class OrdersService {
         user: {
           include: {
             loyaltyLevel: true,
+            referredBy: true,
           },
         },
         transactions: true,
       },
     });
+  }
+
+  private async applyPurchaseCompletionEffects(order: any) {
+    if (order.user.loyaltyLevel) {
+      const cashback =
+        (Number(order.totalAmount) * Number(order.user.loyaltyLevel.cashbackPercent)) / 100;
+      await this.usersService.updateBalance(order.userId, cashback, 'bonusBalance');
+    }
+
+    await this.prisma.user.update({
+      where: { id: order.userId },
+      data: { totalSpent: { increment: order.totalAmount } },
+    });
+
+    if (order.user.referredById) {
+      try {
+        await this.referralsService.awardReferralBonus(
+          order.user.referredById,
+          Number(order.totalAmount),
+          order.id,
+        );
+      } catch (error: any) {
+        this.logger.error(
+          `Referral bonus failed for order ${order.id}: ${error.message}`,
+        );
+      }
+    }
+
+    try {
+      await this.loyaltyService.updateUserLevel(order.userId);
+    } catch (error: any) {
+      this.logger.error(
+        `Loyalty level recalculation failed for order ${order.id}: ${error.message}`,
+      );
+    }
   }
 
   /**
@@ -218,6 +258,9 @@ export class OrdersService {
    */
   async fulfillOrder(orderId: string) {
     const order = await this.findById(orderId);
+    if (!order) {
+      throw new BadRequestException('Заказ не найден');
+    }
 
     if (order.status !== OrderStatus.PAID) {
       throw new BadRequestException('Заказ еще не оплачен');
@@ -246,17 +289,13 @@ export class OrdersService {
         ...(esimData.smdp_address ? { smdpAddress: esimData.smdp_address } : {}),
       });
 
-      // Начисляем кэшбэк
-      if (order.user.loyaltyLevel) {
-        const cashback = (Number(order.totalAmount) * Number(order.user.loyaltyLevel.cashbackPercent)) / 100;
-        await this.usersService.updateBalance(order.userId, cashback, 'bonusBalance');
+      try {
+        await this.applyPurchaseCompletionEffects(order);
+      } catch (error: any) {
+        this.logger.error(
+          `Post-completion accounting failed for order ${order.id}: ${error.message}`,
+        );
       }
-
-      // Обновляем totalSpent для лояльности
-      await this.prisma.user.update({
-        where: { id: order.userId },
-        data: { totalSpent: { increment: order.totalAmount } },
-      });
 
       // Отправляем уведомления с деталями eSIM
       const esimDetails = {

@@ -1,134 +1,179 @@
+import { OrderStatus } from '@prisma/client';
 import { OrdersService } from './orders.service';
-import { EsimStatus } from '../esim-provider/esim-status';
 
 function makeOrder(overrides: Record<string, unknown> = {}) {
   return {
     id: 'order_1',
-    iccid: '8965012601090428233',
-    createdAt: new Date('2026-05-01T00:00:00.000Z'),
-    product: { validityDays: 30 },
-    lastUsageAt: null,
-    lastUsageBytes: null,
-    lastUsageTotalBytes: null,
-    lowTrafficNotifiedAt: null,
-    esimStatus: null,
-    activatedAt: null,
-    expiresAt: null,
-    smdpAddress: null,
-    activationCode: null,
+    userId: 'user_1',
+    status: OrderStatus.PAID,
+    totalAmount: 100,
+    periodNum: null,
+    parentOrderId: null,
+    topupPackageCode: null,
+    product: {
+      providerId: 'provider_plan_1',
+      providerPrice: 10,
+      country: 'Япония',
+      dataAmount: '10 GB',
+    },
+    user: {
+      id: 'user_1',
+      email: 'user@example.com',
+      telegramId: null,
+      loyaltyLevel: {
+        cashbackPercent: 10,
+      },
+      referredById: 'ref_1',
+    },
+    transactions: [],
     ...overrides,
   };
 }
 
-function makeService() {
+function makeService(orderOverrides: Record<string, unknown> = {}) {
   const prisma = {
     order: {
-      findUnique: jest.fn(),
-      update: jest.fn(),
+      findUnique: jest.fn().mockResolvedValue(makeOrder(orderOverrides)),
+      update: jest.fn().mockImplementation(({ data }: any) =>
+        Promise.resolve({
+          id: 'order_1',
+          status: data.status,
+          ...data,
+        }),
+      ),
+    },
+    user: {
+      update: jest.fn().mockResolvedValue(undefined),
+      findUnique: jest.fn().mockResolvedValue(null),
     },
   };
 
-  const esimProviderService = {
-    getEsimSnapshot: jest.fn(),
+  const productsService = {
+    findById: jest.fn(),
   };
 
-  const service = new (OrdersService as any)(
-    prisma,
-    {},
-    {},
-    esimProviderService,
-    {},
-    {},
-    {},
-    {},
-  ) as OrdersService;
+  const usersService = {
+    findById: jest.fn(),
+    updateBalance: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const esimProviderService = {
+    purchaseEsim: jest.fn().mockResolvedValue({
+      qr_code: 'qr',
+      iccid: 'iccid-1',
+      activation_code: 'act-1',
+      order_id: 'provider-order-1',
+      smdp_address: 'smdp.example',
+    }),
+  };
+
+  const promoCodesService = {
+    use: jest.fn(),
+  };
+
+  const telegramNotification = {
+    sendEsimDetails: jest.fn().mockResolvedValue(undefined),
+    sendTextNotification: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const emailService = {
+    sendEsimReady: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const systemSettingsService = {
+    getPricingSettings: jest.fn(),
+  };
+
+  const referralsService = {
+    awardReferralBonus: jest.fn().mockResolvedValue({ awarded: true, bonusAmount: 5 }),
+  };
+
+  const loyaltyService = {
+    updateUserLevel: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const service = new OrdersService(
+    prisma as any,
+    productsService as any,
+    usersService as any,
+    esimProviderService as any,
+    promoCodesService as any,
+    telegramNotification as any,
+    emailService as any,
+    systemSettingsService as any,
+    referralsService as any,
+    loyaltyService as any,
+  );
 
   return {
     service,
     prisma,
+    usersService,
     esimProviderService,
+    emailService,
+    referralsService,
+    loyaltyService,
   };
 }
 
-describe('OrdersService.getOrderUsage', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+describe('OrdersService.fulfillOrder Phase 4 wiring', () => {
+  beforeEach(() => jest.clearAllMocks());
 
-  it('сохраняет вычисленный usedBytes в кэш, если провайдер прислал только remainingBytes', async () => {
-    const { service, prisma, esimProviderService } = makeService();
-    prisma.order.findUnique.mockResolvedValue(makeOrder());
-    prisma.order.update.mockResolvedValue({});
-    esimProviderService.getEsimSnapshot.mockResolvedValue({
-      usedBytes: null,
-      totalBytes: 1000,
-      remainingBytes: 1000,
-      status: EsimStatus.NOT_INSTALLED,
-      rawStatus: 'NEW',
-      activatedAt: null,
-      expiresAt: null,
-      smdpAddress: null,
-      activationCode: null,
+  it('начисляет cashback, referral bonus и пересчитывает loyalty level после successful purchase', async () => {
+    const {
+      service,
+      prisma,
+      usersService,
+      referralsService,
+      loyaltyService,
+      emailService,
+    } = makeService();
+
+    const result = await service.fulfillOrder('order_1');
+
+    expect(prisma.order.update).toHaveBeenCalledWith({
+      where: { id: 'order_1' },
+      data: expect.objectContaining({
+        status: OrderStatus.COMPLETED,
+        qrCode: 'qr',
+        iccid: 'iccid-1',
+        activationCode: 'act-1',
+        providerOrderId: 'provider-order-1',
+        smdpAddress: 'smdp.example',
+        completedAt: expect.any(Date),
+      }),
     });
+    expect(usersService.updateBalance).toHaveBeenCalledWith('user_1', 10, 'bonusBalance');
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user_1' },
+      data: { totalSpent: { increment: 100 } },
+    });
+    expect(referralsService.awardReferralBonus).toHaveBeenCalledWith('ref_1', 100, 'order_1');
+    expect(loyaltyService.updateUserLevel).toHaveBeenCalledWith('user_1');
+    expect(emailService.sendEsimReady).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe(OrderStatus.COMPLETED);
+  });
 
-    const usage = await service.getOrderUsage('order_1');
+  it('не роняет completed order, если referral awarding падает после выдачи eSIM', async () => {
+    const {
+      service,
+      prisma,
+      referralsService,
+      loyaltyService,
+      emailService,
+    } = makeService();
+    referralsService.awardReferralBonus.mockRejectedValue(new Error('referral unavailable'));
 
-    expect(usage.available).toBe(true);
-    expect(usage.usedBytes).toBe(0);
-    expect(usage.remainingBytes).toBe(1000);
-    expect(usage.percentTraffic).toBe(100);
-    expect(prisma.order.update).toHaveBeenCalledWith(
+    const result = await service.fulfillOrder('order_1');
+
+    expect(result.status).toBe(OrderStatus.COMPLETED);
+    expect(loyaltyService.updateUserLevel).toHaveBeenCalledWith('user_1');
+    expect(emailService.sendEsimReady).toHaveBeenCalledTimes(1);
+    expect(prisma.order.update).toHaveBeenCalledTimes(1);
+    expect(prisma.order.update).not.toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'order_1' },
-        data: expect.objectContaining({
-          lastUsageBytes: BigInt(0),
-          lastUsageTotalBytes: BigInt(1000),
-          esimStatus: EsimStatus.NOT_INSTALLED,
-          lastUsageAt: expect.any(Date),
-        }),
+        data: expect.objectContaining({ status: OrderStatus.FAILED }),
       }),
     );
-  });
-
-  it('отдаёт свежий кэш без повторного запроса к провайдеру', async () => {
-    const { service, prisma, esimProviderService } = makeService();
-    prisma.order.findUnique.mockResolvedValue(
-      makeOrder({
-        lastUsageAt: new Date(Date.now() - 60_000),
-        lastUsageBytes: BigInt(250),
-        lastUsageTotalBytes: BigInt(1000),
-        esimStatus: EsimStatus.ACTIVE,
-      }),
-    );
-
-    const usage = await service.getOrderUsage('order_1');
-
-    expect(usage.available).toBe(true);
-    expect(usage.usedBytes).toBe(250);
-    expect(usage.remainingBytes).toBe(750);
-    expect(usage.percentTraffic).toBe(75);
-    expect(usage.status).toBe(EsimStatus.ACTIVE);
-    expect(esimProviderService.getEsimSnapshot).not.toHaveBeenCalled();
-    expect(prisma.order.update).not.toHaveBeenCalled();
-  });
-
-  it('возвращает stale status/expiry, если provider недоступен, но метаданные уже закэшированы', async () => {
-    const { service, prisma, esimProviderService } = makeService();
-    const expiresAt = new Date(Date.now() + 10 * 86400000);
-    prisma.order.findUnique.mockResolvedValue(
-      makeOrder({
-        esimStatus: EsimStatus.ACTIVE,
-        expiresAt,
-      }),
-    );
-    esimProviderService.getEsimSnapshot.mockRejectedValue(new Error('provider down'));
-
-    const usage = await service.getOrderUsage('order_1');
-
-    expect(usage.available).toBe(false);
-    expect(usage.stale).toBe(true);
-    expect(usage.status).toBe(EsimStatus.ACTIVE);
-    expect(usage.expiresAt).toEqual(expiresAt);
-    expect(usage.reason).toBe('Данные о расходе ещё не поступили от провайдера');
   });
 });

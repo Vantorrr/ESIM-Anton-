@@ -19,12 +19,17 @@
 
 ## Статус
 
-Не начато
-
+Завершено
+- `OrdersService.applyPurchaseCompletionEffects()` вызывает `ReferralsService.awardReferralBonus()` после роста `totalSpent`, если у покупателя заполнен `referredById`.
+- `ReferralsService` больше не читает `REFERRAL_BONUS_PERCENT` из env; вместо этого используется `SystemSettingsService.getReferralSettings()`.
+- Для идемпотентности добавлен guard: если уже существует `TransactionType.REFERRAL_BONUS` со статусом `SUCCEEDED` для того же `orderId`, повторное начисление не выполняется.
 ## Журнал изменений
-
+- [backend/src/modules/orders/orders.service.ts](../../../backend/src/modules/orders/orders.service.ts)
+- [backend/src/modules/referrals/referrals.service.ts](../../../backend/src/modules/referrals/referrals.service.ts)
+- [backend/src/modules/referrals/referrals.module.ts](../../../backend/src/modules/referrals/referrals.module.ts)
 - 
-
+- `npx jest referrals.service.spec.ts --runInBand`
+- `npx jest orders.service.spec.ts --runInBand`
 ## Файлы
 
 - 
