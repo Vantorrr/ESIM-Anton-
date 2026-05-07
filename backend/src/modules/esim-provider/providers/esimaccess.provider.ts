@@ -423,7 +423,7 @@ export class EsimAccessProvider {
       const obj = queryResponse.data.obj;
       const esimCount = Array.isArray(obj?.esimList) ? obj.esimList.length : 0;
       this.logger.log(`✅ Информация об eSIM получена через /esim/query (esimList: ${esimCount})`);
-      this.logger.debug(`getEsimInfo /esim/query raw response for ${iccid}: ${JSON.stringify(queryResponse.data)}`);
+      this.logger.debug(`getEsimInfo /esim/query raw response for ${iccid}: ${JSON.stringify(queryResponse.data).substring(0, 45)}`);
 
       if (esimCount === 0) {
         this.logger.warn(
