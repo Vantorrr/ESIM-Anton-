@@ -45,6 +45,12 @@ ESIM_FALLBACK_API_KEY=
 - top-up пакетов и пополнение eSIM;
 - health check.
 
+## Usage/status contract
+
+- для usage/status по ICCID код теперь сначала использует `POST /api/v1/open/esim/list` (`Query All Allocated Profiles`) с `iccid + pager`, потому что именно этот endpoint у eSIM Access возвращает `esimList[]` c `totalVolume`, usage/status и сроком;
+- если `/esim/list` вернул пусто или ошибку, включается fallback на `POST /api/v1/open/esim/query`, чтобы не ломать старые заказы/вариации API;
+- нормализация статусов расширена под реальные коды eSIM Access: `Provisioning`, `New`, `Available`, `Downloaded`, `Onboard`, `In Use`, `Suspended`, `UsedUp`, `Disabled` и legacy-коды вроде `GOT_RESOURCE`, `RELEASED`, `INSTALLATION`.
+
 ## Ограничения
 
 - `syncProducts()` в текущем сервисе не пишет данные в БД, а только получает пакеты и возвращает счётчик;

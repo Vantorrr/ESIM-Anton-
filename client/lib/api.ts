@@ -88,7 +88,7 @@ export interface UsageInfo {
   status?: string | null;
   activatedAt?: string | null;
   expiresAt?: string | null;
-  // Прогресс трафика и срока в процентах [0..100], считаются на бэке.
+  // Прогресс остатка трафика и остатка срока в процентах [0..100], считаются на бэке.
   percentTraffic?: number | null;
   percentTime?: number | null;
   validityDaysLeft?: number | null;

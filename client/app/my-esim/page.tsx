@@ -23,6 +23,7 @@ import { buildEsimActivationLinks } from '@/lib/esim-links'
 type EsimUiStatus =
   | 'ACTIVE'
   | 'NOT_INSTALLED'
+  | 'SUSPENDED'
   | 'EXPIRED'
   | 'USED_UP'
   | 'CANCELLED'
@@ -85,7 +86,7 @@ function formatBytes(bytes: number | null): string {
 
 function normalizeStatus(raw?: string | null): EsimUiStatus {
   const v = String(raw || '').toUpperCase()
-  if (v === 'ACTIVE' || v === 'NOT_INSTALLED' || v === 'EXPIRED' || v === 'USED_UP' || v === 'CANCELLED') {
+  if (v === 'ACTIVE' || v === 'NOT_INSTALLED' || v === 'SUSPENDED' || v === 'EXPIRED' || v === 'USED_UP' || v === 'CANCELLED') {
     return v as EsimUiStatus
   }
   return 'UNKNOWN'
@@ -102,6 +103,11 @@ function getStatusConfig(status: EsimUiStatus) {
       label: 'Не активирована', icon: QrCode,
       color: 'text-blue-600 dark:text-blue-400',
       bg: 'bg-blue-100 dark:bg-blue-900/30',
+    },
+    SUSPENDED: {
+      label: 'Приостановлена', icon: WifiOff,
+      color: 'text-amber-700 dark:text-amber-300',
+      bg: 'bg-amber-100 dark:bg-amber-900/30',
     },
     EXPIRED: {
       label: 'Истёк срок', icon: WifiOff,
@@ -129,9 +135,9 @@ function getStatusConfig(status: EsimUiStatus) {
 
 function progressColor(p: number | null | undefined): string {
   if (p === null || p === undefined) return 'bg-gray-300'
-  if (p >= 90) return 'bg-red-500'
-  if (p >= 70) return 'bg-amber-500'
-  return 'bg-[#f77430]'
+  if (p <= 10) return 'bg-red-500'
+  if (p <= 30) return 'bg-amber-500'
+  return 'bg-[#2563eb]'
 }
 
 /** Кнопки активации + раскрывающаяся инструкция. Рендерится под QR. */
@@ -412,7 +418,7 @@ export default function MyEsimPage() {
                       <>
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-gray-500 dark:text-gray-400">
-                            Трафик
+                            Остаток трафика
                             {esim.usage.stale && (
                               <span className="ml-1 text-amber-600 dark:text-amber-400" title="Данные могут быть устаревшими">
                                 (устар.)
@@ -420,7 +426,7 @@ export default function MyEsimPage() {
                             )}
                           </span>
                           <span className="font-medium text-gray-900 dark:text-white inline-flex items-center gap-2">
-                            {formatBytes(esim.usage.usedBytes)} / {formatBytes(esim.usage.totalBytes)}
+                            {formatBytes(esim.usage.remainingBytes)} / {formatBytes(esim.usage.totalBytes)}
                             <button
                               type="button"
                               onClick={() => refreshUsage(esim.id)}
@@ -462,7 +468,7 @@ export default function MyEsimPage() {
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-gray-500 dark:text-gray-400 inline-flex items-center gap-1">
                             <Clock size={14} />
-                            Срок
+                            Остаток срока
                           </span>
                           <span className="font-medium text-gray-900 dark:text-white">
                             {esim.usage.validityDaysLeft !== null && esim.usage.validityDaysLeft !== undefined

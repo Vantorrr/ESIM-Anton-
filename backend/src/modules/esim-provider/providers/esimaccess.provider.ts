@@ -98,11 +98,11 @@ export class EsimAccessProvider {
   async getBalance(): Promise<EsimAccessBalance> {
     try {
       this.logger.log('💰 Запрос баланса...');
-      
+
       const response = await this.client.post('/account/query', {}, {
         headers: this.getAuthHeaders(),
       });
-      
+
       if (response.data?.success && response.data?.obj) {
         this.logger.log(`✅ Баланс: ${response.data.obj.balance} ${response.data.obj.currencyCode}`);
         return {
@@ -110,7 +110,7 @@ export class EsimAccessProvider {
           currency: response.data.obj.currencyCode,
         };
       }
-      
+
       throw new Error(response.data?.errorMsg || 'Ошибка получения баланса');
     } catch (error) {
       this.logger.error('❌ Ошибка получения баланса:', error.message);
@@ -126,15 +126,15 @@ export class EsimAccessProvider {
   async getPackages(locationCode?: string, dataType?: number): Promise<EsimAccessPackage[]> {
     try {
       this.logger.log(`📦 Запрос пакетов (dataType=${dataType || 'all'})...`);
-      
+
       const payload: any = {
         pager: { pageNum: 1, pageSize: 500 }
       };
-      
+
       if (locationCode) {
         payload.locationCode = locationCode;
       }
-      
+
       if (dataType) {
         payload.dataType = dataType; // 1 = standard, 2 = unlimited/day pass (из документации)
       }
@@ -148,9 +148,9 @@ export class EsimAccessProvider {
       }
 
       const packages = response.data?.obj?.packageList || [];
-      
+
       this.logger.log(`✅ Получено ${packages.length} пакетов`);
-      
+
       return packages.map((pkg: any) => ({
         packageCode: pkg.packageCode,
         name: pkg.name,
@@ -171,8 +171,8 @@ export class EsimAccessProvider {
         dataType: dataType || (pkg.type || 1),   // Сохраняем тип
         coverageCountries: Array.isArray(pkg.locationNetworkList)
           ? pkg.locationNetworkList
-              .map((item: any) => item?.locationName)
-              .filter((name: any) => typeof name === 'string' && name.trim().length > 0)
+            .map((item: any) => item?.locationName)
+            .filter((name: any) => typeof name === 'string' && name.trim().length > 0)
           : [],
       }));
     } catch (error) {
@@ -220,22 +220,22 @@ export class EsimAccessProvider {
       if (response.data?.success && response.data?.obj) {
         const order = response.data.obj;
         this.logger.log(`✅ eSIM куплен успешно (order: ${order.orderNo})`);
-        
+
         let esimList = order.esimList || [];
-        
+
         // Если esimList пуст — запросим профили отдельно (Query Allocated Profiles)
         if (esimList.length === 0 && order.orderNo) {
           this.logger.log(`🔄 esimList пуст, запрашиваем профили по orderNo ${order.orderNo}...`);
           await new Promise(resolve => setTimeout(resolve, 2000));
-          
+
           try {
             const queryResponse = await this.client.post('/esim/query', {
               orderNo: order.orderNo,
               pager: { pageNum: 1, pageSize: 10 },
             }, { headers: this.getAuthHeaders() });
-            
+
             this.logger.log(`📥 Query response: ${JSON.stringify(queryResponse.data)}`);
-            
+
             if (queryResponse.data?.success && queryResponse.data?.obj) {
               const queryObj = queryResponse.data.obj;
               esimList = queryObj.esimList || queryObj.profileList || [];
@@ -247,7 +247,7 @@ export class EsimAccessProvider {
             this.logger.warn(`⚠️ Не удалось запросить профили: ${queryError.message}`);
           }
         }
-        
+
         return {
           success: true,
           orderNo: order.orderNo,
@@ -287,7 +287,7 @@ export class EsimAccessProvider {
       }
 
       this.logger.log(`✅ Информация о заказе получена`);
-      
+
       return response.data.obj;
     } catch (error) {
       this.logger.error('❌ Ошибка получения информации о заказе:', error.message);
@@ -313,9 +313,9 @@ export class EsimAccessProvider {
       }
 
       const orders = response.data?.obj?.esimList || [];
-      
+
       this.logger.log(`✅ Получено ${orders.length} заказов`);
-      
+
       return orders;
     } catch (error) {
       this.logger.error('❌ Ошибка получения истории заказов:', error.message);
@@ -358,37 +358,72 @@ export class EsimAccessProvider {
   /**
    * Получить информацию об eSIM по ICCID.
    *
+   * Предпочитает `POST /esim/list` по ICCID (Query Allocated Profiles), потому
+   * что именно он чаще отдаёт usage/остаток/срок по уже купленным профилям.
+   * Если этот endpoint недоступен или вернул пусто — делаем fallback на
+   * `POST /esim/query` с тем же ICCID.
+   *
    * Возвращает `response.data.obj` целиком — там лежит `esimList[]` с usage,
    * статусом, сроком и SMDP. Точная форма зависит от версии API провайдера,
-   * поэтому при первой проблеме можно посмотреть полное тело в debug-логах
-   * (включается через LOG_LEVEL=debug в env).
+   * поэтому при первой проблеме можно смотреть debug-лог полного ответа.
    */
   async getEsimInfo(iccid: string): Promise<any> {
-    try {
-      this.logger.log(`🔍 Запрос информации об eSIM ${iccid}...`);
+    this.logger.log(`🔍 Запрос информации об eSIM ${iccid}...`);
 
-      const response = await this.client.post('/esim/query', {
+    try {
+      const listResponse = await this.client.post('/esim/list', {
         iccid,
+        pager: { pageNum: 1, pageSize: 20 },
       }, {
         headers: this.getAuthHeaders(),
       });
 
-      if (!response.data?.success) {
-        // На всякий случай пишем тело — без него очень сложно понять, что
-        // отдаёт провайдер при «success: false»
+      if (listResponse.data?.success) {
+        const obj = listResponse.data.obj;
+        const esimCount = Array.isArray(obj?.esimList) ? obj.esimList.length : 0;
+
+        this.logger.log(`✅ Информация об eSIM получена через /esim/list (esimList: ${esimCount})`);
+        this.logger.debug(`getEsimInfo /esim/list raw response for ${iccid}: ${JSON.stringify(listResponse.data)}`);
+
+        if (esimCount > 0) {
+          return obj;
+        }
+
         this.logger.warn(
-          `⚠️ Провайдер вернул success=false для ICCID ${iccid}: ${JSON.stringify(response.data)}`,
+          `⚠️ /esim/list вернул пустой esimList для ICCID ${iccid}, пробуем fallback /esim/query`,
         );
-        throw new Error(response.data?.errorMsg || 'Ошибка получения информации об eSIM');
+      } else {
+        this.logger.warn(
+          `⚠️ /esim/list вернул success=false для ICCID ${iccid}: ${JSON.stringify(listResponse.data)}`,
+        );
+      }
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        this.logger.debug(`ℹ️ /esim/list недоступен для ICCID ${iccid}, используем /esim/query`);
+      } else {
+        this.logger.warn(`⚠️ /esim/list не сработал для ICCID ${iccid}: ${error.message}`);
+      }
+    }
+
+    try {
+      const queryResponse = await this.client.post('/esim/query', {
+        iccid,
+        pager: { pageNum: 1, pageSize: 20 },
+      }, {
+        headers: this.getAuthHeaders(),
+      });
+
+      if (!queryResponse.data?.success) {
+        this.logger.warn(
+          `⚠️ Провайдер вернул success=false для ICCID ${iccid}: ${JSON.stringify(queryResponse.data)}`,
+        );
+        throw new Error(queryResponse.data?.errorMsg || 'Ошибка получения информации об eSIM');
       }
 
-      const obj = response.data.obj;
+      const obj = queryResponse.data.obj;
       const esimCount = Array.isArray(obj?.esimList) ? obj.esimList.length : 0;
-      this.logger.log(`✅ Информация об eSIM получена (esimList: ${esimCount})`);
-
-      // Полное тело — только в debug, чтобы не засорять prod-логи на каждый
-      // cron-проход монитора трафика; включается LOG_LEVEL=debug
-      this.logger.debug(`getEsimInfo raw response for ${iccid}: ${JSON.stringify(response.data)}`);
+      this.logger.log(`✅ Информация об eSIM получена через /esim/query (esimList: ${esimCount})`);
+      this.logger.debug(`getEsimInfo /esim/query raw response for ${iccid}: ${JSON.stringify(queryResponse.data)}`);
 
       if (esimCount === 0) {
         this.logger.warn(
@@ -397,7 +432,7 @@ export class EsimAccessProvider {
       }
 
       return obj;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('❌ Ошибка получения информации об eSIM:', error.message);
       throw error;
     }
@@ -421,9 +456,9 @@ export class EsimAccessProvider {
       }
 
       const packages = response.data?.obj?.packageList || [];
-      
+
       this.logger.log(`✅ Получено ${packages.length} пакетов для пополнения`);
-      
+
       return packages.map((pkg: any) => ({
         packageCode: pkg.packageCode,
         name: pkg.name,
@@ -442,8 +477,8 @@ export class EsimAccessProvider {
         supportTopup: pkg.supportTopup,
         coverageCountries: Array.isArray(pkg.locationNetworkList)
           ? pkg.locationNetworkList
-              .map((item: any) => item?.locationName)
-              .filter((name: any) => typeof name === 'string' && name.trim().length > 0)
+            .map((item: any) => item?.locationName)
+            .filter((name: any) => typeof name === 'string' && name.trim().length > 0)
           : [],
       }));
     } catch (error) {

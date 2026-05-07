@@ -12,6 +12,7 @@ import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { TelegramNotificationService } from '../telegram/telegram-notification.service';
 import { EmailService } from '../notifications/email.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { EsimStatus } from '../esim-provider/esim-status';
 import {
   OrderStatus,
   Prisma,
@@ -377,12 +378,26 @@ export class OrdersService {
 
     try {
       const snapshot = await this.esimProviderService.getEsimSnapshot(order.iccid);
+      const providerRemainingBytes =
+        snapshot.remainingBytes !== null
+          ? Math.max(0, Math.floor(snapshot.remainingBytes))
+          : null;
 
       if (snapshot.usedBytes !== null) {
         usedBytes = Math.max(0, Math.floor(snapshot.usedBytes));
       }
       if (snapshot.totalBytes !== null) {
         totalBytes = Math.max(0, Math.floor(snapshot.totalBytes));
+      }
+      if (usedBytes === null && totalBytes !== null && providerRemainingBytes !== null) {
+        usedBytes = Math.max(0, totalBytes - providerRemainingBytes);
+      }
+      if (
+        usedBytes === null &&
+        totalBytes !== null &&
+        (snapshot.status === EsimStatus.NOT_INSTALLED || snapshot.status === EsimStatus.ACTIVE)
+      ) {
+        usedBytes = 0;
       }
       if (snapshot.activatedAt) activatedAt = snapshot.activatedAt;
       if (snapshot.expiresAt) expiresAt = snapshot.expiresAt;
@@ -395,7 +410,7 @@ export class OrdersService {
       await this.prisma.order.update({
         where: { id: orderId },
         data: {
-          ...(snapshot.usedBytes !== null
+          ...(usedBytes !== null
             ? { lastUsageBytes: BigInt(usedBytes!) }
             : {}),
           ...(snapshot.totalBytes !== null
@@ -500,8 +515,8 @@ export class OrdersService {
         : null;
 
     const percentTraffic =
-      totalBytes !== null && totalBytes > 0 && usedBytes !== null
-        ? Math.min(100, Math.max(0, Math.round((usedBytes / totalBytes) * 100)))
+      totalBytes !== null && totalBytes > 0 && remainingBytes !== null
+        ? Math.min(100, Math.max(0, Math.round((remainingBytes / totalBytes) * 100)))
         : null;
 
     let percentTime: number | null = null;
@@ -513,13 +528,13 @@ export class OrdersService {
       const start = (activatedAt ?? order.createdAt).getTime();
       const total = Math.max(1, exp - start);
       const consumed = Math.max(0, Math.min(total, now - start));
-      percentTime = Math.round((consumed / total) * 100);
+      percentTime = Math.max(0, 100 - Math.round((consumed / total) * 100));
       const msLeft = exp - now;
       validityDaysLeft = msLeft > 0 ? Math.ceil(msLeft / 86400000) : 0;
     }
 
     return {
-      available: usedBytes !== null,
+      available: totalBytes !== null && (usedBytes !== null || remainingBytes !== null),
       totalBytes,
       usedBytes,
       remainingBytes,

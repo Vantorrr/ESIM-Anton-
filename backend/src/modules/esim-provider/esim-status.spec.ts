@@ -1,17 +1,25 @@
-import { EsimStatus, describeEsimStatus, mapEsimAccessStatus } from './esim-status';
+import { EsimStatus, describeEsimStatus, mapEsimAccessSmdpStatus, mapEsimAccessStatus } from './esim-status';
 
 describe('mapEsimAccessStatus', () => {
   it.each([
+    ['Provisioning', EsimStatus.NOT_INSTALLED],
     ['NEW', EsimStatus.NOT_INSTALLED],
     ['GOT_RESOURCE', EsimStatus.NOT_INSTALLED],
     ['RELEASED', EsimStatus.NOT_INSTALLED],
+    ['Available', EsimStatus.NOT_INSTALLED],
+    ['Downloaded', EsimStatus.NOT_INSTALLED],
     ['INSTALLATION', EsimStatus.NOT_INSTALLED],
     ['INSTALLED', EsimStatus.NOT_INSTALLED],
+    ['Onboard', EsimStatus.ACTIVE],
     ['USING', EsimStatus.ACTIVE],
     ['ENABLED', EsimStatus.ACTIVE],
+    ['IN USE', EsimStatus.ACTIVE],
     ['IN_USE', EsimStatus.ACTIVE],
     ['ACTIVE', EsimStatus.ACTIVE],
+    ['Suspended', EsimStatus.SUSPENDED],
+    ['Disabled', EsimStatus.SUSPENDED],
     ['EXPIRED', EsimStatus.EXPIRED],
+    ['USEDUP', EsimStatus.USED_UP],
     ['USED_UP', EsimStatus.USED_UP],
     ['EXHAUSTED', EsimStatus.USED_UP],
     ['REVOKED', EsimStatus.CANCELLED],
@@ -24,6 +32,7 @@ describe('mapEsimAccessStatus', () => {
 
   it('нечувствителен к регистру', () => {
     expect(mapEsimAccessStatus('using')).toBe(EsimStatus.ACTIVE);
+    expect(mapEsimAccessStatus('in use')).toBe(EsimStatus.ACTIVE);
     expect(mapEsimAccessStatus(' Expired ')).toBe(EsimStatus.EXPIRED);
   });
 
@@ -47,9 +56,24 @@ describe('describeEsimStatus', () => {
   it('возвращает читабельное описание для каждого статуса', () => {
     expect(describeEsimStatus(EsimStatus.ACTIVE)).toBe('Активна');
     expect(describeEsimStatus(EsimStatus.NOT_INSTALLED)).toBe('Не активирована');
+    expect(describeEsimStatus(EsimStatus.SUSPENDED)).toBe('Приостановлена');
     expect(describeEsimStatus(EsimStatus.EXPIRED)).toBe('Истёк срок');
     expect(describeEsimStatus(EsimStatus.USED_UP)).toBe('Трафик исчерпан');
     expect(describeEsimStatus(EsimStatus.CANCELLED)).toBe('Отменена');
     expect(describeEsimStatus(EsimStatus.UNKNOWN)).toBe('Статус неизвестен');
+  });
+});
+
+describe('mapEsimAccessSmdpStatus', () => {
+  it.each([
+    ['Available', EsimStatus.NOT_INSTALLED],
+    ['Downloaded', EsimStatus.NOT_INSTALLED],
+    ['Installation', EsimStatus.NOT_INSTALLED],
+    ['Installed', EsimStatus.NOT_INSTALLED],
+    ['Enabled', EsimStatus.UNKNOWN],
+    ['Disabled', EsimStatus.SUSPENDED],
+    ['Deleted', EsimStatus.UNKNOWN],
+  ])('маппит smdp %s → %s', (raw, expected) => {
+    expect(mapEsimAccessSmdpStatus(raw)).toBe(expected);
   });
 });

@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import { EsimAccessProvider } from './providers/esimaccess.provider';
-import { EsimStatus, mapEsimAccessStatus } from './esim-status';
+import { EsimStatus, mapEsimAccessSmdpStatus, mapEsimAccessStatus } from './esim-status';
 
 /**
  * Нормализованный snapshot eSIM, собранный из ответа провайдера.
@@ -11,6 +11,7 @@ import { EsimStatus, mapEsimAccessStatus } from './esim-status';
 export interface EsimSnapshot {
   usedBytes: number | null;
   totalBytes: number | null;
+  remainingBytes: number | null;
   status: EsimStatus;
   rawStatus: string | null;
   activatedAt: Date | null;
@@ -214,14 +215,6 @@ export class EsimProviderService {
     // У eSIM Access одна карта на ICCID, но защищаемся от вариаций ответа
     const esim = obj?.esimList?.[0] || obj?.esim || obj || {};
 
-    const used = pickFiniteNumber(
-      esim?.orderUsage,
-      esim?.dataUsed,
-      esim?.usage,
-      esim?.usageInfo?.used,
-      esim?.dataUsedBytes,
-      esim?.traffic?.used,
-    );
     const total = pickFiniteNumber(
       esim?.totalVolume,
       esim?.dataTotal,
@@ -229,10 +222,46 @@ export class EsimProviderService {
       esim?.usageInfo?.total,
       esim?.dataTotalBytes,
       esim?.traffic?.total,
+      esim?.packageList?.[0]?.volume,
     );
+    const remaining = pickFiniteNumber(
+      esim?.remainingVolume,
+      esim?.remainingData,
+      esim?.dataRemaining,
+      esim?.remainVolume,
+      esim?.remainData,
+      esim?.surplusOrderUsage,
+      esim?.traffic?.remaining,
+      esim?.dataLeft,
+    );
+    const usedDirect = pickFiniteNumber(
+      esim?.orderUsage,
+      esim?.dataUsed,
+      esim?.usage,
+      esim?.usageInfo?.used,
+      esim?.dataUsedBytes,
+      esim?.traffic?.used,
+      esim?.usedVolume,
+    );
+    const used =
+      usedDirect !== null
+        ? usedDirect
+        : total !== null && remaining !== null
+          ? Math.max(0, total - remaining)
+          : null;
+    const remainingBytes =
+      remaining !== null
+        ? remaining
+        : total !== null && used !== null
+          ? Math.max(0, total - used)
+          : null;
 
-    const rawStatus = pickString(esim?.esimStatus, esim?.status, esim?.smdpStatus);
-    const status = mapEsimAccessStatus(rawStatus);
+    const rawEsimStatus = pickString(esim?.esimStatus, esim?.status);
+    const rawSmdpStatus = pickString(esim?.smdpStatus);
+    const rawStatus = rawEsimStatus ?? rawSmdpStatus;
+    const status = rawEsimStatus
+      ? mapEsimAccessStatus(rawEsimStatus)
+      : mapEsimAccessSmdpStatus(rawSmdpStatus);
 
     const activatedAt = parseProviderDate(
       esim?.effectiveTime,
@@ -261,6 +290,7 @@ export class EsimProviderService {
     return {
       usedBytes: used,
       totalBytes: total,
+      remainingBytes,
       status,
       rawStatus,
       activatedAt,
