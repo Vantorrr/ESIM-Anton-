@@ -450,29 +450,23 @@ export default function ProductPage() {
             </div>
           )}
 
-          {/* Whitelist-теги (Материковый Китай / HK IP) и ручное примечание из админки */}
+          {/* Теги и примечание из админки — универсально */}
           {(() => {
-            const VISIBLE = new Set(['Материковый Китай', 'Не гонконгский IP', 'Гонконгский IP'])
-            const visible = (product.tags ?? []).filter((t) => VISIBLE.has(t))
-            if (visible.length === 0 && !product.notes) return null
+            const tags = product.tags ?? []
+            if (tags.length === 0 && !product.notes) return null
             return (
               <div className="rounded-xl bg-yellow-50 border border-yellow-100 px-3 py-3">
                 <p className="text-xs uppercase tracking-wide text-yellow-700 mb-1">Примечание</p>
-                {visible.length > 0 && (
+                {tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
-                    {visible.map((tag) => {
-                      const isMainland = tag === 'Материковый Китай' || tag === 'Не гонконгский IP'
-                      return (
-                        <span
-                          key={tag}
-                          className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${
-                            isMainland ? 'bg-red-50 text-red-700 border-red-200' : 'bg-blue-50 text-blue-700 border-blue-200'
-                          }`}
-                        >
-                          {tag}
-                        </span>
-                      )
-                    })}
+                    {tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-[11px] font-semibold px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 )}
                 {product.notes && (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
@@ -15,27 +15,6 @@ import {
   isMultiProduct,
 } from '@/lib/productCoverage'
 
-// Видимые в каталоге теги (whitelist). Остальные авто-теги (5G/4G/Безлимит/...) скрываем —
-// они и так есть в описании тарифа. Заказчик специально просил оставить пометку
-// «Материковый Китай», т.к. для китайских направлений принципиально, через какую сеть идёт IP.
-const VISIBLE_TAGS = new Set<string>([
-  'Материковый Китай',
-  'Не гонконгский IP',
-  'Гонконгский IP',
-])
-
-const visibleTags = (tags?: string[]): string[] =>
-  (tags ?? []).filter((t) => VISIBLE_TAGS.has(t))
-
-const tagBadgeClass = (tag: string): string => {
-  if (tag === 'Материковый Китай' || tag === 'Не гонконгский IP') {
-    return 'bg-red-50 text-red-700 border-red-200'
-  }
-  if (tag === 'Гонконгский IP') {
-    return 'bg-blue-50 text-blue-700 border-blue-200'
-  }
-  return 'bg-gray-50 text-gray-700 border-gray-200'
-}
 
 function BackIcon() {
   return (
@@ -99,6 +78,25 @@ export default function CountryPage() {
   const products = allProducts.filter(p => 
     activeTab === 'unlimited' ? p.isUnlimited : !p.isUnlimited
   )
+
+  // Определяем тарифы-«дубли»: одинаковые dataAmount + validityDays + isUnlimited,
+  // но разные по цене/провайдеру. Для таких показываем provider name, чтобы
+  // пользователь мог их различить. Работает универсально для любой страны.
+  const duplicateGroupKeys = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const p of products) {
+      const key = `${p.dataAmount}|${p.validityDays}|${p.isUnlimited}`
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    const dups = new Set<string>()
+    for (const [key, count] of counts) {
+      if (count > 1) dups.add(key)
+    }
+    return dups
+  }, [products])
+
+  const isDuplicate = (p: Product) =>
+    duplicateGroupKeys.has(`${p.dataAmount}|${p.validityDays}|${p.isUnlimited}`)
   const selectedProd = products.find(p => p.id === selectedProduct) || null
   const selectedCoverageItems = selectedProd ? getCoverageItems(selectedProd).map(getCountryName) : []
   const selectedCoverageCount = selectedProd ? getCoverageCount(selectedProd) : 1
@@ -280,7 +278,7 @@ export default function CountryPage() {
                 key={product.id}
                 onClick={() => setSelectedProduct(product.id)}
                 className={`
-                  flex items-center justify-between px-4 py-4 cursor-pointer transition-all
+                  flex items-center justify-between px-4 py-3 cursor-pointer transition-all
                   ${index !== products.length - 1 ? 'border-b border-gray-100' : ''}
                   ${selectedProduct === product.id 
                     ? 'bg-orange-50 border-l-4 border-l-[#f77430]'
@@ -312,32 +310,53 @@ export default function CountryPage() {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 mt-0.5">
                     {product.isUnlimited
                       ? 'Ежедневный пакет интернета'
                       : 'Весь объём интернета на срок тарифа'}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {getCoverageScopeLabel(product)}: {getCoverageSummary(product)}
-                  </p>
+                  {/* Покрытие для мульти/глобальных пакетов */}
+                  {(isMultiProduct(product) || isGlobalProduct(product)) && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {getCoverageScopeLabel(product)}: {getCoverageSummary(product)}
+                    </p>
+                  )}
+                  {/* Для дублей (одинаковые объём+срок) — показываем теги от backend,
+                      чтобы пользователь видел чем тарифы отличаются.
+                      Если тегов нет — fallback на провайдерское название. */}
+                  {isDuplicate(product) && (() => {
+                    const tags = product.tags ?? []
+                    if (tags.length > 0) {
+                      return (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )
+                    }
+                    return (
+                      <p className="text-xs text-gray-400 mt-0.5 italic">
+                        {product.name}
+                      </p>
+                    )
+                  })()}
                   {/* Скорость после лимита для Daily Unlimited */}
                   {product.isUnlimited && product.speed && (
                     <p className="text-xs text-gray-400 mt-0.5">
                       После лимита: {product.speed}
                     </p>
                   )}
-                  {/* Whitelist-теги (Китай и т.п.) */}
-                  {visibleTags(product.tags).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {visibleTags(product.tags).map((tag) => (
-                        <span
-                          key={tag}
-                          className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${tagBadgeClass(tag)}`}
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+                  {/* Примечание из админки */}
+                  {product.notes && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {product.notes}
+                    </p>
                   )}
                 </div>
                 
@@ -447,19 +466,19 @@ export default function CountryPage() {
                   <p className="text-xs text-gray-500 mt-1">Звонки и SMS в тариф не входят.</p>
                 </div>
               </div>
-              {(visibleTags(selectedProd.tags).length > 0 || selectedProd.notes) && (
+              {((selectedProd.tags && selectedProd.tags.length > 0) || selectedProd.notes) && (
                 <div className="flex items-start gap-3 px-4 py-3">
                   <div className="w-10 h-10 rounded-xl bg-yellow-100 flex items-center justify-center shrink-0">
                     <span className="text-lg">ℹ️</span>
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs text-gray-400 uppercase">Примечание</p>
-                    {visibleTags(selectedProd.tags).length > 0 && (
+                    {selectedProd.tags && selectedProd.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-1">
-                        {visibleTags(selectedProd.tags).map((tag) => (
+                        {selectedProd.tags.map((tag) => (
                           <span
                             key={tag}
-                            className={`text-[11px] font-medium px-2 py-0.5 rounded border ${tagBadgeClass(tag)}`}
+                            className="text-[11px] font-medium px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200"
                           >
                             {tag}
                           </span>

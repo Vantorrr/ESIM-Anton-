@@ -700,7 +700,9 @@ export class ProductsService implements OnModuleInit {
                 isUnlimited: productData.isUnlimited,
                 // isActive - НЕ трогаем! Сохраняем настройку скрытия
                 // badge, badgeColor - НЕ трогаем!
-                // tags, notes - НЕ трогаем!
+                // notes - НЕ трогаем (ручное примечание)!
+                // tags: дополняем автоматическими, если пусты (т.е. не редактировались вручную)
+                ...(existing.tags.length === 0 && autoTags.length > 0 ? { tags: autoTags } : {}),
                 supportTopup: productData.supportTopup, // Обновляем — это техническая характеристика
               },
             });
