@@ -26,7 +26,7 @@ Production topology по проверенным документам и коду
 
 - `backend`, `admin` и `bot` живут на Railway
 - production PostgreSQL и Redis тоже ожидаются на Railway
-- `client` описан как отдельный веб-фронт и в legacy-brief развёртывается вне Railway
+- `client` описан как отдельное приложение и развёртывается как независимый сервис в Railway.
 - push в `main` GitHub запускает Railway autodeploy, поэтому backend-изменения нельзя рассматривать как "просто смержим и потом вручную доделаем на проде"
 
 ## Seeds and bootstrap

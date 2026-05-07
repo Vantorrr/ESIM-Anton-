@@ -18,7 +18,7 @@
 
 - production backup PostgreSQL существует и его можно восстановить
 - Railway services понятны: `backend`, `admin`, `bot`, PostgreSQL, Redis
-- `client` deployment понятен отдельно: по legacy-brief PWA выкатывается на Рег.ру вручную, а не через Railway autodeploy
+- `client` deployment: это отдельный сервис в Railway, он должен иметь Root Directory `/client`
 - production env заполнены и не требуют новых ключей из этого merge
 - `DATABASE_URL` у backend указывает на нужную production БД
 - `CORS_ORIGIN`, `BACKEND_URL`, `FRONTEND_URL`, `MINI_APP_URL`, `SITE_URL` соответствуют production доменам
