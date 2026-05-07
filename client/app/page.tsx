@@ -342,9 +342,10 @@ export default function Home() {
       const isGlobal = isGlobalProduct(product)
       const isMulti = isMultiProduct(product)
 
-      // Пропускаем ВСЕ продукты с кириллическими именами стран —
-      // это дубли нормально закодированных (AE, TR, JP...) с ценой 0
-      if (/[а-яА-ЯёЁ]/.test(country)) return
+      // Исторически часть локальных данных и seed'ов использует кириллические
+      // названия стран. Нельзя выкидывать их целиком, иначе локальный каталог
+      // становится пустым. Отбрасываем только явно битые записи с нулевой ценой.
+      if (/[а-яА-ЯёЁ]/.test(country) && Number(product.ourPrice) <= 0) return
       
       const targetGroups = isGlobal ? global : isMulti ? multi : groups
       
