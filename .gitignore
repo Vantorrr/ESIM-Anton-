@@ -1,7 +1,10 @@
 # Dependencies
+.cache
 node_modules/
 .pnp
 .pnp.js
+AGENTS.md
+info
 
 # Testing
 coverage/
@@ -23,6 +26,8 @@ dist/
 .idea/
 *.swp
 *.swo
+.agent
+task.md
 *~
 
 # OS

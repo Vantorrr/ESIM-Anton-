@@ -119,7 +119,7 @@ function BalancePageInner() {
 
       // Подгружаем историю транзакций (если эндпоинта нет — просто пустой список)
       try {
-        const txRes = await api.get(`/users/${userId}/transactions`)
+        const txRes = await api.get(`/payments/user/${userId}`)
         const list = Array.isArray(txRes.data) ? txRes.data : txRes.data?.data || []
         setTransactions(
           list.map((t: any) => {

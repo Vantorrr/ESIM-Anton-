@@ -137,10 +137,13 @@ export interface Order {
 export interface ReferralStats {
   referralCount: number;
   totalEarned: number;
+  totalEarnings?: number;
   referrals: Array<{
     id: string;
     firstName?: string;
+    name?: string;
     createdAt: string;
+    joinedAt?: string;
     totalSpent: number;
   }>;
 }
@@ -247,14 +250,19 @@ export const ordersApi = {
 export const referralsApi = {
   // Получить реферальную статистику
   async getStats(userId: string): Promise<ReferralStats> {
-    const { data } = await api.get(`/referrals/${userId}/stats`);
-    return data;
+    const { data } = await api.get(`/referrals/stats/${userId}`);
+    return {
+      ...data,
+      referralCount: data.referralsCount ?? data.referralCount ?? 0,
+      totalEarned: Number(data.totalEarnings ?? data.totalEarned ?? 0),
+      referrals: data.referrals ?? [],
+    };
   },
 
   // Получить рефералов
   async getReferrals(userId: string): Promise<ReferralStats['referrals']> {
-    const { data } = await api.get(`/referrals/${userId}`);
-    return data;
+    const { data } = await api.get(`/referrals/stats/${userId}`);
+    return data.referrals ?? [];
   },
 };
 

@@ -1,0 +1,65 @@
+# Phase 8: Production Readiness & Railway Rollout
+
+> [Корневой документ wiki](../README.md)
+
+## Цель
+
+Подготовить безопасную выкладку изменений в production с учётом GitHub -> Railway autodeploy.
+
+## Результат
+
+- Railway service commands и env baseline проверены;
+- migration baseline не ломает существующую production DB;
+- payment/provider/webhook secrets сверены по checklist без записи секретов в git;
+- deploy выполняется только после явного решения о rollout.
+
+## Оценка
+
+Высокий operational риск: push в GitHub может автоматически запустить Railway deploy.
+
+## Зависит от
+
+- [phase-3-admin-auth-and-api-security.md](./phase-3-admin-auth-and-api-security.md)
+- [phase-4-loyalty-and-referral-wiring.md](./phase-4-loyalty-and-referral-wiring.md)
+- [phase-5-esim-usage-status-and-activation.md](./phase-5-esim-usage-status-and-activation.md)
+- [phase-6-admin-orders-analytics-and-reporting.md](./phase-6-admin-orders-analytics-and-reporting.md)
+- [phase-7-product-catalog-sync-and-tariff-metadata.md](./phase-7-product-catalog-sync-and-tariff-metadata.md)
+- [../operations/railway-runbook.md](../operations/railway-runbook.md)
+
+## Пререквизиты
+
+- принято решение, какие фазы входят в ближайший deploy;
+- есть доступ к Railway dashboard/logs;
+- production env сверяется вручную по `.env.example`, без записи секретов в репозиторий;
+- для существующей production DB выполнен или запланирован `prisma migrate resolve --applied 20260507_init`, если baseline уже соответствует схеме.
+
+## Архитектурные решения
+
+- Нельзя менять root scripts вслепую, пока не проверены Railway service-level build/start commands.
+- Production secrets документируются только как имена переменных и правила проверки, не как значения.
+- Deploy не должен быть побочным эффектом обычного commit, если фаза не готова к автодеплою.
+
+## Шаги (журналы)
+
+- [Шаг 1. Снять Railway service baseline](./phase-8/step-1-railway-service-baseline.md)
+- [Шаг 2. Проверить production env checklist](./phase-8/step-2-production-env-checklist.md)
+- [Шаг 3. Подготовить migration rollout](./phase-8/step-3-migration-rollout.md)
+- [Шаг 4. Прогнать staging/smoke checklist](./phase-8/step-4-staging-smoke-checklist.md)
+- [Шаг 5. Выполнить controlled deploy](./phase-8/step-5-controlled-deploy.md)
+
+## Верификация
+
+- Railway logs показывают успешный build/start.
+- `prisma migrate deploy` не падает на существующей production DB.
+- Critical API/UI flows отвечают после deploy.
+- В [../operations/railway-runbook.md](../operations/railway-runbook.md) обновлены фактические команды и выводы rollout.
+
+
+## Журнал
+
+- 
+
+
+## Ссылки на ранее созданные фазы и шаги, которые нужно учитывать при разработке этой фазы и ссылка назад на главный файл фазы из каждого шага.
+
+- [Корневой документ wiki](../README.md)
