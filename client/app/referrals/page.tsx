@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Users, Copy, Share2, Gift, TrendingUp, CheckCircle } from 'lucide-react'
+import { Users, Copy, Share2, Gift, TrendingUp, CheckCircle } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
 
 interface ReferralStats {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Phone, ArrowRight, ChevronLeft, Loader2, Shield, AlertCircle } from 'lucide-react'
+import { Phone, ArrowRight, ChevronLeft, Loader2, Shield, AlertCircle } from '@/components/icons'
 import { api } from '@/lib/api'
 import { setToken, setStoredUser, isTelegramWebApp, getToken } from '@/lib/auth'
 import { Suspense } from 'react'

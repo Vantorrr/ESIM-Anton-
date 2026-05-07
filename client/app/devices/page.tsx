@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, Smartphone, Tablet, Laptop, ChevronDown, Check, Copy, Info } from 'lucide-react'
+import { ArrowLeft, Smartphone, Tablet, Laptop, ChevronDown, Check, Copy, Info } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
 import { useSmartBack } from '@/lib/useSmartBack'
 

@@ -111,20 +111,25 @@
 - либо реализовать bot-specific backend flow;
 - либо научить bot получать/передавать user JWT для order creation.
 
-### Medium. Product sync name overpromises behavior
+### Medium. Product sync semantics are split between legacy provider helper and real catalog sync
 
-Файл: [backend/src/modules/esim-provider/esim-provider.service.ts](../../backend/src/modules/esim-provider/esim-provider.service.ts)
+Файлы:
+
+- [backend/src/modules/esim-provider/esim-provider.service.ts](../../backend/src/modules/esim-provider/esim-provider.service.ts)
+- [backend/src/modules/products/products.service.ts](../../backend/src/modules/products/products.service.ts)
+- [backend/src/modules/products/products.controller.ts](../../backend/src/modules/products/products.controller.ts)
 
 Проблема:
 
-- `syncProducts()` получает пакеты у provider, но не обновляет БД;
-- в коде есть TODO про интеграцию с ProductsService;
-- admin UI имеет кнопку синхронизации тарифов, что создаёт ожидание реальной записи в каталог.
+- legacy-метод `EsimProviderService.syncProducts()` действительно только получает пакеты и ничего не пишет в БД;
+- но реальный admin route `POST /products/sync` вызывает `ProductsService.syncWithProvider()`, который уже делает upsert в `EsimProduct`, обновляет provider fields и сохраняет часть ручных metadata;
+- из-за этого документация легко уходит в ложный вывод "sync ещё не реализован", хотя фактическая проблема уже другая: semantics массового sync/reprice/dedupe не зафиксированы и не все admin operations закрыты auth.
 
 Рекомендация:
 
-- переименовать operation в provider preview или реализовать upsert в `EsimProduct`;
-- добавить dry-run и audit log для массового обновления цен/тарифов.
+- зафиксировать, какой метод считать source of truth для catalog sync;
+- явно описать, какие поля sync может перезаписывать, а какие остаются ручными;
+- добавить auth и при необходимости preview/audit trail для `sync`, `reprice`, `bulk-*`, а не только для `dedupe`.
 
 ## Что уже проверено
 

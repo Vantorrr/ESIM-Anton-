@@ -7,12 +7,14 @@ import axios from 'axios';
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
   private readonly apiKey: string;
+  private readonly isProduction: boolean;
 
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
   ) {
-    this.apiKey = this.configService.get('SMS_RU_API_KEY') || '';
+    this.apiKey = (this.configService.get<string>('SMS_RU_API_KEY') || '').trim();
+    this.isProduction = this.configService.get<string>('NODE_ENV') === 'production';
     if (this.apiKey) {
       this.logger.log('✅ SMS Service initialized');
     } else {
@@ -48,7 +50,15 @@ export class SmsService {
         this.logger.log(`📱 SMS sent to ${normalized}: ${JSON.stringify(response.data)}`);
       } catch (error) {
         this.logger.error(`❌ SMS send failed: ${error.message}`);
-        throw new BadRequestException('Не удалось отправить SMS. Попробуйте позже.');
+        if (this.isProduction) {
+          throw new BadRequestException('Не удалось отправить SMS. Попробуйте позже.');
+        }
+
+        this.logger.warn(
+          `⚠️ SMS provider failed in non-production mode, using dev fallback code for ${normalized}`,
+        );
+        this.logger.log(`🔑 DEV SMS code for ${normalized}: ${code}`);
+        return;
       }
     } else {
       // Dev mode - log the code

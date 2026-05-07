@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Play } from 'lucide-react'
+import { Play } from '@/components/icons'
 
 export default function MojoAnimationPage() {
   const [stage, setStage] = useState(0) // 0: Initial, 1: Move, 2: Showreel, 3: Switch, 4: Final

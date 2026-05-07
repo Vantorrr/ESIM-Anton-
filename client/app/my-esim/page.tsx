@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
   ArrowLeft, Smartphone, Plus, Wifi, WifiOff, RefreshCw, QrCode,
   Apple, Smartphone as AndroidIcon, Copy, Check, ChevronDown, ChevronUp, Clock,
-} from 'lucide-react'
+} from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
 import { getCountryEmoji, formatDataAmount } from '@/lib/utils'
 import { ordersApi } from '@/lib/api'
@@ -364,11 +364,12 @@ export default function MyEsimPage() {
             <p className="text-gray-500 dark:text-gray-400 mb-6">
               Купите ваш первый eSIM и он появится здесь
             </p>
-            <Link href="/">
-              <button className="inline-flex items-center gap-2 px-6 py-3 bg-[#f77430] hover:bg-[#f2622a] text-white font-medium rounded-xl transition-colors">
-                <Plus size={20} />
-                Купить eSIM
-              </button>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#f77430] hover:bg-[#f2622a] text-white font-medium rounded-xl transition-colors"
+            >
+              <Plus size={20} />
+              Купить eSIM
             </Link>
           </div>
         ) : (

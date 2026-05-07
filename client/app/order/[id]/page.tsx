@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, QrCode, Copy, CheckCircle, Download, Info } from 'lucide-react'
+import { ArrowLeft, QrCode, Copy, CheckCircle, Download, Info } from '@/components/icons'
 import { ordersApi, Order } from '@/lib/api'
 
 function getStatusBadge(status: Order['status']) {

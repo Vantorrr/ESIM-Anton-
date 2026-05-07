@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Wifi, Clock, Tag, CreditCard, Mail, Wallet } from 'lucide-react'
+import { ArrowLeft, Wifi, Clock, Tag, CreditCard, Mail, Wallet } from '@/components/icons'
 import { productsApi, Product, userApi, ordersApi, paymentsApi, promoApi } from '@/lib/api'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
 import { getCoverageItems, getCoverageScopeLabel, getCoverageSummary } from '@/lib/productCoverage'

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { 
   DollarSign, Smartphone, ShoppingBag, Globe, Moon, Bell, Sun, Monitor,
   ChevronRight, Gift, HelpCircle, FileText, MessageCircle, X, Check, LogOut
-} from 'lucide-react'
+} from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
 import { useAuth } from '@/components/AuthProvider'
 

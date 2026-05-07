@@ -11,6 +11,7 @@
 - admin UI получает backend admin JWT через подтверждённый login flow;
 - admin API client отправляет `Authorization: Bearer ...`;
 - write/admin endpoints закрыты `JwtAdminGuard`;
+- read endpoints, которыми пользуются `dashboard`, `orders`, `users` и `products`, имеют явную auth policy, а не случайно публичное поведение;
 - прямой неавторизованный вызов write endpoint возвращает `401/403`;
 - browser-side PIN, если остаётся, считается только дополнительным UX-барьером, а не security boundary.
 
@@ -27,13 +28,17 @@
 
 - локально поднят backend и admin;
 - известен текущий admin credential source из `.env.example`, без чтения боевого `.env`;
-- подтверждены текущие admin routes через Swagger или smoke-запросы.
+- подтверждены текущие admin routes через Swagger или smoke-запросы;
+- зафиксировано, что `admin/lib/api.ts` уже умеет слать `Bearer` из `localStorage`, но текущий UI не получает admin token;
+- подтверждено, что `POST /api/auth/login` существует и возвращает admin JWT.
 
 ## Архитектурные решения
 
 - Серверная авторизация должна быть обязательной для write operations.
 - CORS и PIN в браузере не считаются защитой API.
 - Сначала внедряется admin login/token propagation, только потом массово включаются guards, чтобы не сломать admin UI вслепую.
+- Нужно разделить user JWT и admin JWT usage: `/auth/me` сейчас валидирует только `payload.type === 'user'`, поэтому для admin session понадобится отдельный backend contract (`/auth/admin/me` или эквивалентная проверка).
+- Для rollout важнее сначала закрыть write routes, но Phase 3 должна также явно решить судьбу публичных admin read routes, которыми сейчас питается dashboard.
 
 ## Шаги (журналы)
 
@@ -56,8 +61,11 @@
 - **[2026-05-07] Аудит текущего состояния:**
   - `Шаг 1` выполнен. 
   - Admin UI использует исключительно frontend-only PIN, сохраняемый в localStorage, и не делает реальной авторизации в API (нет JWT).
-  - Большинство admin write-эндпоинтов на бекенде не имеют реальной защиты (только декораторы Swagger `@ApiBearerAuth()`), поэтому сейчас они работают без токена.
-  - Шаги 2-5 не начаты. При внедрении `JwtAdminGuard` необходимо обязательно синхронизировать деплой с изменениями в Admin UI.
+  - `admin/lib/api.ts` уже пытается брать `auth_token` из `localStorage`, но текущий `admin/app/page.tsx` не создаёт этот token и вообще не использует backend login flow.
+  - `POST /api/auth/login` уже существует, но текущая фаза должна уточнить его response contract, admin payload и session recovery strategy для UI.
+  - Большинство admin write-эндпоинтов на backend не имеют реальной защиты и ограничены только `@ApiBearerAuth()`. Подтверждённое исключение в текущем коде: `POST /products/dedupe` уже закрыт `JwtAdminGuard`.
+  - Дополнительный открытый вопрос фазы: часть read routes (`analytics`, `orders`, `users`, `products`) сейчас используются админкой как публичные. Перед массовым включением guard'ов их нужно классифицировать как `admin-only` или намеренно публичные.
+  - Шаги 2-5 не начаты. При внедрении `JwtAdminGuard` необходимо синхронно менять backend contract, admin login UI и проверку session restore.
 
 
 ## Ссылки на ранее созданные фазы и шаги, которые нужно учитывать при разработке этой фазы и ссылка назад на главный файл фазы из каждого шага.

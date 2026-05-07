@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, ShoppingBag, RefreshCw } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, ShoppingBag, RefreshCw } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
-import { ordersApi, userApi } from '@/lib/api'
-import { getCountryEmoji, getFlagUrl } from '@/lib/utils'
+import { ordersApi } from '@/lib/api'
+import { getFlagUrl } from '@/lib/utils'
 import { useAuth } from '@/components/AuthProvider'
 
 interface Order {
@@ -23,6 +24,7 @@ interface Order {
 }
 
 export default function OrdersPage() {
+  const router = useRouter()
   const { user: authUser, isLoading: authLoading } = useAuth()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
@@ -120,10 +122,12 @@ export default function OrdersPage() {
           <p className="text-muted text-sm mb-6">
             Вы ещё не совершали покупок
           </p>
-          <Link href="/">
-            <button className="glass-button" style={{ width: 'auto', padding: '12px 32px' }}>
-              Перейти в каталог
-            </button>
+          <Link
+            href="/"
+            className="glass-button inline-flex"
+            style={{ width: 'auto', padding: '12px 32px' }}
+          >
+            Перейти в каталог
           </Link>
         </div>
       ) : (
@@ -133,58 +137,69 @@ export default function OrdersPage() {
             const StatusIcon = statusConfig.icon
             
             return (
-              <Link key={order.id} href={`/order/${order.id}`}>
-                <div 
-                  className="glass-card animate-slide-up cursor-pointer"
-                  style={{ animationDelay: `${0.05 * (index + 1)}s` }}
-                >
-                  <div className="flex items-center gap-4">
-                    {/* Country Flag */}
-                    <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
-                      {getFlagUrl(order.product.country) ? (
-                        <img 
-                          src={getFlagUrl(order.product.country)} 
-                          alt={order.product.country}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <img src="/logo-mark.png" alt="Mojo mobile" className="w-8 h-8 rounded-lg object-contain" />
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <h3 className="font-semibold text-primary truncate">
-                          {order.product.country}
-                        </h3>
-                        <p className="font-bold text-accent shrink-0">₽{order.totalAmount}</p>
-                      </div>
-                      <p className="text-sm text-secondary">{order.product.name}</p>
-                      
-                      <div className="flex items-center justify-between mt-2">
-                        <div className={`flex items-center gap-1 text-xs ${statusConfig.color}`}>
-                          <StatusIcon size={14} />
-                          <span>{statusConfig.label}</span>
-                        </div>
-                        <p className="text-xs text-muted">{formatDate(order.createdAt)}</p>
-                      </div>
-                    </div>
-
-                    {/* Кнопка повторить заказ */}
-                    <Link 
-                      href={`/product/${order.productId}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="shrink-0 p-2 rounded-xl bg-orange-50 hover:bg-orange-100 transition-colors"
-                      title="Повторить заказ"
-                    >
-                      <RefreshCw className="text-[#f77430]" size={18} />
-                    </Link>
-                    
-                    <ChevronRight className="text-muted shrink-0" size={18} />
+              <div
+                key={order.id}
+                className="glass-card animate-slide-up cursor-pointer"
+                style={{ animationDelay: `${0.05 * (index + 1)}s` }}
+                onClick={() => router.push(`/order/${order.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    router.push(`/order/${order.id}`)
+                  }
+                }}
+                role="link"
+                tabIndex={0}
+              >
+                <div className="flex items-center gap-4">
+                  {/* Country Flag */}
+                  <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
+                    {getFlagUrl(order.product.country) ? (
+                      <img
+                        src={getFlagUrl(order.product.country)}
+                        alt={order.product.country}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <img src="/logo-mark.png" alt="Mojo mobile" className="w-8 h-8 rounded-lg object-contain" />
+                    )}
                   </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <h3 className="font-semibold text-primary truncate">
+                        {order.product.country}
+                      </h3>
+                      <p className="font-bold text-accent shrink-0">₽{order.totalAmount}</p>
+                    </div>
+                    <p className="text-sm text-secondary">{order.product.name}</p>
+
+                    <div className="flex items-center justify-between mt-2">
+                      <div className={`flex items-center gap-1 text-xs ${statusConfig.color}`}>
+                        <StatusIcon size={14} />
+                        <span>{statusConfig.label}</span>
+                      </div>
+                      <p className="text-xs text-muted">{formatDate(order.createdAt)}</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      router.push(`/product/${order.productId}`)
+                    }}
+                    className="shrink-0 p-2 rounded-xl bg-orange-50 hover:bg-orange-100 transition-colors"
+                    title="Повторить заказ"
+                    aria-label="Повторить заказ"
+                  >
+                    <RefreshCw className="text-[#f77430]" size={18} />
+                  </button>
+
+                  <ChevronRight className="text-muted shrink-0" size={18} />
                 </div>
-              </Link>
+              </div>
             )
           })}
         </div>

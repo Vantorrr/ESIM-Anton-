@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import Script from 'next/script'
 import './globals.css'
 import TelegramRedirectHandler from '@/components/TelegramRedirectHandler'
 import { AuthProvider } from '@/components/AuthProvider'
@@ -55,11 +56,15 @@ export default function RootLayout({
   children: any
 }) {
   return (
-    <html lang="ru">
+    <html lang="ru" suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <script
+      </head>
+      <body suppressHydrationWarning>
+        <Script
+          id="sw-reset"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function(){
@@ -80,8 +85,14 @@ export default function RootLayout({
             `,
           }}
         />
-        <script src="https://telegram.org/js/telegram-web-app.js" async />
-        <script
+        <Script
+          id="telegram-sdk"
+          src="https://telegram.org/js/telegram-web-app.js"
+          strategy="afterInteractive"
+        />
+        <Script
+          id="telegram-bootstrap"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -104,9 +115,11 @@ export default function RootLayout({
             `,
           }}
         />
-        <script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js" async />
-      </head>
-      <body>
+        <Script
+          id="cloudpayments-sdk"
+          src="https://widget.cloudpayments.ru/bundles/cloudpayments.js"
+          strategy="afterInteractive"
+        />
         {/* Font stack задаётся в globals.css, чтобы build не зависел от fetch Google Fonts */}
         <AuthProvider>
           <TelegramRedirectHandler />

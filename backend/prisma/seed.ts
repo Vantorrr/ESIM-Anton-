@@ -48,37 +48,62 @@ async function main() {
   
   const products = [
     // США
-    { country: 'США', name: '1GB / 7 дней', dataAmount: '1GB', validityDays: 7, providerPrice: 300, ourPrice: 490, providerId: 'usa_1gb_7d' },
-    { country: 'США', name: '3GB / 15 дней', dataAmount: '3GB', validityDays: 15, providerPrice: 600, ourPrice: 990, providerId: 'usa_3gb_15d' },
-    { country: 'США', name: '5GB / 30 дней', dataAmount: '5GB', validityDays: 30, providerPrice: 900, ourPrice: 1490, providerId: 'usa_5gb_30d' },
-    { country: 'США', name: '10GB / 30 дней', dataAmount: '10GB', validityDays: 30, providerPrice: 1500, ourPrice: 2490, providerId: 'usa_10gb_30d' },
+    { country: 'US', name: '1GB / 7 дней', dataAmount: '1GB', validityDays: 7, providerPrice: 300, ourPrice: 490, providerId: 'usa_1gb_7d' },
+    { country: 'US', name: '3GB / 15 дней', dataAmount: '3GB', validityDays: 15, providerPrice: 600, ourPrice: 990, providerId: 'usa_3gb_15d' },
+    { country: 'US', name: '5GB / 30 дней', dataAmount: '5GB', validityDays: 30, providerPrice: 900, ourPrice: 1490, providerId: 'usa_5gb_30d' },
+    { country: 'US', name: '10GB / 30 дней', dataAmount: '10GB', validityDays: 30, providerPrice: 1500, ourPrice: 2490, providerId: 'usa_10gb_30d' },
     
     // Европа
-    { country: 'Европа', region: '🇪🇺 30 стран', name: '1GB / 7 дней', dataAmount: '1GB', validityDays: 7, providerPrice: 350, ourPrice: 590, providerId: 'eu_1gb_7d' },
-    { country: 'Европа', region: '🇪🇺 30 стран', name: '3GB / 15 дней', dataAmount: '3GB', validityDays: 15, providerPrice: 700, ourPrice: 1190, providerId: 'eu_3gb_15d' },
-    { country: 'Европа', region: '🇪🇺 30 стран', name: '5GB / 30 дней', dataAmount: '5GB', validityDays: 30, providerPrice: 1000, ourPrice: 1690, providerId: 'eu_5gb_30d' },
-    { country: 'Европа', region: '🇪🇺 30 стран', name: '10GB / 30 дней', dataAmount: '10GB', validityDays: 30, providerPrice: 1800, ourPrice: 2890, providerId: 'eu_10gb_30d' },
+    { country: 'EU-30', region: 'France, Germany, Italy, Spain, Netherlands, Belgium, Austria, Switzerland', name: '1GB / 7 дней', dataAmount: '1GB', validityDays: 7, providerPrice: 350, ourPrice: 590, providerId: 'eu_1gb_7d' },
+    { country: 'EU-30', region: 'France, Germany, Italy, Spain, Netherlands, Belgium, Austria, Switzerland', name: '3GB / 15 дней', dataAmount: '3GB', validityDays: 15, providerPrice: 700, ourPrice: 1190, providerId: 'eu_3gb_15d' },
+    { country: 'EU-30', region: 'France, Germany, Italy, Spain, Netherlands, Belgium, Austria, Switzerland', name: '5GB / 30 дней', dataAmount: '5GB', validityDays: 30, providerPrice: 1000, ourPrice: 1690, providerId: 'eu_5gb_30d' },
+    { country: 'EU-30', region: 'France, Germany, Italy, Spain, Netherlands, Belgium, Austria, Switzerland', name: '10GB / 30 дней', dataAmount: '10GB', validityDays: 30, providerPrice: 1800, ourPrice: 2890, providerId: 'eu_10gb_30d' },
     
     // Турция
-    { country: 'Турция', name: '2GB / 7 дней', dataAmount: '2GB', validityDays: 7, providerPrice: 200, ourPrice: 390, providerId: 'tr_2gb_7d' },
-    { country: 'Турция', name: '5GB / 15 дней', dataAmount: '5GB', validityDays: 15, providerPrice: 400, ourPrice: 690, providerId: 'tr_5gb_15d' },
-    { country: 'Турция', name: '8GB / 30 дней', dataAmount: '8GB', validityDays: 30, providerPrice: 700, ourPrice: 1190, providerId: 'tr_8gb_30d' },
+    { country: 'TR', name: '2GB / 7 дней', dataAmount: '2GB', validityDays: 7, providerPrice: 200, ourPrice: 390, providerId: 'tr_2gb_7d' },
+    { country: 'TR', name: '5GB / 15 дней', dataAmount: '5GB', validityDays: 15, providerPrice: 400, ourPrice: 690, providerId: 'tr_5gb_15d' },
+    { country: 'TR', name: '8GB / 30 дней', dataAmount: '8GB', validityDays: 30, providerPrice: 700, ourPrice: 1190, providerId: 'tr_8gb_30d' },
     
     // ОАЭ
-    { country: 'ОАЭ', name: '1GB / 7 дней', dataAmount: '1GB', validityDays: 7, providerPrice: 250, ourPrice: 450, providerId: 'ae_1gb_7d' },
-    { country: 'ОАЭ', name: '3GB / 15 дней', dataAmount: '3GB', validityDays: 15, providerPrice: 500, ourPrice: 850, providerId: 'ae_3gb_15d' },
-    { country: 'ОАЭ', name: '5GB / 30 дней', dataAmount: '5GB', validityDays: 30, providerPrice: 800, ourPrice: 1390, providerId: 'ae_5gb_30d' },
+    { country: 'AE', name: '1GB / 7 дней', dataAmount: '1GB', validityDays: 7, providerPrice: 250, ourPrice: 450, providerId: 'ae_1gb_7d' },
+    { country: 'AE', name: '3GB / 15 дней', dataAmount: '3GB', validityDays: 15, providerPrice: 500, ourPrice: 850, providerId: 'ae_3gb_15d' },
+    { country: 'AE', name: '5GB / 30 дней', dataAmount: '5GB', validityDays: 30, providerPrice: 800, ourPrice: 1390, providerId: 'ae_5gb_30d' },
     
     // Азия
-    { country: 'Таиланд', name: '2GB / 7 дней', dataAmount: '2GB', validityDays: 7, providerPrice: 180, ourPrice: 350, providerId: 'th_2gb_7d' },
-    { country: 'Таиланд', name: '5GB / 15 дней', dataAmount: '5GB', validityDays: 15, providerPrice: 380, ourPrice: 650, providerId: 'th_5gb_15d' },
-    { country: 'Япония', name: '1GB / 7 дней', dataAmount: '1GB', validityDays: 7, providerPrice: 300, ourPrice: 550, providerId: 'jp_1gb_7d' },
-    { country: 'Япония', name: '3GB / 15 дней', dataAmount: '3GB', validityDays: 15, providerPrice: 600, ourPrice: 1050, providerId: 'jp_3gb_15d' },
+    { country: 'TH', name: '2GB / 7 дней', dataAmount: '2GB', validityDays: 7, providerPrice: 180, ourPrice: 350, providerId: 'th_2gb_7d' },
+    { country: 'TH', name: '5GB / 15 дней', dataAmount: '5GB', validityDays: 15, providerPrice: 380, ourPrice: 650, providerId: 'th_5gb_15d' },
+    { country: 'JP', name: '1GB / 7 дней', dataAmount: '1GB', validityDays: 7, providerPrice: 300, ourPrice: 550, providerId: 'jp_1gb_7d' },
+    { country: 'JP', name: '3GB / 15 дней', dataAmount: '3GB', validityDays: 15, providerPrice: 600, ourPrice: 1050, providerId: 'jp_3gb_15d' },
   ];
 
   for (const product of products) {
+    const existing = await prisma.esimProduct.findFirst({
+      where: { providerId: product.providerId },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await prisma.esimProduct.update({
+        where: { id: existing.id },
+        data: {
+          country: product.country,
+          region: product.region,
+          name: product.name,
+          dataAmount: product.dataAmount,
+          validityDays: product.validityDays,
+          providerPrice: product.providerPrice,
+          ourPrice: product.ourPrice,
+          providerName: 'seed',
+        },
+      });
+      continue;
+    }
+
     await prisma.esimProduct.create({
-      data: product,
+      data: {
+        ...product,
+        providerName: 'seed',
+      },
     });
   }
   console.log(`✅ Создано ${products.length} продуктов\n`);

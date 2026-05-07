@@ -26,37 +26,37 @@
   - Документ: [phase-2-runtime-verification.md](./phase-2-runtime-verification.md)
 
 - [ ] **Phase 3: Admin Auth & API Security Hardening**
-  - Заменить browser-side PIN как единственный барьер на backend admin JWT.
-  - Закрыть write/admin endpoints через `JwtAdminGuard`.
-  - Проверить, что unauthenticated write-запросы получают `401/403`.
+  - Перевести admin с frontend-only PIN на backend admin JWT flow.
+  - Закрыть реальные write endpoints через `JwtAdminGuard`, не сломав существующие read flows.
+  - Отдельно проверить незакрытые routes `products`, `promo-codes`, `system-settings`, `loyalty`, `users`, `payments`.
   - Документ: [phase-3-admin-auth-and-api-security.md](./phase-3-admin-auth-and-api-security.md)
 
 - [ ] **Phase 4: Loyalty & Referral Wiring**
-  - Подключить реферальные бонусы к successful purchase flow.
-  - Подключить пересчёт loyalty level после оплаченного заказа.
-  - Синхронизировать admin settings `SystemSettings` с runtime-логикой.
+  - Зафиксировать единую completion boundary вокруг `OrdersService.fulfillOrder()` и payment callbacks.
+  - Подключить referral bonus к успешной покупке с идемпотентностью и чтением настроек из `SystemSettings`.
+  - Подключить пересчёт `loyaltyLevel` после обновления `totalSpent` и проверить влияние на последующие покупки.
   - Документ: [phase-4-loyalty-and-referral-wiring.md](./phase-4-loyalty-and-referral-wiring.md)
 
 - [ ] **Phase 5: eSIM Usage, Status & Activation**
-  - Проверить usage/status на реальном eSIM Access заказе.
-  - Довести отображение расхода трафика, статусов и activation links.
-  - Проверить low-traffic notification в Telegram bot.
+  - Подтвердить реальный provider contract для `getEsimSnapshot()` и `purchaseEsim()` на контролируемом заказе.
+  - Довести единый lifecycle `backend -> client -> bot` для usage, статусов, LPA/QR и top-up readiness.
+  - Проверить low-traffic monitoring cron и Telegram delivery на реальном или воспроизводимом сценарии.
   - Документ: [phase-5-esim-usage-status-and-activation.md](./phase-5-esim-usage-status-and-activation.md)
 
 - [ ] **Phase 6: Admin Orders, Analytics & Reporting**
-  - Доработать таблицу заказов: promo/final paid amount/sorting/export.
-  - Исправить analytics расчёты по фактически оплаченным заказам.
-  - Зафиксировать delete policy для admin rows.
+  - Доработать admin orders table, которая пока показывает только базовые поля без promo/discount/export.
+  - Вынести формулу `paid revenue` и проверить, что dashboard/analytics не расходятся с business definition.
+  - Зафиксировать policy для cancel/delete без потери audit trail.
   - Документ: [phase-6-admin-orders-analytics-and-reporting.md](./phase-6-admin-orders-analytics-and-reporting.md)
 
 - [ ] **Phase 7: Product Catalog Sync & Tariff Metadata**
-  - Довести отображение `tags`, `notes`, `region` и отличий похожих тарифов.
-  - Превратить provider sync из preview/TODO в понятный upsert/dry-run flow.
-  - Проверить дубли тарифов и UX выбора пакетов.
+  - Сверить catalog metadata с уже существующим `ProductsService.syncWithProvider()` и dedupe flow.
+  - Довести отображение `tags`, `notes`, `region`, `supportTopup` и различий похожих тарифов в client/admin.
+  - Зафиксировать безопасные semantics для sync/reprice/dedupe и закрыть их backend auth.
   - Документ: [phase-7-product-catalog-sync-and-tariff-metadata.md](./phase-7-product-catalog-sync-and-tariff-metadata.md)
 
 - [ ] **Phase 8: Production Readiness & Railway Rollout**
-  - Проверить Railway service commands и production env baseline.
-  - Подготовить миграционный rollout без риска для существующей production DB.
-  - Выполнить deploy только после прохождения предыдущих фаз.
+  - Подтвердить Railway service-level commands и env baseline до любых deploy-sensitive изменений.
+  - Подготовить rollout для уже существующей production DB с baseline migration `20260507_init`.
+  - Выполнять controlled deploy только после завершения security/business-critical фаз и smoke-checklist.
   - Документ: [phase-8-production-readiness-and-railway-rollout.md](./phase-8-production-readiness-and-railway-rollout.md)

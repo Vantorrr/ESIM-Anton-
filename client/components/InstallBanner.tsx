@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { X } from '@/components/icons'
 
 export default function InstallBanner() {
   const [show, setShow] = useState(false)

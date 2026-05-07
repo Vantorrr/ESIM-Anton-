@@ -5,6 +5,8 @@ node_modules/
 .pnp.js
 AGENTS.md
 info
+scripts
+audits
 
 # Testing
 coverage/

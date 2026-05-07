@@ -27,8 +27,10 @@
 ## Product behavior
 
 - `pnpm dev` не запускает `client`; для полного локального контура нужен отдельный запуск пользовательского фронта.
+- `client/app/layout.tsx` намеренно выполняет Telegram/PWA scripts до hydration и может мутировать DOM (`html/body`, CSS variables, service worker state) раньше React. В локальном `next dev` это способно давать hydration warnings даже при нормальном production-поведении; для такого layout нужен `suppressHydrationWarning` на корневой boundary.
+- В текущем `client` связка `next@14.2.x` + `react 18.3.x` + `lucide-react@0.563.x` может давать разный SSR/CSR SVG output (`className`, `aria-hidden`, `path d`) и валить hydration после reload. На пользовательском фронте безопаснее импортировать иконки через локальный client-only shim, а не напрямую из `lucide-react`.
 - `admin` navigation показывает вкладки `payments` и `analytics`, но в UI это пока заглушки.
-- `EsimProviderService.syncProducts()` не синхронизирует БД, несмотря на название и ожидания старой документации.
+- catalog sync split-brain: legacy `EsimProviderService.syncProducts()` не пишет в БД, но реальный admin route использует `ProductsService.syncWithProvider()`, который уже делает upsert. При работе с roadmap нельзя путать эти два контура.
 - Реферальные настройки и loyalty logic сейчас требуют wiring-аудита: UI/сервисы есть, но начисление бонуса и пересчёт уровня не подтверждены как подключённые к successful purchase flow.
 - `client` build исторически ломался из-за отсутствующих SWC optional deps и build-time загрузки Google Fonts; после фикса package manifests и удаления `next/font/google` зависимость от внешнего fetch убрана.
 - В Phase 2 найдены и исправлены frontend/backend route mismatches: client referral stats должен ходить в `/referrals/stats/:userId`, а история транзакций баланса — в `/payments/user/:userId`.

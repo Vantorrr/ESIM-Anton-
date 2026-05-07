@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, RefreshCw, Wifi, AlertCircle, CheckCircle2, Wallet, CreditCard } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Wifi, AlertCircle, CheckCircle2, Wallet, CreditCard } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
 import { ordersApi, userApi, api, type TopupPackage, type Order } from '@/lib/api'
 import { useSmartBack } from '@/lib/useSmartBack'

@@ -52,11 +52,13 @@ cp .env.example .env
 
 - `DATABASE_URL`
 - `JWT_SECRET`
+- `CORS_ORIGIN`
 - `TELEGRAM_BOT_TOKEN` если нужен реальный bot runtime
 - `ESIMACCESS_ACCESS_CODE` и `ESIMACCESS_SECRET_KEY` если нужен реальный eSIM provider
 
 Примечание:
 
+- для локального контура backend должен принимать и `http://localhost:3001`, и `http://localhost:3002`; если используете одно значение `CORS_ORIGIN`, указывайте localhost-origin и не забывайте перезапускать backend после изменения `.env`;
 - без eSIM Access credentials backend поднимется, но provider-запросы будут падать;
 - без CloudPayments/Robokassa credentials карточные платежные сценарии не будут полностью работоспособны.
 

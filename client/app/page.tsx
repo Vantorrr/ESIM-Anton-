@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Search } from 'lucide-react'
+import { Search } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
 import { formatPrice, getFlagUrl, getCountryName } from '@/lib/utils'
@@ -61,7 +61,7 @@ interface CountryGroup {
 // Популярные страны (можно настроить)
 const POPULAR_COUNTRIES = [
   'Turkey', 'Турция',
-  'Russia', 'Россия', 
+  'Russia', 'Россия',
   'Egypt', 'Египет',
   'United Arab Emirates', 'ОАЭ', 'UAE',
   'China', 'Китай',
@@ -78,9 +78,9 @@ const POPULAR_COUNTRIES = [
 
 // Twemoji глобусы (скачаны локально в /public/emoji/)
 const GLOBE_EU_AF = '/emoji/globe-eu-af.svg'  // 🌍 Европа + Африка
-const GLOBE_ASIA  = '/emoji/globe-asia.svg'   // 🌏 Азия + Австралия
-const GLOBE_AM    = '/emoji/globe-am.svg'     // 🌎 Америка
-const GLOBE_GRID  = '/emoji/globe-grid.svg'   // 🌐 глобус с сеткой
+const GLOBE_ASIA = '/emoji/globe-asia.svg'   // 🌏 Азия + Австралия
+const GLOBE_AM = '/emoji/globe-am.svg'     // 🌎 Америка
+const GLOBE_GRID = '/emoji/globe-grid.svg'   // 🌐 глобус с сеткой
 
 function getRegionIcon(humanName: string): { img: string; bg: string } {
   const n = humanName.trim().toLowerCase()
@@ -116,7 +116,7 @@ function getRegionIcon(humanName: string): { img: string; bg: string } {
 function CountryListRow({ group, index }: { group: CountryGroup; index: number }) {
   const flagUrl = getFlagUrl(group.country)
   const countryName = getCountryName(group.country)
-  
+
   return (
     <Link href={`/country/${encodeURIComponent(group.country)}`}>
       <div
@@ -276,20 +276,20 @@ function saveSearch(query: string) {
 }
 
 export default function Home() {
-  const cachedData = getCachedProducts()
-  const hasCachedData = cachedData && cachedData.length > 0
-  
-  const [products, setProducts] = useState<Product[]>(cachedData || [])
-  const [loading, setLoading] = useState(!hasCachedData)
-  const [showSplash, setShowSplash] = useState(!hasCachedData)
-  const [searchQuery, setSearchQuery] = useState(getSavedSearch())
+  // SSR-safe defaults: на сервере всегда splash + пустые данные.
+  // sessionStorage читаем только на клиенте в useEffect, чтобы
+  // избежать hydration mismatch (сервер не имеет доступа к sessionStorage).
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showSplash, setShowSplash] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'countries' | 'multi' | 'global'>('countries')
   const [countryGroups, setCountryGroups] = useState<CountryGroup[]>([])
   const [multiGroups, setMultiGroups] = useState<CountryGroup[]>([])
   const [globalGroups, setGlobalGroups] = useState<CountryGroup[]>([])
   const [popularCountries, setPopularCountries] = useState<CountryGroup[]>([])
 
-  const dataReadyRef = React.useRef(hasCachedData)
+  const dataReadyRef = React.useRef(false)
   const videoEndedRef = React.useRef(false)
 
   const tryDismissSplash = () => {
@@ -304,8 +304,19 @@ export default function Home() {
     tryDismissSplash()
   }
 
+  // Hydrate from sessionStorage on mount (client-only)
   useEffect(() => {
-    if (!hasCachedData) {
+    const cached = getCachedProducts()
+    const savedSearch = getSavedSearch()
+    if (savedSearch) setSearchQuery(savedSearch)
+
+    if (cached && cached.length > 0) {
+      setProducts(cached)
+      dataReadyRef.current = true
+      // Кэш есть — пропускаем splash и загрузку
+      setShowSplash(false)
+      setLoading(false)
+    } else {
       loadProducts()
     }
   }, [])
@@ -336,19 +347,18 @@ export default function Home() {
     const groups: Record<string, CountryGroup> = {}
     const multi: Record<string, CountryGroup> = {}
     const global: Record<string, CountryGroup> = {}
-    
+
     products.forEach(product => {
       const country = product.country
       const isGlobal = isGlobalProduct(product)
       const isMulti = isMultiProduct(product)
 
-      // Исторически часть локальных данных и seed'ов использует кириллические
-      // названия стран. Нельзя выкидывать их целиком, иначе локальный каталог
-      // становится пустым. Отбрасываем только явно битые записи с нулевой ценой.
-      if (/[а-яА-ЯёЁ]/.test(country) && Number(product.ourPrice) <= 0) return
-      
+      // Пропускаем ВСЕ продукты с кириллическими именами стран —
+      // это дубли нормально закодированных (AE, TR, JP...) с ценой 0
+      if (/[а-яА-ЯёЁ]/.test(country)) return
+
       const targetGroups = isGlobal ? global : isMulti ? multi : groups
-      
+
       if (!targetGroups[country]) {
         targetGroups[country] = {
           country,
@@ -366,34 +376,34 @@ export default function Home() {
         targetGroups[country].productCount++
       }
     })
-    
+
     const allGroups = Object.values(groups).sort((a, b) => a.country.localeCompare(b.country))
     const allMulti = Object.values(multi).sort((a, b) => a.country.localeCompare(b.country))
     const allGlobal = Object.values(global).sort((a, b) => a.minPrice - b.minPrice)
-    
+
     setCountryGroups(allGroups)
     setMultiGroups(allMulti)
     setGlobalGroups(allGlobal)
-    
+
     // Выделяем популярные
-    const popular = allGroups.filter(g => 
-      POPULAR_COUNTRIES.some(pc => 
+    const popular = allGroups.filter(g =>
+      POPULAR_COUNTRIES.some(pc =>
         g.country.toLowerCase().includes(pc.toLowerCase()) ||
         pc.toLowerCase().includes(g.country.toLowerCase())
       )
     ).slice(0, 8)
-    
+
     setPopularCountries(popular.length > 0 ? popular : allGroups.slice(0, 8))
   }
 
   // Поиск по названию страны (на русском) И по ISO коду
   const filteredCountries = searchQuery
     ? countryGroups.filter(g => {
-        const query = searchQuery.toLowerCase();
-        const countryName = getCountryName(g.country).toLowerCase();
-        const countryCode = g.country.toLowerCase();
-        return countryName.includes(query) || countryCode.includes(query);
-      })
+      const query = searchQuery.toLowerCase();
+      const countryName = getCountryName(g.country).toLowerCase();
+      const countryCode = g.country.toLowerCase();
+      return countryName.includes(query) || countryCode.includes(query);
+    })
     : countryGroups
 
   // Автоскролл к результатам при поиске
@@ -451,23 +461,22 @@ export default function Home() {
       {/* Tabs */}
       <div className="mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
         <div className="w-full rounded-full bg-white/75 border border-gray-200 p-1 flex gap-1.5">
-        {[
-          { id: 'countries' as const, label: 'Страны' },
-          { id: 'multi' as const, label: 'Мульти-страны' },
-          { id: 'global' as const, label: 'Глобальный' },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-2.5 rounded-full text-sm font-medium text-center transition-all ${
-              activeTab === tab.id
-                ? 'bg-[#f77430] text-white shadow-md shadow-orange-200'
-                : 'bg-white text-gray-600 border border-gray-200'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+          {[
+            { id: 'countries' as const, label: 'Страны' },
+            { id: 'multi' as const, label: 'Мульти-страны' },
+            { id: 'global' as const, label: 'Глобальный' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 py-2.5 rounded-full text-sm font-medium text-center transition-all ${activeTab === tab.id
+                  ? 'bg-[#f77430] text-white shadow-md shadow-orange-200'
+                  : 'bg-white text-gray-600 border border-gray-200'
+                }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 

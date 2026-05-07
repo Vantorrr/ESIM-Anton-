@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from '@/components/icons'
 import { useRouter } from 'next/navigation'
 
 function Step({ num, title, items }: { num: string; title: string; items: string[] }) {

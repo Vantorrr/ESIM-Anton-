@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from '@/components/icons'
 import { useSmartBack } from '@/lib/useSmartBack'
 
 export default function OfferPage() {
