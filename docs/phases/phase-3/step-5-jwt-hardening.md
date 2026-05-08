@@ -42,11 +42,11 @@ const payload = {
 
 ### 5.3 Сократить TTL admin JWT до 8 часов
 
-- В `auth.service.ts`, метод `loginAdmin()`: использовать `jwtService.sign(payload, { expiresIn: '8h' })` вместо дефолтного `7d`.
+- В `auth.service.ts`, метод `loginAdmin()`: использовать `jwtService.sign(payload, { expiresIn: '24h' })` вместо дефолтного `7d`.
 
 ```
 return {
-  access_token: this.jwtService.sign(payload, { expiresIn: '8h' }),
+  access_token: this.jwtService.sign(payload, { expiresIn: '24h' }),
   admin: { ... },
 };
 ```
@@ -59,11 +59,15 @@ return {
 
 ## Статус
 
-Не начато
+Реализовано
 
 ## Журнал изменений
 
-(будет заполнено при реализации)
+- **[2026-05-08]**
+  - `AuthService.loginAdmin()` теперь выпускает admin JWT с `type: 'admin'` и `expiresIn: '24h'`.
+  - `JwtAdminGuard` проверяет `type === 'admin'` и role whitelist `SUPER_ADMIN | MANAGER | SUPPORT`.
+  - `JwtUserGuard` ужесточён до `type === 'user'`, чтобы user-only routes не принимали admin token по одному лишь `sub`.
+  - Добавлен unit spec `src/common/auth/jwt-user.guard.spec.ts` на token separation и role validation.
 
 ## Файлы
 

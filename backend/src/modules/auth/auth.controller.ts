@@ -4,17 +4,18 @@ import {
   Get,
   Body,
   Query,
-  Headers,
   Req,
   Redirect,
   Res,
-  UnauthorizedException,
   BadRequestException,
   Logger,
+  UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { AuthUser, CurrentUser, JwtAdminGuard, JwtUserGuard } from '@/common/auth/jwt-user.guard';
 import { AuthService } from './auth.service';
 import { SmsService } from './sms.service';
 import { OAuthService } from './oauth.service';
@@ -40,8 +41,23 @@ export class AuthController {
   }
 
   @Post('register-admin')
+  @UseGuards(JwtAdminGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Создать администратора' })
-  async registerAdmin(@Body() dto: any) {
+  async registerAdmin(
+    @CurrentUser() caller: AuthUser,
+    @Body()
+    dto: {
+      email: string;
+      password: string;
+      firstName?: string;
+      lastName?: string;
+      role?: 'SUPER_ADMIN' | 'MANAGER' | 'SUPPORT';
+    },
+  ) {
+    if (caller.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Only SUPER_ADMIN can create admins');
+    }
     return this.authService.createAdmin(dto);
   }
 
@@ -182,16 +198,11 @@ export class AuthController {
   // ─── /auth/me ─────────────────────────────────────────────────
 
   @Get('me')
+  @UseGuards(JwtUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Получить текущего пользователя' })
-  async getMe(@Headers('authorization') authHeader: string) {
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new UnauthorizedException('No token');
-    }
-    const token = authHeader.slice(7);
-    const payload = await this.authService.verifyToken(token);
-    if (payload.type !== 'user') throw new UnauthorizedException('Not a user token');
-    return this.authService.getMe(payload.sub);
+  async getMe(@CurrentUser() user: AuthUser) {
+    return this.authService.getMe(user.id);
   }
 
   // ─── Helpers ──────────────────────────────────────────────────

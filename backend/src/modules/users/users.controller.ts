@@ -1,7 +1,23 @@
-import { Controller, Get, Post, Patch, Delete, Param, Query, Body, Headers, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Query,
+  Body,
+  ForbiddenException,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { AuthUser, CurrentUser, JwtAdminGuard, JwtUserGuard } from '@/common/auth/jwt-user.guard';
+import { OrGuard } from '@/common/auth/or.guard';
+import { ServiceTokenGuard } from '@/common/auth/service-token.guard';
 import { UsersService } from './users.service';
 import { PushService } from '../notifications/push.service';
+
+const UserAccessGuard = OrGuard(JwtAdminGuard, JwtUserGuard);
 
 // Хелпер для сериализации BigInt в JSON
 function serializeUser(user: any): any {
@@ -20,6 +36,7 @@ export class UsersController {
   ) {}
 
   @Get()
+  @UseGuards(JwtAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Получить список всех пользователей' })
   async findAll(@Query('page') page = 1, @Query('limit') limit = 20) {
@@ -31,14 +48,19 @@ export class UsersController {
   }
 
   @Get(':id')
+  @UseGuards(UserAccessGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Получить пользователя по ID' })
-  async findOne(@Param('id') id: string) {
-    const user = await this.usersService.findById(id);
-    return serializeUser(user);
+  async findOne(@Param('id') id: string, @CurrentUser() currentUser: AuthUser) {
+    if (currentUser.type !== 'admin' && currentUser.id !== id) {
+      throw new ForbiddenException('Доступ к чужому профилю запрещён');
+    }
+    const foundUser = await this.usersService.findById(id);
+    return serializeUser(foundUser);
   }
 
   @Get(':id/stats')
+  @UseGuards(JwtAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Получить статистику пользователя' })
   async getStats(@Param('id') id: string) {
@@ -50,6 +72,7 @@ export class UsersController {
   }
 
   @Post('find-or-create')
+  @UseGuards(ServiceTokenGuard)
   @ApiOperation({ summary: 'Найти или создать пользователя (для бота)' })
   async findOrCreate(@Body() dto: {
     telegramId: string;
@@ -69,23 +92,14 @@ export class UsersController {
   }
 
   @Patch('me/email')
+  @UseGuards(JwtUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Сохранить email текущего пользователя' })
   async updateMyEmail(
-    @Headers('authorization') authHeader: string,
+    @CurrentUser() user: AuthUser,
     @Body() dto: { email: string },
   ) {
-    if (!authHeader?.startsWith('Bearer ')) throw new UnauthorizedException('No token');
-    const token = authHeader.slice(7);
-    let userId: string;
-    try {
-      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
-      userId = payload.sub;
-    } catch {
-      throw new UnauthorizedException('Invalid token');
-    }
-    if (!userId) throw new UnauthorizedException('Invalid token payload');
-    const updated = await this.usersService.updateEmail(userId, dto.email);
+    const updated = await this.usersService.updateEmail(user.id, dto.email);
     return serializeUser(updated);
   }
 
@@ -96,23 +110,33 @@ export class UsersController {
   }
 
   @Post(':id/push/subscribe')
+  @UseGuards(JwtUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Подписаться на web push уведомления' })
   async subscribePush(
     @Param('id') userId: string,
+    @CurrentUser() user: AuthUser,
     @Body() dto: { endpoint: string; p256dh: string; auth: string },
   ) {
+    if (user.id !== userId) {
+      throw new ForbiddenException('Нельзя подписывать чужой push endpoint');
+    }
     await this.pushService.subscribe(userId, dto);
     return { success: true };
   }
 
   @Delete(':id/push/unsubscribe')
+  @UseGuards(JwtUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Отписаться от web push уведомлений' })
   async unsubscribePush(
     @Param('id') userId: string,
+    @CurrentUser() user: AuthUser,
     @Body() dto: { endpoint: string },
   ) {
+    if (user.id !== userId) {
+      throw new ForbiddenException('Нельзя отписывать чужой push endpoint');
+    }
     await this.pushService.unsubscribe(dto.endpoint);
     return { success: true };
   }

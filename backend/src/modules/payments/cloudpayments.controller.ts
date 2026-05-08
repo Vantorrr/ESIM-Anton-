@@ -10,8 +10,10 @@ import {
   RawBodyRequest,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { JwtAdminGuard } from '@/common/auth/jwt-user.guard';
 import { CloudPaymentsService } from './cloudpayments.service';
 import { TelegramNotificationService } from '../telegram/telegram-notification.service';
 
@@ -30,6 +32,8 @@ export class CloudPaymentsController {
   ) {}
 
   @Get('test-notify')
+  @UseGuards(JwtAdminGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Test Telegram notification' })
   async testNotify(@Query('telegramId') telegramId: string) {
     try {

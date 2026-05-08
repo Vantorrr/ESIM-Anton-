@@ -138,6 +138,6 @@ pnpm --filter client start
 1. `/api/docs` открывается
 2. client логин и каталог работают
 3. admin открывается и читает backend API
-4. bot запускается и может делать `find-or-create`
+4. bot запускается и может делать `find-or-create` по service-token contract (`x-telegram-bot-token`)
 5. payment callbacks доходят
 6. OAuth redirect/callback URLs совпадают с production hostnames

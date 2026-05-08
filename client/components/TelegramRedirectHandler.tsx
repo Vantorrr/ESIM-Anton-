@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ordersApi, userApi } from '@/lib/api'
+import { getToken } from '@/lib/auth'
 
 const LAST_NOTIFIED_ORDER_KEY = 'last_notified_order_id'
 
@@ -35,12 +36,17 @@ export default function TelegramRedirectHandler() {
       }
 
       try {
-        // Получаем telegramId
-        const telegramId = tg.initDataUnsafe?.user?.id || 316662303 // fallback
-        console.log('🔍 Checking for new orders, telegramId:', telegramId)
+        const token = getToken()
+        if (!token) {
+          console.log('ℹ️ Skip new-order check: no user JWT in storage yet')
+          return
+        }
 
-        // Получаем пользователя
-        const user = await userApi.getMe(String(telegramId))
+        const telegramId = tg.initDataUnsafe?.user?.id
+        console.log('🔍 Checking for new orders, telegramId:', telegramId ?? 'unknown')
+
+        // User profile теперь читается через /auth/me и требует валидный JWT.
+        const user = await userApi.getMe()
         
         // Проверяем новые заказы
         const { hasNewOrders, latestOrder } = await ordersApi.checkNew(user.id)

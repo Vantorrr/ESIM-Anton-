@@ -110,11 +110,28 @@
 
 ## Статус
 
-Не начато (блокировано шагами 3-5)
+Частично выполнено: backend/manual access smoke подтверждён, browser smoke частично подтверждён, повторный clean client pass pending
 
 ## Журнал изменений
 
-(будет заполнено при реализации)
+- **[2026-05-08]**
+  - `npm test -- --runInBand` в `backend/` прошёл: 14 suites, 125 tests green.
+  - `npx nest build` в `backend/` прошёл успешно.
+  - `npm run build` в `backend/` упирается в Windows file lock во время `prisma generate` (`query_engine-windows.dll.node` rename), а не в TypeScript compile phase.
+  - Backend HTTP smoke подтверждён:
+    - anonymous access к `register-admin`, `analytics`, `system-settings`, `users`, `payments`, mutating `products`, `esim-provider`, `orders/:id`, `orders/:id/cancel`, `payments/cloudpayments/test-notify` возвращает `401`;
+    - публичные `GET /products`, `GET /products/countries`, `GET /products/:id` возвращают `200`;
+    - admin JWT даёт `200` на `analytics/dashboard`, `system-settings`, `users`, `payments`, `esim-provider/health`;
+    - user ownership tests дают ожидаемые `200/403` для `orders`, `payments/user/:userId`, `users/:id`, `payments/create`, `users/me/email`;
+    - bot service-token contract подтверждён: `users/find-or-create` без header → `401`, с валидным `x-telegram-bot-token` → `200`;
+    - token confusion подтверждён: user JWT на admin routes → `401`;
+    - role check подтверждён: `SUPER_ADMIN` может создать `SUPPORT` (`201`), `SUPPORT` не может вызвать `register-admin` (`403`).
+  - Browser smoke:
+    - `admin` login seed-админом проходит; dashboard и защищённые tabs `Orders` / `Users` читают backend data под JWT и не вылетают в login.
+    - `client` root и публичный каталог открываются; авторизованный `/orders` и `/balance` открываются после инъекции реального user JWT/localStorage state и показывают owner data.
+  - Во время browser smoke найден и исправлен follow-up regression: `client/components/TelegramRedirectHandler.tsx` больше не дёргает `/auth/me` без сохранённого JWT после перевода `userApi.getMe()` на user-authenticated contract.
+  - Dev `client` runtime оказался нестабилен после hot-reload/build churn (`next dev` локально отдавал `404/500` на `/` и `Cannot find module './954.js'` внутри `.next/server`). Для clean pass был поднят production build на `http://localhost:3102`: root открылся корректно, а console вместо `401 /auth/me` показывает benign `Skip new-order check: no user JWT in storage yet`.
+  - Не покрыты в этой сессии: реальный bot startup `/start` smoke, client path покупки с `paymentMethod=card`, path с `100% promo`.
 
 ## Файлы
 

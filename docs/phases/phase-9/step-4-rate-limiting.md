@@ -8,6 +8,8 @@
 
 Rate limiting — defense-in-depth, не замена auth/ownership/signature checks. В production нужно учитывать reverse proxy и возможный horizontal scaling.
 
+Это не должен быть "магический security fix". Если topology или IP extraction поняты неверно, throttling либо не защищает, либо режет легитимный трафик.
+
 ## Что нужно сделать
 
 ### 4.1 Установить @nestjs/throttler
@@ -25,6 +27,7 @@ Rate limiting — defense-in-depth, не замена auth/ownership/signature c
   - если Railway backend запускается в одном инстансе — in-memory store допустим как временный control;
   - если инстансов больше одного — использовать Redis-backed throttler storage, иначе лимит обходится распределением запросов между инстансами.
 - Проверить client IP extraction за Railway/reverse proxy. Нельзя слепо доверять произвольному `X-Forwarded-For`; trust proxy должен соответствовать deployment topology.
+- До внедрения проверить, не существует ли уже глобального `APP_GUARD`, который может конфликтовать по порядку исполнения или ожиданиям тестов.
 
 ```typescript
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -52,6 +55,7 @@ import { APP_GUARD } from '@nestjs/core';
     - `POST /auth/login` → `@Throttle({ default: { ttl: 60000, limit: 5 } })` (5 попыток в минуту)
     - `POST /auth/phone/send-code` → `@Throttle({ default: { ttl: 60000, limit: 3 } })` (3 SMS в минуту)
 - Рассмотреть отдельные named throttles для SMS по phone number, а не только по IP. IP-only лимит слабее против распределённых SMS bombing попыток.
+- `verify-code` не обязательно throttle-ить так же жёстко, но решение нужно зафиксировать явно: либо оставить только login/send-code, либо добавить отдельный limit и задокументировать why.
 
 ### 4.4 Исключить webhooks из throttle
 
@@ -71,6 +75,12 @@ export class CloudPaymentsController { ... }
 - Проверить `payments.controller.ts` → `POST /payments/webhook` → добавить `@SkipThrottle()` на метод, если есть.
 - Не пропускать throttle для `payments/success` и `payments/fail` без необходимости: это browser redirect pages, не provider webhooks.
 
+### 4.5 Operational notes
+
+- Если лимиты вводятся до Redis-backed storage, это нужно явно задокументировать как single-instance mitigation, а не как окончательное production решение.
+- После внедрения нужно посмотреть реальные backend logs: виден ли реальный client IP или всё считается по одному proxy IP.
+- Если Railway topology позже изменится, throttling нужно пересмотреть в первую очередь.
+
 ## Результат шага
 
 - Глобальный rate limit 60 req/min.
@@ -78,6 +88,7 @@ export class CloudPaymentsController { ... }
 - SMS: 3 запроса в минуту.
 - Webhooks: без ограничений.
 - Production limitation задокументирован: single-instance in-memory или Redis-backed distributed store.
+- Легитимные browser/user flows не получают неожиданные `429` в обычном использовании.
 
 ## Статус
 
@@ -106,3 +117,7 @@ export class CloudPaymentsController { ... }
 - Проверить, что разные clients не схлопываются в один proxy IP в логах throttler.
 - `npm run build` — без ошибок.
 - `npm run test` — все тесты green.
+- Manual smoke:
+  - обычный admin/client flow не получает `429`;
+  - webhook replay test не режется throttler'ом;
+  - после рестарта backend лимиты ведут себя ожидаемо для выбранного storage mode.

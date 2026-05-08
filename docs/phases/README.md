@@ -31,7 +31,7 @@
   - Mixed client/admin routes закрываются через `admin OR owner`, а не blind admin-only.
   - Bot/internal `find-or-create` требует service-token, не admin JWT.
   - Защита `register-admin` + IDOR fix в `updateMyEmail`.
-  - Усиление JWT: `type: 'admin'`, whitelist ролей, TTL 8h.
+  - Усиление JWT: `type: 'admin'`, whitelist ролей, TTL 24h.
   - Admin login flow уже работает (шаги 1-2 подтверждены). 6 шагов, ~4-5ч.
   - Документ: [phase-3-admin-auth-and-api-security.md](./phase-3-admin-auth-and-api-security.md)
 

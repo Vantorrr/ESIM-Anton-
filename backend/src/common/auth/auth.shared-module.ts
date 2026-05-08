@@ -2,6 +2,7 @@ import { Module, Global } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtUserGuard, JwtAdminGuard } from './jwt-user.guard';
+import { ServiceTokenGuard } from './service-token.guard';
 
 /**
  * Общий модуль с JwtService и Guard'ами, чтобы любой модуль (Orders, Products, Payments)
@@ -21,7 +22,7 @@ import { JwtUserGuard, JwtAdminGuard } from './jwt-user.guard';
       }),
     }),
   ],
-  providers: [JwtUserGuard, JwtAdminGuard],
-  exports: [JwtModule, JwtUserGuard, JwtAdminGuard],
+  providers: [JwtUserGuard, JwtAdminGuard, ServiceTokenGuard],
+  exports: [JwtModule, JwtUserGuard, JwtAdminGuard, ServiceTokenGuard],
 })
 export class SharedAuthModule {}

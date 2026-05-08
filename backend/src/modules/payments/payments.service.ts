@@ -147,6 +147,10 @@ export class PaymentsService {
     };
   }
 
+  async assertOrderOwnership(orderId: string, userId: string) {
+    await this.ordersService.assertOwnership(orderId, userId);
+  }
+
   /**
    * Создать платёж для пополнения личного баланса пользователя через Robokassa.
    *

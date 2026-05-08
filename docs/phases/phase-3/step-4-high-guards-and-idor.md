@@ -108,11 +108,20 @@ headers: {
 
 ## Статус
 
-Не начато
+Реализовано в коде, manual smoke pending
 
 ## Журнал изменений
 
-(будет заполнено при реализации)
+- **[2026-05-08]**
+  - Добавлены `ServiceTokenGuard` и `OrGuard`.
+  - `UsersController`: `GET /users` и `GET /users/:id/stats` закрыты `JwtAdminGuard`; `GET /users/:id` переведён на `admin OR owner`; `PATCH /users/me/email` больше не парсит JWT вручную; push subscribe/unsubscribe проверяют ownership.
+  - `POST /users/find-or-create` переведён на bot service-token contract.
+  - `PaymentsController`: `POST /payments/create` теперь требует user JWT и ownership по `orderId`; `GET /payments` закрыт `JwtAdminGuard`; `GET /payments/user/:userId` работает как `admin OR owner`.
+  - `ProductsController`: все mutating/admin routes закрыты `JwtAdminGuard`, публичными остались только catalog read routes.
+  - `OrdersController`: `GET /orders/:id`, `GET /orders/user/:userId`, `POST /orders/:id/fulfill-free` переведены на `admin OR owner`; `check-new` требует совпадение `user.id === userId`.
+  - `CloudPaymentsController.test-notify` закрыт `JwtAdminGuard`.
+  - `bot/src/api.ts` теперь шлёт `x-telegram-bot-token` глобально.
+  - `client/lib/api.ts` перестал использовать `POST /users/find-or-create` для чтения текущего пользователя.
 
 ## Файлы
 

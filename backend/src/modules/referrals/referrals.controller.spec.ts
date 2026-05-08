@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { ReferralsController } from './referrals.controller';
 import { JwtAdminGuard, JwtUserGuard } from '@/common/auth/jwt-user.guard';
+import { ServiceTokenGuard } from '@/common/auth/service-token.guard';
 
 describe('ReferralsController', () => {
   const referralsService = {
@@ -9,11 +10,8 @@ describe('ReferralsController', () => {
     getReferralStats: jest.fn(),
     getTopReferrers: jest.fn(),
   };
-  const configService = {
-    get: jest.fn().mockReturnValue('bot-token'),
-  };
 
-  const controller = new ReferralsController(referralsService as any, configService as any);
+  const controller = new ReferralsController(referralsService as any);
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -40,15 +38,17 @@ describe('ReferralsController', () => {
     expect(guards).toEqual([JwtAdminGuard]);
   });
 
-  it('register требует bot token и telegramId match payload для bot route', async () => {
+  it('register использует ServiceTokenGuard и проксирует payload в service', async () => {
+    const guards = Reflect.getMetadata(GUARDS_METADATA, ReferralsController.prototype.register);
     referralsService.registerReferral.mockResolvedValue({ id: 'ref_1' });
 
-    await controller.register('bot-token', {
+    await controller.register({
       userId: 'user_1',
       referralCode: 'REF123',
       telegramId: '123456',
     });
 
+    expect(guards).toEqual([ServiceTokenGuard]);
     expect(referralsService.registerReferral).toHaveBeenCalledWith(
       'user_1',
       'REF123',

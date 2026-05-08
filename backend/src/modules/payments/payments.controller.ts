@@ -1,8 +1,24 @@
-import { Controller, Get, Post, Param, Body, Query, Res, Header, HttpCode, UseGuards, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Query,
+  Res,
+  Header,
+  HttpCode,
+  UseGuards,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { TransactionStatus, TransactionType } from '@prisma/client';
-import { JwtUserGuard, CurrentUser, AuthUser } from '@/common/auth/jwt-user.guard';
+import { JwtAdminGuard, JwtUserGuard, CurrentUser, AuthUser } from '@/common/auth/jwt-user.guard';
+import { OrGuard } from '@/common/auth/or.guard';
+
+const PaymentsAccessGuard = OrGuard(JwtAdminGuard, JwtUserGuard);
 
 @ApiTags('payments')
 @Controller('payments')
@@ -10,9 +26,14 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post('create')
+  @UseGuards(JwtUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Создать платеж для заказа' })
-  async createPayment(@Body() dto: { orderId: string }) {
+  async createPayment(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: { orderId: string },
+  ) {
+    await this.paymentsService.assertOrderOwnership(dto.orderId, user.id);
     return this.paymentsService.createPayment(dto.orderId);
   }
 
@@ -155,6 +176,7 @@ export class PaymentsController {
   }
 
   @Get()
+  @UseGuards(JwtAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Получить все транзакции' })
   async findAll(
@@ -167,9 +189,13 @@ export class PaymentsController {
   }
 
   @Get('user/:userId')
+  @UseGuards(PaymentsAccessGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Получить транзакции пользователя' })
-  async findByUser(@Param('userId') userId: string) {
+  async findByUser(@Param('userId') userId: string, @CurrentUser() user: AuthUser) {
+    if (user.type !== 'admin' && user.id !== userId) {
+      throw new ForbiddenException('Доступ к чужим транзакциям запрещён');
+    }
     return this.paymentsService.findByUser(userId);
   }
 }

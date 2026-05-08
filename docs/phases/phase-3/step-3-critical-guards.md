@@ -45,11 +45,14 @@
 
 ## Статус
 
-Не начато
+Реализовано в коде
 
 ## Журнал изменений
 
-(будет заполнено при реализации)
+- **[2026-05-08]**
+  - `POST /auth/register-admin` закрыт `JwtAdminGuard`; route дополнительно требует `caller.role === 'SUPER_ADMIN'`.
+  - `AnalyticsController`, `SystemSettingsController` и `EsimProviderController` переведены на controller-level `@UseGuards(JwtAdminGuard)`.
+  - `ReferralsController.register` вынесен на общий `ServiceTokenGuard`, чтобы bot-only contract был единообразным с `users/find-or-create`.
 
 ## Файлы
 

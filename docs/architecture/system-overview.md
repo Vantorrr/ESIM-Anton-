@@ -48,12 +48,12 @@
 
 - Next.js 15 + React 19
 - single-page dashboard c табами
-- фактическая авторизация: PIN в `localStorage`, а не полноценный admin auth flow
+- логин уже идёт через backend `POST /api/auth/login`, admin JWT хранится в `localStorage` и пробрасывается в `Authorization: Bearer ...`
 
 ### Bot
 
 - `grammy`
-- при первом контакте вызывает `POST /api/users/find-or-create`
+- при первом контакте вызывает `POST /api/users/find-or-create` с `x-telegram-bot-token`
 - использует backend как source of truth, а не собственное хранилище
 
 ## Ключевые внешние интеграции

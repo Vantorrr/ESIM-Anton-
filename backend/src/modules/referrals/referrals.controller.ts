@@ -1,38 +1,28 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
   Get,
-  Headers,
   Param,
   Post,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { ConfigService } from '@nestjs/config';
 import { ReferralsService } from './referrals.service';
 import { AuthUser, CurrentUser, JwtAdminGuard, JwtUserGuard } from '@/common/auth/jwt-user.guard';
+import { ServiceTokenGuard } from '@/common/auth/service-token.guard';
 
 @ApiTags('referrals')
 @ApiBearerAuth()
 @Controller('referrals')
 export class ReferralsController {
-  constructor(
-    private readonly referralsService: ReferralsService,
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly referralsService: ReferralsService) {}
 
   @Post('register')
+  @UseGuards(ServiceTokenGuard)
   @ApiOperation({ summary: 'Зарегистрировать реферала' })
   async register(
-    @Headers('x-telegram-bot-token') botToken: string | undefined,
     @Body() dto: { userId: string; referralCode: string; telegramId: string | number },
   ) {
-    const configuredBotToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
-    if (!configuredBotToken || botToken !== configuredBotToken) {
-      throw new ForbiddenException('Bot authorization required');
-    }
-
     const telegramId = BigInt(dto.telegramId);
     return this.referralsService.registerReferral(dto.userId, dto.referralCode, telegramId);
   }

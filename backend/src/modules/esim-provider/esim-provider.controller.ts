@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAdminGuard } from '@/common/auth/jwt-user.guard';
 import { EsimProviderService } from './esim-provider.service';
 
 @ApiTags('esim-provider')
 @ApiBearerAuth()
+@UseGuards(JwtAdminGuard)
 @Controller('esim-provider')
 export class EsimProviderController {
   constructor(private readonly esimProviderService: EsimProviderService) {}

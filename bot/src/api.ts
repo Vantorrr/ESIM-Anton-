@@ -11,10 +11,18 @@ const client = axios.create({
 export const api = {
   users: {
     findOrCreate: async (telegramId: bigint, data: any) => {
-      const response = await client.post('/users/find-or-create', {
-        telegramId: telegramId.toString(),
-        ...data,
-      });
+      const response = await client.post(
+        '/users/find-or-create',
+        {
+          telegramId: telegramId.toString(),
+          ...data,
+        },
+        {
+          headers: {
+            'x-telegram-bot-token': config.botToken,
+          },
+        },
+      );
       return response.data;
     },
     getStats: async (userId: string) => {

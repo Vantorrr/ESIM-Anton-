@@ -168,8 +168,8 @@ export interface ReferralStats {
 // API методы
 export const userApi = {
   // Получить текущего пользователя
-  async getMe(telegramId: string): Promise<User> {
-    const { data } = await api.post('/users/find-or-create', { telegramId });
+  async getMe(_telegramId?: string): Promise<User> {
+    const { data } = await api.get('/auth/me');
     return data;
   },
 

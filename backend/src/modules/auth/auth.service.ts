@@ -12,7 +12,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   /**
    * Логин администратора
@@ -42,10 +42,11 @@ export class AuthService {
       sub: admin.id,
       email: admin.email,
       role: admin.role,
+      type: 'admin',
     };
 
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: this.jwtService.sign(payload, { expiresIn: '24h' }),
       admin: {
         id: admin.id,
         email: admin.email,

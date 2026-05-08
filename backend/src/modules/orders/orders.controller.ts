@@ -8,11 +8,15 @@ import {
   Query,
   BadRequestException,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { OrderStatus } from '@prisma/client';
 import { JwtUserGuard, JwtAdminGuard, CurrentUser, AuthUser } from '@/common/auth/jwt-user.guard';
+import { OrGuard } from '@/common/auth/or.guard';
+
+const OrdersAccessGuard = OrGuard(JwtAdminGuard, JwtUserGuard);
 
 @ApiTags('orders')
 @ApiBearerAuth()
@@ -41,20 +45,32 @@ export class OrdersController {
   }
 
   @Get(':id')
+  @UseGuards(OrdersAccessGuard)
   @ApiOperation({ summary: 'Получить заказ по ID' })
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    if (user.type !== 'admin') {
+      await this.ordersService.assertOwnership(id, user.id);
+    }
     return this.ordersService.findById(id);
   }
 
   @Get('user/:userId')
+  @UseGuards(OrdersAccessGuard)
   @ApiOperation({ summary: 'Получить заказы пользователя' })
-  async findByUser(@Param('userId') userId: string) {
+  async findByUser(@Param('userId') userId: string, @CurrentUser() user: AuthUser) {
+    if (user.type !== 'admin' && user.id !== userId) {
+      throw new ForbiddenException('Доступ к чужим заказам запрещён');
+    }
     return this.ordersService.findByUser(userId);
   }
 
   @Get('user/:userId/check-new')
+  @UseGuards(JwtUserGuard)
   @ApiOperation({ summary: 'Проверить новые оплаченные заказы (за последние 10 минут)' })
-  async checkNewOrders(@Param('userId') userId: string) {
+  async checkNewOrders(@Param('userId') userId: string, @CurrentUser() user: AuthUser) {
+    if (user.id !== userId) {
+      throw new ForbiddenException('Доступ к чужим заказам запрещён');
+    }
     return this.ordersService.checkNewOrders(userId);
   }
 
@@ -110,9 +126,12 @@ export class OrdersController {
   }
 
   @Post(':id/fulfill-free')
-  @UseGuards(JwtAdminGuard)
+  @UseGuards(OrdersAccessGuard)
   @ApiOperation({ summary: 'Выполнить бесплатный заказ (промокод 100%)' })
-  async fulfillFree(@Param('id') id: string) {
+  async fulfillFree(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    if (user.type !== 'admin') {
+      await this.ordersService.assertOwnership(id, user.id);
+    }
     const order = await this.ordersService.findById(id);
     if (!order) throw new BadRequestException('Заказ не найден');
     if (Number(order.totalAmount) > 0) {

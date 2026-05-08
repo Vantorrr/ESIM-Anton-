@@ -26,6 +26,8 @@ export class ProductsController {
   }
 
   @Post('sync')
+  @UseGuards(JwtAdminGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Синхронизировать с провайдером' })
   async sync() {
     return this.productsService.syncWithProvider();
@@ -44,6 +46,7 @@ export class ProductsController {
   // =====================================================
 
   @Post('bulk/toggle-active')
+  @UseGuards(JwtAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Массовое включение/выключение продуктов' })
   async bulkToggleActive(@Body() body: { ids: string[]; isActive: boolean }) {
@@ -51,6 +54,7 @@ export class ProductsController {
   }
 
   @Post('bulk/toggle-by-type')
+  @UseGuards(JwtAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Включить/выключить все тарифы по типу (стандартные/безлимитные)' })
   async bulkToggleByType(@Body() body: { tariffType: 'standard' | 'unlimited'; isActive: boolean }) {
@@ -58,6 +62,7 @@ export class ProductsController {
   }
 
   @Post('bulk/set-badge')
+  @UseGuards(JwtAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Массовая установка бейджа' })
   async bulkSetBadge(@Body() body: { ids: string[]; badge: string | null; badgeColor: string | null }) {
@@ -65,6 +70,7 @@ export class ProductsController {
   }
 
   @Post('bulk/set-markup')
+  @UseGuards(JwtAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Массовая установка наценки' })
   async bulkSetMarkup(@Body() body: { ids: string[]; markupPercent: number }) {
@@ -72,6 +78,7 @@ export class ProductsController {
   }
 
   @Post('reprice')
+  @UseGuards(JwtAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Пересчитать цены всех продуктов по текущим настройкам' })
   async repriceAll() {
@@ -85,6 +92,7 @@ export class ProductsController {
   }
 
   @Post()
+  @UseGuards(JwtAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Создать продукт' })
   async create(@Body() createDto: any) {
@@ -92,6 +100,7 @@ export class ProductsController {
   }
 
   @Put(':id')
+  @UseGuards(JwtAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Обновить продукт' })
   async update(@Param('id') id: string, @Body() updateDto: any) {
@@ -99,6 +108,7 @@ export class ProductsController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Удалить продукт' })
   async remove(@Param('id') id: string) {

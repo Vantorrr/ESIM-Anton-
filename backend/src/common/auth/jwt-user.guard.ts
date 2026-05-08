@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
+export const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'MANAGER', 'SUPPORT']);
+
 /**
  * Guard для эндпоинтов клиентского mini-app: требует Bearer JWT,
  * выписанный AuthService (sub = userId, type = 'user').
@@ -34,7 +36,7 @@ export class JwtUserGuard implements CanActivate {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    if (!payload?.sub) {
+    if (!payload?.sub || payload?.type !== 'user') {
       throw new UnauthorizedException('Token has no subject');
     }
 
@@ -51,7 +53,7 @@ export class JwtUserGuard implements CanActivate {
 
 /**
  * Guard для админских эндпоинтов. JWT админа выдаётся в loginAdmin,
- * payload: { sub, email, role: 'SUPER_ADMIN'|'MANAGER'|'SUPPORT' }.
+ * payload: { sub, email, role: 'SUPER_ADMIN'|'MANAGER'|'SUPPORT', type: 'admin' }.
  */
 @Injectable()
 export class JwtAdminGuard implements CanActivate {
@@ -73,12 +75,18 @@ export class JwtAdminGuard implements CanActivate {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    if (!payload?.sub || !payload?.role) {
+    if (
+      !payload?.sub ||
+      payload?.type !== 'admin' ||
+      !payload?.role ||
+      !ADMIN_ROLES.has(payload.role)
+    ) {
       throw new UnauthorizedException('Not an admin token');
     }
 
     req.user = {
       id: payload.sub,
+      type: payload.type,
       email: payload.email,
       role: payload.role,
     };
@@ -88,6 +96,7 @@ export class JwtAdminGuard implements CanActivate {
 
 export type AuthUser = {
   id: string;
+  email?: string | null;
   type?: string | null;
   role?: string | null;
   provider?: string | null;

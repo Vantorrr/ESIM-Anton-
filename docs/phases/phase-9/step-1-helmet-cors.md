@@ -6,6 +6,8 @@
 
 Добавить стандартные security headers через `helmet` и ограничить CORS явным списком origins.
 
+Это low-risk шаг фазы, но только если не включать CSP вслепую и не ломать существующие payment/browser flows.
+
 ## Что нужно сделать
 
 ### 1.1 Установить и подключить helmet
@@ -15,6 +17,7 @@
   - Добавить `import helmet from 'helmet';` в начало файла.
   - Вызвать `app.use(helmet(...))` сразу после `NestFactory.create()`, до `setGlobalPrefix`.
   - Не включать CSP вслепую: `payments/success` и `payments/fail` отдают inline HTML/CSS/JS и подключают Telegram script. До отдельного CSP hardening использовать `contentSecurityPolicy: false` или явно разрешить нужные источники.
+  - Не менять policy `crossOriginEmbedderPolicy`/`crossOriginOpenerPolicy` без подтверждения, что это не затрагивает текущие browser integrations.
 
 ```
 import helmet from 'helmet';
@@ -35,6 +38,8 @@ async function bootstrap() {
   - Заменить `origin: process.env.CORS_ORIGIN || '*'` на parser для comma-separated origins.
   - Trim для каждого origin обязателен, пустые элементы удалить.
   - Fallback только localhost origins для admin и client.
+  - Не смешивать browser origins и server-to-server callers: bot, CloudPayments и другие backend callers не зависят от CORS.
+  - Если в runtime используются несколько browser domains (`admin`, `mojomobile.ru`, `app.mojomobile.ru`, Telegram Mini App host pages), все они должны попасть в allowlist до deploy.
 
 ```
 До:
@@ -70,11 +75,24 @@ CORS_ORIGIN=http://localhost:3001,http://localhost:3002,https://admin.mojomobile
 - Если Railway/Рег.ру фактические domains отличаются, перед deploy обновить `.env.example` и Railway env синхронно.
 - Проверить, что bot/server-to-server calls не зависят от CORS: CORS защищает только browser requests, не является backend auth boundary.
 
+### 1.4 До- и послешаговая проверка browser contracts
+
+- До внедрения снять фактический список browser origins из кода и deployment docs:
+  - `admin` local/prod;
+  - `client/PWA` local/prod;
+  - любые host pages, с которых запускается Telegram Mini App.
+- После внедрения проверить не только `curl`, но и реальный browser:
+  - admin login;
+  - public catalog;
+  - authenticated client page (`/orders` или `/balance`);
+  - `payments/success` и `payments/fail`.
+
 ## Результат шага
 
 - Backend отдаёт security headers на каждый ответ.
 - CORS ограничен явным списком доменов.
 - Payment callback HTML не ломается из-за CSP.
+- Browser clients продолжают работать без CORS errors в console/network.
 
 ## Статус
 
@@ -100,4 +118,5 @@ CORS_ORIGIN=http://localhost:3001,http://localhost:3002,https://admin.mojomobile
 - Запрос с `Origin: http://localhost:3001` → CORS пропускает.
 - Запрос с `Origin: http://localhost:3002` → CORS пропускает.
 - `GET /api/payments/success` и `GET /api/payments/fail` возвращают HTML без CSP-related runtime breakage.
+- Открытие admin и client в браузере не даёт `blocked by CORS policy`.
 - `npm run build` — без ошибок.

@@ -95,6 +95,15 @@
   - `EsimProviderController` добавлен в critical scope.
   - Mixed routes переведены на модель `admin OR owner`, а не blanket admin-only.
 
+- **[2026-05-08] Реализация code layer Phase 3:**
+  - Добавлены `ServiceTokenGuard` и `OrGuard`; bot-only routes `/users/find-or-create` и `/referrals/register` теперь ходят через `x-telegram-bot-token`.
+  - Закрыты `analytics`, `system-settings`, `esim-provider`, mutating `products`, `payments/cloudpayments/test-notify`, `register-admin`, а mixed `users/orders/payments` routes переведены на `admin OR owner`.
+  - `updateMyEmail` больше не парсит JWT вручную: route использует `JwtUserGuard` + `@CurrentUser()`.
+  - Admin JWT теперь выпускается с `type: 'admin'`, role whitelist enforced в `JwtAdminGuard`, TTL сокращён до `24h`.
+  - `client/lib/api.ts` переведён с legacy `POST /users/find-or-create` на `GET /auth/me` для чтения текущего пользователя из user JWT.
+  - Добавлены unit specs для guards и controller contracts; `npm test -- --runInBand` прошёл, `npx nest build` прошёл.
+  - `npm run build` упирается не в TypeScript, а в Windows file lock внутри `prisma generate` (`query_engine-windows.dll.node` rename); manual HTTP/UI smoke остаётся отдельным незавершённым шагом.
+
 ## Ссылки
 
 - [Корневой документ wiki](../README.md)

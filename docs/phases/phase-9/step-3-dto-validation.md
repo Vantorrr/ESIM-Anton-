@@ -6,6 +6,29 @@
 
 Заменить `@Body() dto: any` и небезопасные inline body contracts на типизированные DTO с `class-validator`, чтобы глобальный `ValidationPipe(whitelist: true, forbidNonWhitelisted: true)` реально фильтровал поля.
 
+Это самый регрессионный шаг всей фазы. Его нельзя делать массовой заменой без поэтапной проверки фактических payload-ов из `admin`, `client` и `bot`.
+
+## Порядок внедрения
+
+### Wave A. Auth и admin-mutation surfaces
+
+- `auth/register-admin`, `auth/login`, `auth/phone/send-code`, `auth/phone/verify`, `auth/telegram-webapp`.
+- `products` admin mutations.
+- `system-settings`.
+
+### Wave B. User write surfaces
+
+- `users` mutations.
+- `orders` create/topup/free flows.
+- `payments/create` и `balance-topup`.
+
+### Wave C. Bot/internal payloads
+
+- `users/find-or-create`.
+- `referrals/register`.
+
+После каждой wave нужен smoke соответствующего caller'а. Нельзя переходить к следующей wave, если текущая вернула неожиданные `400`.
+
 ## Что нужно сделать
 
 ### 3.1 DTO для admin registration
@@ -121,6 +144,7 @@ export class UpdateReferralSettingsDto {
 - `auth/dto/send-phone-code.dto.ts`: `phone`.
 - `auth/dto/verify-phone-code.dto.ts`: `phone`, `code`.
 - `auth/dto/telegram-webapp-auth.dto.ts`: `initData`.
+- Для phone/code DTO зафиксировать, принимаются ли значения строго строками или сейчас где-то приходят mixed formats; если frontend шлёт numbers/trimmed strings несимметрично, DTO должны отражать реальный contract.
 - `users/dto/update-my-email.dto.ts`: `email`.
 - `users/dto/find-or-create-user.dto.ts`: `telegramId`, optional profile/utm fields; используется вместе с service-token guard.
 - `users/dto/push-subscription.dto.ts`: `endpoint`, `p256dh`, `auth`.
@@ -133,17 +157,25 @@ export class UpdateReferralSettingsDto {
 - `payments/dto/create-payment.dto.ts`: `orderId`.
 - `payments/dto/create-balance-topup.dto.ts`: `amount`, optional `provider`.
 - Для money fields использовать `@Type(() => Number)`, `@IsNumber()`, `@Min(0)`; для quantities — integer/min constraints.
+- До внедрения DTO проверить, какие поля реально шлёт `client` в card flow и free/promo flow, чтобы не сломать существующий checkout из-за несовпадения optional fields.
 
 ### 3.6 Webhook payloads
 
 - CloudPayments и Robokassa webhook bodies могут оставаться `any`/provider-specific raw payloads, потому что подпись/HMAC и provider parser являются primary validation.
 - Не применять strict DTO к webhook raw body так, чтобы сломать signature verification или provider callback compatibility.
 
+### 3.7 Явные ограничения шага
+
+- Не переписывать service layer только ради DTO.
+- Не делать "идеальные" схемы, если они конфликтуют с уже существующим runtime contract без миграционного плана.
+- Не смешивать DTO rollout с throttling или CORS fixes в одном deploy, если нужна быстрая локализация регрессии.
+
 ## Результат шага
 
 - Все external write endpoints валидируют входные данные через `class-validator`, кроме provider webhooks, где primary control — signature/HMAC parser.
 - `whitelist: true` отсекает неизвестные поля (mass assignment prevention).
 - Некорректные данные → `400 Bad Request` с описанием ошибок.
+- Реальные `admin/client/bot` callers подтверждены smoke'ом и не ломаются на новых validation rules.
 
 ## Статус
 
@@ -181,3 +213,7 @@ export class UpdateReferralSettingsDto {
 - `POST /api/auth/phone/send-code` без `phone` → `400`.
 - CloudPayments webhook с валидной подписью не ломается из-за DTO validation.
 - `npm run build` — без ошибок.
+- Manual smoke:
+  - admin create/update product и system-settings mutations;
+  - client login, `/orders`, checkout card path и free/promo path;
+  - bot `find-or-create` и `referrals/register`.
