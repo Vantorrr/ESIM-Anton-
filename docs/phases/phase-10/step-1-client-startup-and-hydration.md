@@ -51,11 +51,13 @@
 
 ## Статус
 
-Не начато
+Завершено
 
 ## Журнал изменений
 
-- 
+- **[2026-05-08]** `TelegramRedirectHandler` переведён с blind `setTimeout(1000)` на явное ожидание завершения auth bootstrap из `AuthProvider`; welcome-video splash на `client/app/page.tsx` не используется как auth gate и сохранена без изменения runtime-контракта.
+- **[2026-05-08]** `TelegramSdkScript` начал публиковать readiness signal, а `AuthProvider`/`TelegramRedirectHandler` стали ждать этот signal вместо blind polling coordination, поэтому поздняя загрузка SDK больше не теряется сразу после initial render.
+- **[2026-05-08]** `/product/[id]` и `/country/[country]` приведены к тому же thin `Suspense` wrapper pattern, который уже использовался на `/balance`, `/login` и `/login/callback` для `useSearchParams()`-зависимых route.
 
 ## Файлы
 

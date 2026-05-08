@@ -127,6 +127,25 @@
 
 - **[2026-05-08]** Фаза создана по результатам code-backed аудита `docs/audits/audit.md`.
 - **[2026-05-08]** Scope фазы сознательно ограничен stabilizing/hardening работами. Массовая SSR/RSC migration и retirement Robokassa исключены как отдельные будущие инициативы.
+- **[2026-05-08]** Шаги 1-4 сведены к production-safe baseline без расширения архитектурного scope: startup coordination переведена на explicit readiness signals, `order/[id]` выровнен под текущий design system, payment/provider logs сокращены до masked baseline, а paid-but-failed incidents получили derived reconciliation signal вместо новой queue platform.
+
+## Rollout Guardrails
+
+- Не превращать follow-up по этой фазе в массовую SSR/RSC migration: текущий client runtime остаётся browser-first и App Router client-heavy по архитектурным причинам.
+- Не убирать cached auth restore из `AuthProvider` как "cleanup": в рамках Phase 10 это intentional UX tradeoff, а не defect.
+- Не использовать welcome-video splash на `client/app/page.tsx` как auth/bootstrap gate и не связывать её длительность с Telegram SDK readiness.
+- Не возвращать blind fixed delays в `TelegramRedirectHandler`: coordination должна оставаться через `isBootstrapped`, `isTelegramReady` и `mojo:telegram-sdk-ready`.
+- Не удалять `dynamic = 'force-dynamic'` у browser-bound `client/app/profile/page.tsx` без отдельного server-safe redesign этой страницы.
+- Не возвращать raw Robokassa/eSIM Access payload logging по умолчанию. Если нужен глубокий разбор инцидента, использовать временный `DEBUG_SENSITIVE_LOGS=true`.
+- Не трактовать `order.reconciliation` как durable workflow engine: это admin/support triage marker, а не автоматический retry/refund оркестратор.
+- Не удалять Robokassa как legacy path и не обещать business retirement без отдельной migration phase.
+
+## Follow-up Backlog
+
+- Отдельная SSR/RSC migration phase для public routes только после появления server-safe auth/api transport.
+- Отдельная payment retirement/migration phase, если бизнес подтвердит вывод Robokassa из runtime.
+- Отдельная provider abstraction cleanup phase, если fallback/provider split-brain станет реальной operational проблемой.
+- Отдельная reconciliation automation phase, если derived admin marker перестанет покрывать support workload.
 
 ## Ссылки
 

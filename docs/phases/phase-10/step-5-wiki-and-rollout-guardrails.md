@@ -39,11 +39,13 @@
 
 ## Статус
 
-Не начато
+Завершено
 
 ## Журнал изменений
 
-- 
+- **[2026-05-08]** `docs/phases/phase-10-client-payments-and-provider-hardening.md` дополнен явными `Rollout Guardrails` и `Follow-up Backlog`, чтобы отделить завершённый hardening scope от будущих migration initiatives.
+- **[2026-05-08]** `docs/operations/railway-runbook.md` получил Phase 10 rollout notes: Telegram Mini App cold-start smoke, `DEBUG_SENSITIVE_LOGS` как targeted debug switch и reconciliation triage через admin order filter вместо raw production dumps.
+- **[2026-05-08]** `docs/phases/README.md` обновлён: Phase 10 помечена завершённой и снабжена кратким guardrail summary для будущих сессий.
 
 ## Файлы
 
@@ -55,4 +57,5 @@
 ## Тестирование / Верификация
 
 - Wiki и roadmap явно разделяют текущую hardening phase и будущие migration initiatives.
-- В phase-docs нет рекомендаций, которые ломают текущий runtime без migration plan.
+- Railway runbook теперь описывает, как проверять Phase 10 rollout без отката к blind timeout coordination и raw payload logging.
+- В phase-docs нет рекомендаций, которые ломают текущий runtime без отдельного migration plan.

@@ -29,12 +29,20 @@ export class OrdersController {
   @ApiOperation({ summary: 'Получить все заказы' })
   async findAll(
     @Query('status') status?: OrderStatus,
+    @Query('reconciliation') reconciliation?: 'needs_attention',
     @Query('page') page = 1,
     @Query('limit') limit = 20,
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: 'asc' | 'desc',
   ) {
-    return this.ordersService.findAll({ status, page: +page, limit: +limit, sortBy, sortOrder });
+    return this.ordersService.findAll({
+      status,
+      reconciliation,
+      page: +page,
+      limit: +limit,
+      sortBy,
+      sortOrder,
+    });
   }
 
   @Patch(':id/cancel')

@@ -20,6 +20,8 @@ function bootstrapTelegram() {
       root.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff')
       root.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || '#f4f4f5')
     }
+
+    window.dispatchEvent(new Event('mojo:telegram-sdk-ready'))
   } catch {
     console.warn('Telegram WebApp bootstrap failed')
   }

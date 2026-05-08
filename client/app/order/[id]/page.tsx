@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, QrCode, Copy, CheckCircle, Download, Info } from '@/components/icons'
 import { ordersApi, Order } from '@/lib/api'
+import { getFlagUrl, getCountryName } from '@/lib/utils'
 
 function getStatusBadge(status: Order['status']) {
   const badges = {
@@ -15,8 +16,49 @@ function getStatusBadge(status: Order['status']) {
     REFUNDED: { label: 'Возврат', class: 'badge-warning', icon: '💰' },
     CANCELLED: { label: 'Отменён', class: 'badge-error', icon: '🚫' },
   }
-  
+
   return badges[status] || { label: status, class: 'badge-info', icon: '📦' }
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-secondary">{label}</span>
+      <span className="text-right font-semibold text-primary">{value}</span>
+    </div>
+  )
+}
+
+function CopyField({
+  label,
+  value,
+  copied,
+  onCopy,
+  ariaLabel,
+}: {
+  label: string
+  value: string
+  copied: boolean
+  onCopy: () => void
+  ariaLabel: string
+}) {
+  return (
+    <div>
+      <p className="mb-1 text-sm text-secondary">{label}</p>
+      <div className="flex items-center gap-2">
+        <code className="flex-1 break-all rounded-xl border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-primary">
+          {value}
+        </code>
+        <button
+          onClick={onCopy}
+          className="shrink-0 rounded-xl bg-orange-50 p-3 text-[#f77430] transition-colors hover:bg-orange-100"
+          aria-label={ariaLabel}
+        >
+          {copied ? <CheckCircle size={20} /> : <Copy size={20} />}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export default function OrderDetailPage() {
@@ -55,7 +97,7 @@ export default function OrderDetailPage() {
 
   if (loading) {
     return (
-      <div className="container">
+      <div className="container bg-[#f4f5f7]">
         <div className="mt-6 space-y-4">
           <div className="skeleton h-8 w-32" />
           <div className="skeleton h-64 w-full" />
@@ -67,10 +109,10 @@ export default function OrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="container">
-        <div className="tg-card text-center py-12 mt-6">
-          <p className="tg-hint">Заказ не найден</p>
-          <button onClick={() => router.push('/orders')} className="tg-button mt-4 max-w-xs mx-auto">
+      <div className="container bg-[#f4f5f7]">
+        <div className="glass-card mt-6 py-12 text-center">
+          <p className="text-secondary">Заказ не найден</p>
+          <button onClick={() => router.push('/orders')} className="glass-button mx-auto mt-4 max-w-xs">
             К моим заказам
           </button>
         </div>
@@ -80,52 +122,77 @@ export default function OrderDetailPage() {
 
   const badge = getStatusBadge(order.status)
   const isCompleted = order.status === 'COMPLETED'
+  const formattedDate = new Date(order.createdAt).toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  const flagUrl = getFlagUrl(order.product.country)
+  const countryName = getCountryName(order.product.country)
 
   return (
-    <div className="container pb-20">
-      {/* Header */}
+    <div className="container bg-[#f4f5f7] pb-20">
       <header className="mb-6 mt-6 animate-fade-in">
         <button
           onClick={() => router.push('/orders')}
-          className="flex items-center gap-2 mb-4 tg-hint hover:opacity-70 transition-opacity"
+          className="mb-4 flex items-center gap-2 text-sm font-medium text-secondary transition-opacity hover:opacity-70"
         >
           <ArrowLeft size={20} />
           <span>К моим заказам</span>
         </button>
-        <h1 className="text-2xl font-bold">Заказ #{order.id.slice(0, 8)}</h1>
+
+        <div className="card-neutral p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-gray-100 bg-white">
+              {flagUrl ? (
+                <img
+                  src={flagUrl}
+                  alt={countryName}
+                  className="h-7 w-10 rounded-sm object-cover"
+                  onError={(e) => {
+                    ;(e.target as HTMLImageElement).src = '/logo-mark.png'
+                    ;(e.target as HTMLImageElement).className = 'w-9 h-9 rounded-lg object-contain'
+                  }}
+                />
+              ) : (
+                <img src="/logo-mark.png" alt="Mojo mobile" className="h-9 w-9 rounded-lg object-contain" />
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h1 className="text-2xl font-bold text-primary">Заказ #{order.id.slice(0, 8)}</h1>
+                <span className={`badge ${badge.class} shrink-0`}>{badge.label}</span>
+              </div>
+              <p className="mt-1 text-sm text-secondary">{countryName} • {order.product.name}</p>
+              <p className="mt-1 text-xs text-muted">Создан {formattedDate}</p>
+            </div>
+          </div>
+        </div>
       </header>
 
-      {/* Status */}
-      <div className="tg-card mb-4 text-center animate-slide-up">
-        <div className="text-5xl mb-3">{badge.icon}</div>
+      <div className="card-neutral mb-4 p-5 text-center animate-slide-up">
+        <div className="mb-3 text-5xl">{badge.icon}</div>
         <span className={`badge ${badge.class} text-base`}>{badge.label}</span>
-        <p className="tg-hint text-sm mt-2">
-          {new Date(order.createdAt).toLocaleString('ru-RU', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </p>
+        <p className="mt-2 text-sm text-secondary">{formattedDate}</p>
       </div>
 
-      {/* QR Code */}
       {isCompleted && order.qrCode && (
-        <div className="tg-card mb-4 text-center">
-          <h3 className="font-bold mb-3 flex items-center justify-center gap-2">
+        <div className="card-neutral mb-4 p-5 text-center animate-slide-up" style={{ animationDelay: '0.04s' }}>
+          <h3 className="mb-3 flex items-center justify-center gap-2 font-bold text-primary">
             <QrCode size={20} />
             QR-код для активации
           </h3>
-          <div className="bg-white p-4 rounded-lg inline-block mb-3">
-            <img src={order.qrCode} alt="QR Code" className="w-64 h-64 mx-auto" />
+          <div className="mb-3 inline-block rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <img src={order.qrCode} alt="QR Code" className="mx-auto h-64 w-64" />
           </div>
-          <p className="tg-hint text-sm mb-4">
+          <p className="mb-4 text-sm text-secondary">
             Отсканируйте этот QR-код в настройках вашего телефона для активации eSIM
           </p>
           <button
             onClick={() => {
-              // Открываем QR-код в полном размере
               const tg = (window as any).Telegram?.WebApp
               if (tg?.openLink) {
                 tg.openLink(order.qrCode!)
@@ -133,7 +200,7 @@ export default function OrderDetailPage() {
                 window.open(order.qrCode!, '_blank')
               }
             }}
-            className="tg-button-outline flex items-center justify-center gap-2 mx-auto"
+            className="glass-button-secondary mx-auto inline-flex w-auto items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold"
           >
             <Download size={16} />
             Скачать QR-код
@@ -141,113 +208,76 @@ export default function OrderDetailPage() {
         </div>
       )}
 
-      {/* eSIM Details */}
       {isCompleted && (order.iccid || order.activationCode) && (
-        <div className="tg-card mb-4">
-          <h3 className="font-bold mb-3">Данные eSIM</h3>
+        <div className="card-neutral mb-4 p-5 animate-slide-up" style={{ animationDelay: '0.08s' }}>
+          <h3 className="mb-3 font-bold text-primary">Данные eSIM</h3>
           <div className="space-y-3">
             {order.iccid && (
-              <div>
-                <p className="tg-hint text-sm mb-1">ICCID</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 p-2 rounded text-sm" style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
-                    {order.iccid}
-                  </code>
-                  <button
-                    onClick={() => copyToClipboard(order.iccid!, 'ICCID')}
-                    className="p-2 rounded"
-                    style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
-                  >
-                    {copied === 'ICCID' ? <CheckCircle size={20} /> : <Copy size={20} />}
-                  </button>
-                </div>
-              </div>
+              <CopyField
+                label="ICCID"
+                value={order.iccid}
+                copied={copied === 'ICCID'}
+                onCopy={() => copyToClipboard(order.iccid!, 'ICCID')}
+                ariaLabel="Скопировать ICCID"
+              />
             )}
             {order.activationCode && (
-              <div>
-                <p className="tg-hint text-sm mb-1">Код активации</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 p-2 rounded text-sm" style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
-                    {order.activationCode}
-                  </code>
-                  <button
-                    onClick={() => copyToClipboard(order.activationCode!, 'код')}
-                    className="p-2 rounded"
-                    style={{ background: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
-                  >
-                    {copied === 'код' ? <CheckCircle size={20} /> : <Copy size={20} />}
-                  </button>
-                </div>
-              </div>
+              <CopyField
+                label="Код активации"
+                value={order.activationCode}
+                copied={copied === 'код'}
+                onCopy={() => copyToClipboard(order.activationCode!, 'код')}
+                ariaLabel="Скопировать код активации"
+              />
             )}
           </div>
         </div>
       )}
 
-      {/* Product Info */}
-      <div className="tg-card mb-4">
-        <h3 className="font-bold mb-3">Информация о товаре</h3>
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <span className="tg-hint">Страна</span>
-            <span className="font-semibold">{order.product.country}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="tg-hint">Тариф</span>
-            <span className="font-semibold">{order.product.name}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="tg-hint">Данные</span>
-            <span className="font-semibold">{order.product.dataAmount}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="tg-hint">Срок действия</span>
-            <span className="font-semibold">{order.product.validityDays} дней</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="tg-hint">Количество</span>
-            <span className="font-semibold">{order.quantity}</span>
-          </div>
+      <div className="card-neutral mb-4 p-5 animate-slide-up" style={{ animationDelay: '0.12s' }}>
+        <h3 className="mb-3 font-bold text-primary">Информация о товаре</h3>
+        <div className="space-y-3">
+          <DetailRow label="Страна" value={countryName} />
+          <DetailRow label="Тариф" value={order.product.name} />
+          <DetailRow label="Данные" value={order.product.dataAmount} />
+          <DetailRow label="Срок действия" value={`${order.product.validityDays} дней`} />
+          <DetailRow label="Количество" value={String(order.quantity)} />
         </div>
       </div>
 
-      {/* Payment Info */}
-      <div className="tg-card mb-4">
-        <h3 className="font-bold mb-3">Стоимость</h3>
+      <div className="card-neutral mb-4 p-5 animate-slide-up" style={{ animationDelay: '0.16s' }}>
+        <h3 className="mb-3 font-bold text-primary">Стоимость</h3>
         <div className="space-y-2">
           <div className="flex justify-between">
-            <span className="tg-hint">Цена товара</span>
-            <span>₽{Number(order.productPrice).toFixed(2)}</span>
+            <span className="text-secondary">Цена товара</span>
+            <span className="text-primary">₽{Number(order.productPrice).toFixed(2)}</span>
           </div>
           {Number(order.discount) > 0 && (
-            <div className="flex justify-between" style={{ color: 'var(--tg-theme-button-color)' }}>
+            <div className="flex justify-between text-[#f77430]">
               <span>Скидка</span>
               <span>-₽{Number(order.discount).toFixed(2)}</span>
             </div>
           )}
           {Number(order.bonusUsed) > 0 && (
-            <div className="flex justify-between" style={{ color: 'var(--tg-theme-button-color)' }}>
+            <div className="flex justify-between text-[#f77430]">
               <span>Бонусы</span>
               <span>-₽{Number(order.bonusUsed).toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between pt-2 border-t border-gray-200 text-lg font-bold">
+          <div className="flex justify-between border-t border-gray-200 pt-2 text-lg font-bold">
             <span>Итого</span>
-            <span style={{ color: 'var(--tg-theme-button-color)' }}>
-              ₽{Number(order.totalAmount).toFixed(2)}
-            </span>
+            <span className="text-[#f77430]">₽{Number(order.totalAmount).toFixed(2)}</span>
           </div>
         </div>
       </div>
 
-      {/* Instructions */}
       {isCompleted && (
-        <div className="tg-card" style={{ background: 'var(--tg-theme-secondary-bg-color)' }}>
+        <div className="card-neutral border border-amber-200 bg-amber-50 p-5 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <div className="flex gap-3">
-            <Info size={20} className="tg-hint flex-shrink-0 mt-1" />
+            <Info size={20} className="mt-1 shrink-0 text-amber-700" />
             <div>
-              <h4 className="font-semibold mb-2">Как активировать eSIM?</h4>
-              <ol className="tg-hint text-sm space-y-1 list-decimal list-inside">
+              <h4 className="mb-2 font-semibold text-amber-900">Как активировать eSIM?</h4>
+              <ol className="list-inside list-decimal space-y-1 text-sm text-amber-800">
                 <li>Откройте Настройки → Сотовая связь</li>
                 <li>Нажмите &quot;Добавить eSIM&quot;</li>
                 <li>Выберите &quot;Использовать QR-код&quot;</li>

@@ -4,19 +4,24 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ordersApi, userApi } from '@/lib/api'
 import { getToken } from '@/lib/auth'
+import { useAuth } from '@/components/AuthProvider'
 
 const LAST_NOTIFIED_ORDER_KEY = 'last_notified_order_id'
 
 export default function TelegramRedirectHandler() {
   const router = useRouter()
   const [checked, setChecked] = useState(false)
+  const { user, isBootstrapped, isTelegram, isTelegramReady } = useAuth()
 
   useEffect(() => {
     if (checked) return
+    if (!isBootstrapped) return
+    if (isTelegram && !isTelegramReady) return
 
     const checkForNewOrders = async () => {
       const tg = (window as any).Telegram?.WebApp
       if (!tg) {
+        setChecked(true)
         return
       }
 
@@ -35,14 +40,14 @@ export default function TelegramRedirectHandler() {
       try {
         const token = getToken()
         if (!token) {
+          setChecked(true)
           return
         }
 
-        // User profile теперь читается через /auth/me и требует валидный JWT.
-        const user = await userApi.getMe()
+        const currentUser = user ?? await userApi.getMe()
         
         // Проверяем новые заказы
-        const { hasNewOrders, latestOrder } = await ordersApi.checkNew(user.id)
+        const { hasNewOrders, latestOrder } = await ordersApi.checkNew(currentUser.id)
         
         if (hasNewOrders && latestOrder) {
           // Проверяем, показывали ли мы уже уведомление для этого заказа
@@ -72,13 +77,8 @@ export default function TelegramRedirectHandler() {
       }
     }
 
-    // Небольшая задержка чтобы дать приложению загрузиться
-    const timer = setTimeout(() => {
-      checkForNewOrders()
-    }, 1000)
-
-    return () => clearTimeout(timer)
-  }, [router, checked])
+    void checkForNewOrders()
+  }, [router, checked, user, isBootstrapped, isTelegram, isTelegramReady])
 
   return null
 }

@@ -12,6 +12,13 @@
 
 Если изменение затрагивает backend startup, Prisma migrations, env surface, payment callbacks или Telegram URLs, его нельзя считать обычным "кодовым" merge. Сначала нужно проверить production readiness, потом пускать автодеплой.
 
+Phase 10 добавляет отдельные rollout guardrails:
+
+- client startup fixes нельзя проверять только по build-статусу: нужен manual smoke cold-start Telegram Mini App, потому что `TelegramRedirectHandler` теперь зависит от явных readiness signals, а не от blind timeout;
+- payment/provider hardening нельзя откатывать через возврат raw payload logging по умолчанию: для targeted troubleshooting использовать `DEBUG_SENSITIVE_LOGS=true` и потом выключать флаг обратно;
+- partial failure после successful payment теперь triage-ится через `GET /orders?reconciliation=needs_attention` и поле `order.reconciliation`, а не через поиск сырых payload dumps в production logs;
+- текущий reconciliation baseline не является auto-retry worker'ом: перед merge нельзя обещать бизнесу автоматическое переиздание eSIM или автоматический card refund, если это отдельно не реализовано.
+
 ## Перед merge в `main`
 
 Проверить:
@@ -82,6 +89,8 @@ curl https://<backend-domain>/api/products
 - admin открывается и видит данные backend
 - Telegram bot отвечает на базовую команду
 - CloudPayments webhook endpoint доступен
+- Telegram Mini App cold start не теряет auth/new-order redirect path после удаления blind timeout coordination
+- admin `GET /orders?reconciliation=needs_attention` возвращает ожидаемый список или пустой результат без 500
 
 ## Когда останавливать rollout
 
@@ -92,6 +101,7 @@ curl https://<backend-domain>/api/products
 - Railway backend падает до Nest startup
 - payment или Telegram env отличаются от ожидаемых production значений
 - CloudPayments/Telegram callback URLs ещё не обновлены под production domain
+- после payment/provider hardening support не понимает, как найти paid-but-failed order без чтения raw logs
 
 ## Rollback
 

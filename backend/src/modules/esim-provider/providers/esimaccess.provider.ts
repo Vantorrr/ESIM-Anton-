@@ -55,10 +55,12 @@ export class EsimAccessProvider {
   private readonly client: AxiosInstance;
   private readonly accessCode: string;
   private readonly secretKey: string;
+  private readonly debugSensitiveLogs: boolean;
 
   constructor(accessCode: string, secretKey: string) {
     this.accessCode = accessCode;
     this.secretKey = secretKey;
+    this.debugSensitiveLogs = process.env.DEBUG_SENSITIVE_LOGS === 'true';
 
     this.client = axios.create({
       baseURL: 'https://api.esimaccess.com/api/v1/open',
@@ -90,6 +92,32 @@ export class EsimAccessProvider {
       'RT-Timestamp': String(timestamp),
       'RT-Signature': this.generateSignature(timestamp),
     };
+  }
+
+  private maskValue(value?: string | number | null, visibleStart = 2, visibleEnd = 4): string {
+    if (value === null || value === undefined) return 'n/a';
+    const text = String(value);
+    if (text.length <= visibleStart + visibleEnd) return text;
+    return `${text.slice(0, visibleStart)}***${text.slice(-visibleEnd)}`;
+  }
+
+  private summarizeProviderResponse(data: any) {
+    return {
+      success: Boolean(data?.success),
+      errorCode: data?.errorCode ?? null,
+      errorMsg: data?.errorMsg ?? null,
+      orderNo: data?.obj?.orderNo ? this.maskValue(data.obj.orderNo, 2, 4) : null,
+      esimCount: Array.isArray(data?.obj?.esimList)
+        ? data.obj.esimList.length
+        : Array.isArray(data?.obj?.profileList)
+          ? data.obj.profileList.length
+          : null,
+    };
+  }
+
+  private logRawDebug(label: string, payload: any) {
+    if (!this.debugSensitiveLogs) return;
+    this.logger.debug(`${label}: ${JSON.stringify(payload)}`);
   }
 
   /**
@@ -186,7 +214,9 @@ export class EsimAccessProvider {
    */
   async purchaseEsim(packageCode: string, quantity = 1, transactionId?: string, periodNum?: number, price?: number, customerEmail?: string): Promise<EsimAccessPurchaseResponse> {
     try {
-      this.logger.log(`💳 Покупка eSIM (package: ${packageCode}, quantity: ${quantity}, periodNum: ${periodNum || 'N/A'}, email: ${customerEmail || 'N/A'})...`);
+      this.logger.log(
+        `💳 Покупка eSIM (package=${packageCode}, quantity=${quantity}, periodNum=${periodNum || 'N/A'}, tx=${this.maskValue(transactionId || `mojo_${Date.now()}`, 2, 6)}, emailProvided=${customerEmail ? 'yes' : 'no'})...`,
+      );
 
       const packageInfo: Record<string, any> = {
         packageCode,
@@ -209,23 +239,26 @@ export class EsimAccessProvider {
         payload.email = customerEmail;
       }
 
-      this.logger.log(`📤 Payload: ${JSON.stringify(payload)}`);
+      this.logRawDebug('eSIM Access purchase payload', payload);
 
       const response = await this.client.post('/esim/order', payload, {
         headers: this.getAuthHeaders(),
       });
 
-      this.logger.log(`📥 Response: ${JSON.stringify(response.data)}`);
+      this.logger.log(`📥 eSIM Access order response: ${JSON.stringify(this.summarizeProviderResponse(response.data))}`);
+      this.logRawDebug('eSIM Access order raw response', response.data);
 
       if (response.data?.success && response.data?.obj) {
         const order = response.data.obj;
-        this.logger.log(`✅ eSIM куплен успешно (order: ${order.orderNo})`);
+        this.logger.log(`✅ eSIM куплен успешно (order=${this.maskValue(order.orderNo, 2, 4)})`);
 
         let esimList = order.esimList || [];
 
         // Если esimList пуст — запросим профили отдельно (Query Allocated Profiles)
         if (esimList.length === 0 && order.orderNo) {
-          this.logger.log(`🔄 esimList пуст, запрашиваем профили по orderNo ${order.orderNo}...`);
+          this.logger.log(
+            `🔄 esimList пуст, запрашиваем профили по orderNo ${this.maskValue(order.orderNo, 2, 4)}...`,
+          );
           await new Promise(resolve => setTimeout(resolve, 2000));
 
           try {
@@ -234,7 +267,8 @@ export class EsimAccessProvider {
               pager: { pageNum: 1, pageSize: 10 },
             }, { headers: this.getAuthHeaders() });
 
-            this.logger.log(`📥 Query response: ${JSON.stringify(queryResponse.data)}`);
+            this.logger.log(`📥 eSIM Access query response: ${JSON.stringify(this.summarizeProviderResponse(queryResponse.data))}`);
+            this.logRawDebug('eSIM Access query raw response', queryResponse.data);
 
             if (queryResponse.data?.success && queryResponse.data?.obj) {
               const queryObj = queryResponse.data.obj;
@@ -261,7 +295,7 @@ export class EsimAccessProvider {
         };
       }
 
-      throw new Error(response.data?.errorMsg || `API вернул: ${JSON.stringify(response.data)}`);
+      throw new Error(response.data?.errorMsg || `API returned error (success=${String(response.data?.success)})`);
     } catch (error) {
       this.logger.error('❌ Ошибка покупки eSIM:', error.message);
       throw error;
@@ -273,7 +307,7 @@ export class EsimAccessProvider {
    */
   async getOrderInfo(orderNo: string): Promise<any> {
     try {
-      this.logger.log(`🔍 Запрос информации о заказе ${orderNo}...`);
+      this.logger.log(`🔍 Запрос информации о заказе ${this.maskValue(orderNo, 2, 4)}...`);
 
       const response = await this.client.post('/esim/query', {
         orderNo,
@@ -329,7 +363,7 @@ export class EsimAccessProvider {
    */
   async topupEsim(iccid: string, packageCode: string, transactionId?: string): Promise<any> {
     try {
-      this.logger.log(`🔄 Пополнение eSIM (iccid: ${iccid}, package: ${packageCode})...`);
+      this.logger.log(`🔄 Пополнение eSIM (iccid=${this.maskValue(iccid, 2, 4)}, package=${packageCode})...`);
 
       const response = await this.client.post('/esim/topup', {
         iccid,
@@ -368,7 +402,7 @@ export class EsimAccessProvider {
    * поэтому при первой проблеме можно смотреть debug-лог полного ответа.
    */
   async getEsimInfo(iccid: string): Promise<any> {
-    this.logger.log(`🔍 Запрос информации об eSIM ${iccid}...`);
+    this.logger.log(`🔍 Запрос информации об eSIM ${this.maskValue(iccid, 2, 4)}...`);
 
     try {
       const listResponse = await this.client.post('/esim/list', {
@@ -382,26 +416,28 @@ export class EsimAccessProvider {
         const obj = listResponse.data.obj;
         const esimCount = Array.isArray(obj?.esimList) ? obj.esimList.length : 0;
 
-        this.logger.log(`✅ Информация об eSIM получена через /esim/list (esimList: ${esimCount})`);
-        this.logger.debug(`getEsimInfo /esim/list raw response for ${iccid}: ${JSON.stringify(listResponse.data)}`);
+        this.logger.log(
+          `✅ Информация об eSIM получена через /esim/list (iccid=${this.maskValue(iccid, 2, 4)}, esimList=${esimCount})`,
+        );
+        this.logRawDebug(`getEsimInfo /esim/list raw response for ${this.maskValue(iccid, 2, 4)}`, listResponse.data);
 
         if (esimCount > 0) {
           return obj;
         }
 
         this.logger.warn(
-          `⚠️ /esim/list вернул пустой esimList для ICCID ${iccid}, пробуем fallback /esim/query`,
+          `⚠️ /esim/list вернул пустой esimList для ICCID ${this.maskValue(iccid, 2, 4)}, пробуем fallback /esim/query`,
         );
       } else {
         this.logger.warn(
-          `⚠️ /esim/list вернул success=false для ICCID ${iccid}: ${JSON.stringify(listResponse.data)}`,
+          `⚠️ /esim/list вернул success=false для ICCID ${this.maskValue(iccid, 2, 4)}: ${JSON.stringify(this.summarizeProviderResponse(listResponse.data))}`,
         );
       }
     } catch (error: any) {
       if (error?.response?.status === 404) {
-        this.logger.debug(`ℹ️ /esim/list недоступен для ICCID ${iccid}, используем /esim/query`);
+        this.logger.debug(`ℹ️ /esim/list недоступен для ICCID ${this.maskValue(iccid, 2, 4)}, используем /esim/query`);
       } else {
-        this.logger.warn(`⚠️ /esim/list не сработал для ICCID ${iccid}: ${error.message}`);
+        this.logger.warn(`⚠️ /esim/list не сработал для ICCID ${this.maskValue(iccid, 2, 4)}: ${error.message}`);
       }
     }
 
@@ -415,19 +451,21 @@ export class EsimAccessProvider {
 
       if (!queryResponse.data?.success) {
         this.logger.warn(
-          `⚠️ Провайдер вернул success=false для ICCID ${iccid}: ${JSON.stringify(queryResponse.data)}`,
+          `⚠️ Провайдер вернул success=false для ICCID ${this.maskValue(iccid, 2, 4)}: ${JSON.stringify(this.summarizeProviderResponse(queryResponse.data))}`,
         );
         throw new Error(queryResponse.data?.errorMsg || 'Ошибка получения информации об eSIM');
       }
 
       const obj = queryResponse.data.obj;
       const esimCount = Array.isArray(obj?.esimList) ? obj.esimList.length : 0;
-      this.logger.log(`✅ Информация об eSIM получена через /esim/query (esimList: ${esimCount})`);
-      this.logger.debug(`getEsimInfo /esim/query raw response for ${iccid}: ${JSON.stringify(queryResponse.data).substring(0, 45)}`);
+      this.logger.log(
+        `✅ Информация об eSIM получена через /esim/query (iccid=${this.maskValue(iccid, 2, 4)}, esimList=${esimCount})`,
+      );
+      this.logRawDebug(`getEsimInfo /esim/query raw response for ${this.maskValue(iccid, 2, 4)}`, queryResponse.data);
 
       if (esimCount === 0) {
         this.logger.warn(
-          `⚠️ esimList пуст для ICCID ${iccid}. Возможно, провайдер ещё не отдаёт расход или ICCID не найден.`,
+          `⚠️ esimList пуст для ICCID ${this.maskValue(iccid, 2, 4)}. Возможно, провайдер ещё не отдаёт расход или ICCID не найден.`,
         );
       }
 
@@ -443,7 +481,7 @@ export class EsimAccessProvider {
    */
   async getTopupPackages(iccid: string): Promise<EsimAccessPackage[]> {
     try {
-      this.logger.log(`📦 Запрос пакетов для пополнения eSIM ${iccid}...`);
+      this.logger.log(`📦 Запрос пакетов для пополнения eSIM ${this.maskValue(iccid, 2, 4)}...`);
 
       const response = await this.client.post('/esim/topup/package', {
         iccid,

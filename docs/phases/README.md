@@ -66,9 +66,10 @@
   - Зависит от Phase 3 (guards + JWT). 4 шага, ~3-4ч.
   - Документ: [phase-8-api-security-infrastructure.md](./phase-8-api-security-infrastructure.md)
 
-- [ ] **Phase 10: Client Runtime, Payments & Provider Hardening**
+- [x] **Phase 10: Client Runtime, Payments & Provider Hardening**
   - Стабилизировать startup orchestration в `client` без массовой SSR/RSC migration.
   - Исправить подтверждённый UI bug на `order/[id]` и выровнять hydration-sensitive route patterns.
   - Сократить provider/payment logging surface и зафиксировать production-safe baseline.
   - Добавить minimal reconciliation/visibility path для сценариев paid-but-not-fulfilled.
+  - В wiki закреплены rollout guardrails: без возврата blind timeout coordination, raw payload logging по умолчанию, sweeping SSR/RSC migration и speculative reconciliation platform внутри этой фазы.
   - Документ: [phase-10-client-payments-and-provider-hardening.md](./phase-10-client-payments-and-provider-hardening.md)

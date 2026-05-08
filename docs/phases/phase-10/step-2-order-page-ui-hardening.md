@@ -40,11 +40,13 @@
 
 ## Статус
 
-Не начато
+Завершено
 
 ## Журнал изменений
 
-- 
+- **[2026-05-08]** `client/app/order/[id]/page.tsx` переведён с legacy `tg-*` классов и inline Telegram theme variables на актуальный design-system baseline (`card-neutral`, `glass-button-secondary`, `badge-*`, `text-*`).
+- **[2026-05-08]** Сохранены текущие пользовательские сценарии: status badge, QR section, copy/download actions и activation instructions; бизнес-логика страницы и соседние order flows не менялись.
+- **[2026-05-08]** Во время верификации всплыл отдельный prerender-risk на `client/app/profile/page.tsx`; он закрыт минимальным `dynamic = 'force-dynamic'`, потому что страница уже зависит от browser-only auth/settings state и не является частью visual redesign шага 2.
 
 ## Файлы
 

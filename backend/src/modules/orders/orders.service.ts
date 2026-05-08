@@ -58,6 +58,21 @@ type ResolvedLoyaltyLevel = {
   discount: number;
 } | null;
 
+type ReconciliationCategory =
+  | 'provider_failed_after_card_charge'
+  | 'provider_failed_balance_refunded'
+  | 'topup_failed_balance_refunded';
+
+type ReconciliationSnapshot = {
+  needsAttention: boolean;
+  category: ReconciliationCategory | null;
+  refunded: boolean;
+  paymentProvider: string | null;
+  paymentMethod: string | null;
+  paymentAmount: number | null;
+  lastError: string | null;
+};
+
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -82,6 +97,115 @@ export class OrdersService {
       return Number.isFinite(parsed) ? parsed : 0;
     }
     return 0;
+  }
+
+  private deriveReconciliationSnapshot(order: {
+    status: OrderStatus;
+    parentOrderId?: string | null;
+    errorMessage?: string | null;
+    transactions?: Array<{
+      type: TransactionType;
+      status: TransactionStatus;
+      amount: Prisma.Decimal | number;
+      paymentProvider?: string | null;
+      paymentMethod?: string | null;
+      metadata?: Prisma.JsonValue | null;
+    }>;
+  }): ReconciliationSnapshot {
+    const paymentTx = order.transactions?.find(
+      (tx) => tx.type === TransactionType.PAYMENT && tx.status === TransactionStatus.SUCCEEDED,
+    );
+    const refundTx = order.transactions?.find(
+      (tx) => tx.type === TransactionType.REFUND && tx.status === TransactionStatus.SUCCEEDED,
+    );
+
+    if (order.status !== OrderStatus.FAILED || !paymentTx) {
+      return {
+        needsAttention: false,
+        category: null,
+        refunded: false,
+        paymentProvider: paymentTx?.paymentProvider ?? null,
+        paymentMethod: paymentTx?.paymentMethod ?? null,
+        paymentAmount: paymentTx ? Number(paymentTx.amount) : null,
+        lastError: order.errorMessage ?? null,
+      };
+    }
+
+    const isBalancePayment =
+      paymentTx.paymentMethod === 'balance' || paymentTx.paymentProvider === 'balance';
+    const isTopup = Boolean(order.parentOrderId);
+    let category: ReconciliationCategory;
+
+    if (isBalancePayment && isTopup && refundTx) {
+      category = 'topup_failed_balance_refunded';
+    } else if (isBalancePayment && refundTx) {
+      category = 'provider_failed_balance_refunded';
+    } else {
+      category = 'provider_failed_after_card_charge';
+    }
+
+    return {
+      needsAttention: true,
+      category,
+      refunded: Boolean(refundTx),
+      paymentProvider: paymentTx.paymentProvider ?? null,
+      paymentMethod: paymentTx.paymentMethod ?? null,
+      paymentAmount: Number(paymentTx.amount),
+      lastError: order.errorMessage ?? null,
+    };
+  }
+
+  private decorateOrderWithReconciliation<T extends {
+    status: OrderStatus;
+    parentOrderId?: string | null;
+    errorMessage?: string | null;
+    transactions?: Array<{
+      type: TransactionType;
+      status: TransactionStatus;
+      amount: Prisma.Decimal | number;
+      paymentProvider?: string | null;
+      paymentMethod?: string | null;
+      metadata?: Prisma.JsonValue | null;
+    }>;
+  }>(order: T) {
+    return {
+      ...order,
+      reconciliation: this.deriveReconciliationSnapshot(order),
+    };
+  }
+
+  private logReconciliationSignal(
+    order: {
+      id: string;
+      status: OrderStatus;
+      parentOrderId?: string | null;
+      errorMessage?: string | null;
+      transactions?: Array<{
+        type: TransactionType;
+        status: TransactionStatus;
+        amount: Prisma.Decimal | number;
+        paymentProvider?: string | null;
+        paymentMethod?: string | null;
+        metadata?: Prisma.JsonValue | null;
+      }>;
+    },
+    stage: 'purchase' | 'topup',
+  ) {
+    const reconciliation = this.deriveReconciliationSnapshot(order);
+    if (!reconciliation.needsAttention) return;
+
+    this.logger.error(
+      `Reconciliation required: ${JSON.stringify({
+        orderId: order.id,
+        stage,
+        category: reconciliation.category,
+        refunded: reconciliation.refunded,
+        paymentProvider: reconciliation.paymentProvider,
+        paymentMethod: reconciliation.paymentMethod,
+        paymentAmount: reconciliation.paymentAmount,
+        error: reconciliation.lastError,
+      })}`,
+    );
   }
 
   private async getEffectiveLoyaltyLevel(totalSpent: number): Promise<ResolvedLoyaltyLevel> {
@@ -512,7 +636,7 @@ export class OrdersService {
    * Получить заказ по ID
    */
   async findById(id: string) {
-    return this.prisma.order.findUnique({
+    const order = await this.prisma.order.findUnique({
       where: { id },
       include: {
         product: true,
@@ -525,6 +649,8 @@ export class OrdersService {
         transactions: true,
       },
     });
+
+    return order ? this.decorateOrderWithReconciliation(order) : order;
   }
 
   private async applyPurchaseCompletionEffects(order: any) {
@@ -587,14 +713,17 @@ export class OrdersService {
   async findByUser(userId: string, limit = 50) {
     await this.cleanupExpiredBonusSpendHolds(userId);
 
-    return this.prisma.order.findMany({
+    const orders = await this.prisma.order.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       take: limit,
       include: {
         product: true,
+        transactions: true,
       },
     });
+
+    return orders.map((order) => this.decorateOrderWithReconciliation(order));
   }
 
   /**
@@ -744,6 +873,17 @@ export class OrdersService {
       await this.updateStatus(orderId, OrderStatus.FAILED, {
         errorMessage: error.message,
       });
+
+      this.logReconciliationSignal(
+        {
+          id: order.id,
+          status: OrderStatus.FAILED,
+          parentOrderId: order.parentOrderId,
+          errorMessage: error.message,
+          transactions: order.transactions,
+        },
+        'purchase',
+      );
 
       throw error;
     }
@@ -1463,6 +1603,16 @@ export class OrdersService {
       await this.updateStatus(order.id, OrderStatus.FAILED, {
         errorMessage: error.message,
       });
+      this.logReconciliationSignal(
+        {
+          id: order.id,
+          status: OrderStatus.FAILED,
+          parentOrderId: order.parentOrderId,
+          errorMessage: error.message,
+          transactions: order.transactions,
+        },
+        'topup',
+      );
       throw error;
     }
   }
@@ -1472,12 +1622,20 @@ export class OrdersService {
    */
   async findAll(filters?: {
     status?: OrderStatus;
+    reconciliation?: 'needs_attention';
     page?: number;
     limit?: number;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }) {
-    const { status, page = 1, limit: rawLimit = 20, sortBy, sortOrder } = filters || {};
+    const {
+      status,
+      reconciliation,
+      page = 1,
+      limit: rawLimit = 20,
+      sortBy,
+      sortOrder,
+    } = filters || {};
     const limit = Math.min(Math.max(1, rawLimit), 10000);
     const skip = (page - 1) * limit;
 
@@ -1487,6 +1645,17 @@ export class OrdersService {
 
     const where: Prisma.OrderWhereInput = {
       ...(status && { status }),
+      ...(reconciliation === 'needs_attention'
+        ? {
+            status: OrderStatus.FAILED,
+            transactions: {
+              some: {
+                type: TransactionType.PAYMENT,
+                status: TransactionStatus.SUCCEEDED,
+              },
+            },
+          }
+        : {}),
     };
 
     const [orders, total] = await Promise.all([
@@ -1506,18 +1675,27 @@ export class OrdersService {
               lastName: true,
             },
           },
+          transactions: true,
         },
       }),
       this.prisma.order.count({ where }),
     ]);
 
+    const decoratedOrders = orders
+      .map((order) => this.decorateOrderWithReconciliation(order))
+      .filter((order) =>
+        reconciliation === 'needs_attention' ? order.reconciliation.needsAttention : true,
+      );
+
     return {
-      data: orders,
+      data: decoratedOrders,
       meta: {
-        total,
+        total: reconciliation === 'needs_attention' ? decoratedOrders.length : total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(
+          (reconciliation === 'needs_attention' ? decoratedOrders.length : total) / limit,
+        ),
       },
     };
   }

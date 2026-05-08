@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { Suspense, useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
@@ -58,6 +58,14 @@ function ShareIcon() {
 }
 
 export default function CountryPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f4f5f7]" />}>
+      <CountryPageInner />
+    </Suspense>
+  )
+}
+
+function CountryPageInner() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()

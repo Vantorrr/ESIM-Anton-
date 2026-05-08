@@ -44,11 +44,13 @@
 
 ## Статус
 
-Не начато
+Завершено
 
 ## Журнал изменений
 
-- 
+- **[2026-05-08]** `PaymentsService.handleWebhook()` больше не логирует full raw Robokassa payload по умолчанию: baseline оставляет masked `InvId`, amount и truncated signature, а full payload доступен только через `DEBUG_SENSITIVE_LOGS=true`.
+- **[2026-05-08]** `EsimAccessProvider` переведён с raw purchase/query/list response dumps на masked summaries (`success`, `errorCode`, `orderNo`, `esimCount`) и masked ICCID/orderNo logs; full raw provider payload/response теперь gated через `DEBUG_SENSITIVE_LOGS=true`.
+- **[2026-05-08]** Для browser/auth-bound `client/app/profile/page.tsx` сохранён build-stability guard `dynamic = 'force-dynamic'` как отдельная верификационная находка предыдущего шага, без пересечения со scope logging hardening.
 
 ## Файлы
 

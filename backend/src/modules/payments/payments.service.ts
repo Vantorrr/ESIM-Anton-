@@ -9,6 +9,7 @@ import * as crypto from 'crypto';
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
+  private readonly debugSensitiveLogs: boolean;
   
   // Robokassa credentials
   private readonly merchantLogin: string;
@@ -27,6 +28,7 @@ export class PaymentsService {
     this.password1 = this.configService.get('ROBOKASSA_PASSWORD1') || '';
     this.password2 = this.configService.get('ROBOKASSA_PASSWORD2') || '';
     this.isTest = this.configService.get('ROBOKASSA_TEST_MODE') === 'true';
+    this.debugSensitiveLogs = this.configService.get('DEBUG_SENSITIVE_LOGS') === 'true';
     
     if (this.merchantLogin) {
       this.logger.log(`✅ Robokassa инициализирована (Merchant: ${this.merchantLogin}, Test: ${this.isTest})`);
@@ -41,6 +43,24 @@ export class PaymentsService {
   private generateSignature(...parts: (string | number)[]): string {
     const str = parts.join(':');
     return crypto.createHash('md5').update(str).digest('hex');
+  }
+
+  private maskValue(value?: string | number | null, visibleEnd = 4): string {
+    if (value === null || value === undefined) return 'n/a';
+    const text = String(value);
+    if (text.length <= visibleEnd) return text;
+    return `***${text.slice(-visibleEnd)}`;
+  }
+
+  private logWebhookPayload(payload: any) {
+    if (this.debugSensitiveLogs) {
+      this.logger.debug(`Robokassa webhook payload: ${JSON.stringify(payload)}`);
+      return;
+    }
+
+    this.logger.log(
+      `📨 Robokassa webhook: InvId=${this.maskValue(payload?.InvId)} amount=${payload?.OutSum ?? 'n/a'} signature=${this.maskValue(payload?.SignatureValue)}`,
+    );
   }
 
   /**
@@ -134,7 +154,9 @@ export class PaymentsService {
       },
     });
 
-    this.logger.log(`💳 Создан платеж Robokassa: InvId=${invId}, Sum=${outSum}₽, Order=${order.id}, Items: ${receipt.items[0].name}`);
+    this.logger.log(
+      `💳 Создан платеж Robokassa: InvId=${this.maskValue(invId)} Sum=${outSum}₽ Order=${this.maskValue(order.id, 6)} item=${receipt.items[0].name}`,
+    );
 
     return {
       transaction,
@@ -303,7 +325,9 @@ export class PaymentsService {
       },
     });
 
-    this.logger.log(`💳 Создан balance-topup платёж: InvId=${invId}, Sum=${outSum}₽, User=${userId}`);
+    this.logger.log(
+      `💳 Создан balance-topup платёж: InvId=${this.maskValue(invId)} Sum=${outSum}₽ User=${this.maskValue(userId, 6)}`,
+    );
 
     return {
       transaction,
@@ -333,7 +357,7 @@ export class PaymentsService {
    * Подпись проверяется: MD5(OutSum:InvId:Password2)
    */
   async handleWebhook(payload: any) {
-    this.logger.log(`📨 Robokassa webhook: ${JSON.stringify(payload)}`);
+    this.logWebhookPayload(payload);
     
     const { OutSum, InvId, SignatureValue } = payload;
     
@@ -346,11 +370,13 @@ export class PaymentsService {
     const expectedSignature = this.generateSignature(OutSum, InvId, this.password2);
     
     if (SignatureValue.toLowerCase() !== expectedSignature.toLowerCase()) {
-      this.logger.error(`❌ Неверная подпись! Expected: ${expectedSignature}, Got: ${SignatureValue}`);
+      this.logger.error(
+        `❌ Неверная подпись Robokassa: InvId=${this.maskValue(InvId)} expected=${this.maskValue(expectedSignature)} got=${this.maskValue(SignatureValue)}`,
+      );
       throw new BadRequestException('Invalid signature');
     }
 
-    this.logger.log(`✅ Подпись верна для InvId=${InvId}`);
+    this.logger.log(`✅ Подпись Robokassa верна для InvId=${this.maskValue(InvId)}`);
 
     // Находим транзакцию по InvId (paymentId)
     const transaction = await this.prisma.transaction.findFirst({
@@ -359,7 +385,7 @@ export class PaymentsService {
     });
 
     if (!transaction) {
-      this.logger.error(`❌ Транзакция не найдена: InvId=${InvId}`);
+      this.logger.error(`❌ Транзакция не найдена: InvId=${this.maskValue(InvId)}`);
       throw new BadRequestException('Transaction not found');
     }
 
@@ -372,7 +398,7 @@ export class PaymentsService {
     // Идемпотентность: если транзакция уже обработана (SUCCEEDED) — не делаем ничего повторно.
     // Robokassa может ретраить webhook, мы не должны дважды зачислить баланс или дважды выдать eSIM.
     if (transaction.status === TransactionStatus.SUCCEEDED) {
-      this.logger.log(`ℹ️ Webhook повтор для InvId=${InvId}, транзакция уже обработана`);
+      this.logger.log(`ℹ️ Webhook повтор для InvId=${this.maskValue(InvId)}, транзакция уже обработана`);
       return `OK${InvId}`;
     }
 
@@ -392,7 +418,7 @@ export class PaymentsService {
           }),
         ]);
         this.logger.log(
-          `✅ Баланс пользователя ${transaction.userId} пополнен на ${amount}₽ (InvId=${InvId})`,
+          `✅ Баланс пользователя ${this.maskValue(transaction.userId, 6)} пополнен на ${amount}₽ (InvId=${this.maskValue(InvId)})`,
         );
 
         // Уведомление в Telegram
@@ -428,12 +454,14 @@ export class PaymentsService {
     // Обновляем статус заказа
     await this.ordersService.updateStatus(transaction.orderId, OrderStatus.PAID);
 
-    this.logger.log(`✅ Платеж подтверждён: InvId=${InvId}, Order=${transaction.orderId}`);
+    this.logger.log(
+      `✅ Платеж подтверждён: InvId=${this.maskValue(InvId)} Order=${this.maskValue(transaction.orderId, 6)}`,
+    );
 
     // Выдаем eSIM
     try {
       await this.ordersService.fulfillOrder(transaction.orderId);
-      this.logger.log(`✅ eSIM выдан для заказа ${transaction.orderId}`);
+      this.logger.log(`✅ eSIM выдан для заказа ${this.maskValue(transaction.orderId, 6)}`);
     } catch (error) {
       this.logger.error(`❌ Ошибка выдачи eSIM: ${error.message}`);
     }

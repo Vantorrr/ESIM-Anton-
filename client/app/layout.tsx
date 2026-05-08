@@ -60,7 +60,7 @@ export default function RootLayout({
     <html lang="ru" suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <Script id="pwa-prompt" src="/pwa-prompt.js" strategy="beforeInteractive" />
       </head>
       <body suppressHydrationWarning>

@@ -43,21 +43,31 @@
 
 ## Статус
 
-Не начато
+Завершено
 
 ## Журнал изменений
 
-- 
+- **[2026-05-08]** `OrdersService` получил derived `reconciliation` snapshot для заказов: marker вычисляется из `status`, успешной `PAYMENT` transaction, refund transaction, `parentOrderId` и `errorMessage` без новой схемы БД.
+- **[2026-05-08]** Для provider failure после успешной оплаты добавлен structured operational signal `Reconciliation required` с категорией (`provider_failed_after_card_charge`, `provider_failed_balance_refunded`, `topup_failed_balance_refunded`), payment method/provider и refund status.
+- **[2026-05-08]** `GET /orders` для админки теперь принимает `reconciliation=needs_attention`, а `findAll`, `findById` и `findByUser` возвращают reconciliation marker вместе с заказом для ручного triage.
 
 ## Файлы
 
 - `backend/src/modules/payments/cloudpayments.service.ts`
 - `backend/src/modules/payments/payments.service.ts`
 - `backend/src/modules/orders/orders.service.ts`
-- возможно: `admin` surfaces или wiki/runbooks
+- `backend/src/modules/orders/orders.controller.ts`
+- wiki/runbooks
 
 ## Тестирование / Верификация
 
-- Искусственно воспроизводимый provider failure после successful payment оставляет диагностируемое состояние.
-- Balance/topup compensation paths продолжают работать.
-- Happy path card payment и happy path balance purchase не деградируют.
+- `npx nest build` в `backend` проходит после добавления reconciliation marker и admin filter.
+- Provider failure после successful payment теперь оставляет диагностируемое состояние без silent dead zone:
+  - заказ остаётся `FAILED`;
+  - у order detail/list есть `reconciliation.needsAttention=true`;
+  - в логах появляется structured `Reconciliation required` signal.
+- Balance/topup compensation paths продолжают различаться по marker category:
+  - card -> `provider_failed_after_card_charge`;
+  - balance purchase -> `provider_failed_balance_refunded`;
+  - balance topup -> `topup_failed_balance_refunded`.
+- Ограничение baseline: это detection/triage path, а не автоматический retry worker и не отдельная reconciliation queue.

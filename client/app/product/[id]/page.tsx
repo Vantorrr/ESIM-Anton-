@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { Suspense, useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Wifi, Clock, Tag, CreditCard, Mail, Wallet } from '@/components/icons'
 import { productsApi, Product, userApi, ordersApi, promoApi } from '@/lib/api'
@@ -12,6 +12,14 @@ import { sanitizeRedirect } from '@/lib/security'
 import { payCloudPayments } from '@/lib/cloudpayments'
 
 export default function ProductPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f4f5f7]" />}>
+      <ProductPageInner />
+    </Suspense>
+  )
+}
+
+function ProductPageInner() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
