@@ -105,6 +105,7 @@ export interface UsageInfo {
   percentTraffic?: number | null;
   percentTime?: number | null;
   validityDaysLeft?: number | null;
+  validityHoursLeft?: number | null;
 }
 
 export interface TopupPackage {

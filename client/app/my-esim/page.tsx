@@ -55,6 +55,7 @@ interface MyEsim {
     percentTraffic: number | null
     percentTime: number | null
     validityDaysLeft: number | null
+    validityHoursLeft: number | null
   }
   refreshing?: boolean
 }
@@ -313,6 +314,7 @@ export default function MyEsimPage() {
                   percentTraffic: u.percentTraffic ?? null,
                   percentTime: u.percentTime ?? null,
                   validityDaysLeft: u.validityDaysLeft ?? null,
+                  validityHoursLeft: u.validityHoursLeft ?? null,
                 },
               }
             : e,
@@ -471,11 +473,16 @@ export default function MyEsimPage() {
                             Остаток срока
                           </span>
                           <span className="font-medium text-gray-900 dark:text-white">
-                            {esim.usage.validityDaysLeft !== null && esim.usage.validityDaysLeft !== undefined
-                              ? esim.usage.validityDaysLeft > 0
-                                ? `осталось ${esim.usage.validityDaysLeft} дн.`
-                                : 'истёк'
-                              : '—'}
+                            {(() => {
+                              const d = esim.usage.validityDaysLeft;
+                              const h = esim.usage.validityHoursLeft;
+                              if (d == null) return '—';
+                              if (d <= 0 && (h ?? 0) <= 0) return 'истёк';
+                              const parts: string[] = [];
+                              if (d > 0) parts.push(`${d} дн.`);
+                              if (h != null && h > 0) parts.push(`${h} ч.`);
+                              return parts.length ? `осталось ${parts.join(' ')}` : 'менее часа';
+                            })()}
                           </span>
                         </div>
                         <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">

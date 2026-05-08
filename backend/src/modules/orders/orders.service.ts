@@ -908,13 +908,14 @@ export class OrdersService {
    * Расчёт fallback-срока действия из createdAt + product.validityDays.
    * Используется когда провайдер ещё не отдаёт expiredTime (eSIM не активирована).
    */
-  private fallbackExpiresAt(order: { createdAt: Date; product: { validityDays: number } | null }): Date | null {
-    if (!order.product?.validityDays) return null;
-    return new Date(order.createdAt.getTime() + order.product.validityDays * 86400 * 1000);
+  private fallbackExpiresAt(order: { createdAt: Date; product: { validityDays: number } | null; periodNum?: number | null }): Date | null {
+    const days = order.periodNum ?? order.product?.validityDays;
+    if (!days) return null;
+    return new Date(order.createdAt.getTime() + days * 86400 * 1000);
   }
 
   private buildUnavailableResponse(
-    order: { createdAt: Date; product: { validityDays: number } | null; esimStatus: string | null; activatedAt: Date | null; expiresAt: Date | null },
+    order: { createdAt: Date; product: { validityDays: number } | null; esimStatus: string | null; activatedAt: Date | null; expiresAt: Date | null; periodNum?: number | null },
     reason: string,
   ) {
     return {
@@ -931,11 +932,12 @@ export class OrdersService {
       percentTraffic: null,
       percentTime: null,
       validityDaysLeft: null,
+      validityHoursLeft: null,
     };
   }
 
   private buildUsageResponse(
-    order: { createdAt: Date; product: { validityDays: number } | null },
+    order: { createdAt: Date; product: { validityDays: number } | null; periodNum?: number | null },
     snap: {
       usedBytes: number | null;
       totalBytes: number | null;
@@ -963,16 +965,20 @@ export class OrdersService {
 
     let percentTime: number | null = null;
     let validityDaysLeft: number | null = null;
+    let validityHoursLeft: number | null = null;
     if (expiresAt) {
       const now = Date.now();
       const exp = expiresAt.getTime();
-      // Базовая точка для прогресса по времени: момент активации, иначе createdAt заказа
-      const start = (activatedAt ?? order.createdAt).getTime();
-      const total = Math.max(1, exp - start);
-      const consumed = Math.max(0, Math.min(total, now - start));
-      percentTime = Math.max(0, 100 - Math.round((consumed / total) * 100));
-      const msLeft = exp - now;
-      validityDaysLeft = msLeft > 0 ? Math.ceil(msLeft / 86400000) : 0;
+      const msLeft = Math.max(0, exp - now);
+      validityDaysLeft = Math.floor(msLeft / 86400000);
+      validityHoursLeft = Math.floor((msLeft % 86400000) / 3600000);
+      
+      const productValidity = order.periodNum ?? order.product?.validityDays;
+      const totalMs = productValidity 
+        ? productValidity * 86400000 
+        : Math.max(1, exp - (activatedAt ?? order.createdAt).getTime());
+        
+      percentTime = Math.max(0, Math.min(100, Math.round((msLeft / totalMs) * 100)));
     }
 
     return {
@@ -988,6 +994,7 @@ export class OrdersService {
       percentTraffic,
       percentTime,
       validityDaysLeft,
+      validityHoursLeft,
       smdpAddress,
       activationCode,
       ...(usedBytes === null

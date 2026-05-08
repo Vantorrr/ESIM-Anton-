@@ -180,6 +180,7 @@ export class OrdersController {
       percentTraffic: 'percentTraffic' in usage ? usage.percentTraffic : null,
       percentTime: 'percentTime' in usage ? usage.percentTime : null,
       validityDaysLeft: 'validityDaysLeft' in usage ? usage.validityDaysLeft : null,
+      validityHoursLeft: 'validityHoursLeft' in usage ? usage.validityHoursLeft : null,
     };
   }
 
