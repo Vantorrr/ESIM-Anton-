@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Wifi, Clock, Tag, CreditCard, Mail, Wallet } from '@/components/icons'
 import { productsApi, Product, userApi, ordersApi, promoApi } from '@/lib/api'
+import { isTelegramWebApp } from '@/lib/auth'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
 import { getCoverageItems, getCoverageScopeLabel, getCoverageSummary } from '@/lib/productCoverage'
 import { useAuth } from '@/components/AuthProvider'
@@ -166,7 +167,7 @@ export default function ProductPage() {
         } catch { /* non-critical */ }
       }
 
-      const tg = (window as any).Telegram?.WebApp
+      const tg = isTelegramWebApp() ? (window as any).Telegram.WebApp : null
 
       // === Ветка «Покупка с баланса» ===
       if (method === 'balance' && totalPrice > 0) {
@@ -189,9 +190,10 @@ export default function ProductPage() {
 
         await ordersApi.create(createPayload)
 
-        if (tg?.showAlert) {
+        if (tg) {
           tg.showAlert('eSIM выдана! Открываю «Мои eSIM»…', () => router.push('/my-esim'))
         } else {
+          alert('eSIM выдана! Открываем «Мои eSIM»…')
           router.push('/my-esim')
         }
         return
@@ -222,7 +224,7 @@ export default function ProductPage() {
       if (orderTotal <= 0) {
         const { api: apiClient } = await import('@/lib/api')
         await apiClient.post(`/orders/${order.id}/fulfill-free`)
-        if (tg?.showAlert) {
+        if (tg) {
           tg.showAlert('eSIM активирована! Промокод применён.', () => router.push('/my-esim'))
         } else {
           alert('eSIM активирована! Промокод применён.')
@@ -242,7 +244,7 @@ export default function ProductPage() {
         accountId: user.id,
       }, {
         onSuccess: function () {
-          if (tg?.showAlert) {
+          if (tg) {
             tg.showAlert('Оплата прошла успешно!', () => router.push('/my-esim'))
           } else {
             alert('Оплата прошла успешно!')
@@ -251,8 +253,8 @@ export default function ProductPage() {
         },
         onFail: function (reason: any) {
           console.error('Payment failed:', reason)
-          if (tg?.showAlert) tg.showAlert('Оплата не прошла. Попробуйте еще раз.')
-          else alert('Оплата не прошла')
+          if (tg) tg.showAlert('Оплата не прошла. Попробуйте еще раз.')
+          else alert('Оплата не прошла. Попробуйте еще раз.')
         },
         onComplete: function () {},
       })
@@ -261,9 +263,8 @@ export default function ProductPage() {
       console.error('Ошибка создания заказа:', error);
       const errorMsg = error?.response?.data?.message || error.message || 'Ошибка при создании заказа';
 
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg?.showAlert) {
-        tg.showAlert(errorMsg);
+      if (isTelegramWebApp()) {
+        (window as any).Telegram.WebApp.showAlert(errorMsg);
       } else {
         alert(errorMsg);
       }
