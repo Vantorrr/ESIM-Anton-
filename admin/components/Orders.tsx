@@ -4,6 +4,16 @@ import { useEffect, useState } from 'react'
 import { ordersApi } from '@/lib/api'
 import { Package } from 'lucide-react'
 
+/** Форматирование цены в рубли */
+const fmtPrice = (v: unknown): string =>
+  `₽${Number(v || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}`
+
+/** Есть ли хоть одна скидка у заказа */
+const hasDiscount = (order: any): boolean =>
+  Number(order.promoDiscount || 0) > 0 ||
+  Number(order.discount || 0) > 0 ||
+  Number(order.bonusUsed || 0) > 0
+
 export default function Orders() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -91,39 +101,79 @@ export default function Orders() {
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">ID</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Пользователь</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Продукт</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Сумма</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Цена</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Статус</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700">Дата</th>
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="border-b border-slate-100 hover:bg-white/50 transition-colors"
-                  >
-                    <td className="py-4 px-4 font-mono text-sm">
-                      #{order.id.slice(0, 8)}
-                    </td>
-                    <td className="py-4 px-4 font-medium">
-                      {order.user?.firstName || order.user?.username || 'Пользователь'}
-                    </td>
-                    <td className="py-4 px-4">
-                      {order.product?.name || 'N/A'}
-                    </td>
-                    <td className="py-4 px-4 font-bold">
-                      ₽{Number(order.totalAmount).toLocaleString()}
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
-                        {getStatusText(order.status)}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-sm text-slate-600">
-                      {new Date(order.createdAt).toLocaleDateString('ru-RU')}
-                    </td>
-                  </tr>
-                ))}
+                {orders.map((order) => {
+                  const discounted = hasDiscount(order)
+                  const promoAmt = Number(order.promoDiscount || 0)
+                  const loyaltyAmt = Number(order.discount || 0)
+                  const bonusAmt = Number(order.bonusUsed || 0)
+
+                  return (
+                    <tr
+                      key={order.id}
+                      className="border-b border-slate-100 hover:bg-white/50 transition-colors"
+                    >
+                      <td className="py-4 px-4 font-mono text-sm">
+                        #{order.id.slice(0, 8)}
+                      </td>
+                      <td className="py-4 px-4 font-medium">
+                        {order.user?.firstName || order.user?.username || 'Пользователь'}
+                      </td>
+                      <td className="py-4 px-4">
+                        {order.product?.name || 'N/A'}
+                      </td>
+                      <td className="py-4 px-4">
+                        {discounted ? (
+                          <div className="text-sm space-y-0.5">
+                            <div className="text-slate-400 line-through">
+                              {fmtPrice(order.productPrice)}
+                            </div>
+                            {promoAmt > 0 && (
+                              <div className="text-orange-600">
+                                −{fmtPrice(promoAmt)}{' '}
+                                {order.promoCode && (
+                                  <span className="inline-block px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 text-xs font-medium">
+                                    {order.promoCode}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {loyaltyAmt > 0 && (
+                              <div className="text-purple-600">
+                                −{fmtPrice(loyaltyAmt)} лояльность
+                              </div>
+                            )}
+                            {bonusAmt > 0 && (
+                              <div className="text-green-600">
+                                −{fmtPrice(bonusAmt)} бонусы
+                              </div>
+                            )}
+                            <div className="font-bold text-slate-900 pt-0.5 border-t border-slate-200">
+                              {fmtPrice(order.totalAmount)}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="font-bold">
+                            {fmtPrice(order.totalAmount)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusText(order.status)}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-sm text-slate-600">
+                        {new Date(order.createdAt).toLocaleDateString('ru-RU')}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
