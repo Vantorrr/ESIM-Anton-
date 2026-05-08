@@ -4,70 +4,84 @@
 
 ## Цель
 
-Сделать backend, а не browser-side PIN, реальной границей доступа для admin write operations.
+Закрыть backend API как реальную границу доступа для admin operations. Устранить все CRITICAL и HIGH уязвимости, обнаруженные в security audit от 2026-05-08.
 
 ## Результат
 
-- admin UI получает backend admin JWT через подтверждённый login flow;
-- admin API client отправляет `Authorization: Bearer ...`;
-- write/admin endpoints закрыты `JwtAdminGuard`;
-- read endpoints, которыми пользуются `dashboard`, `orders`, `users` и `products`, имеют явную auth policy, а не случайно публичное поведение;
-- прямой неавторизованный вызов write endpoint возвращает `401/403`;
-- browser-side PIN, если остаётся, считается только дополнительным UX-барьером, а не security boundary.
+- Все admin write endpoints защищены `JwtAdminGuard`.
+- Все admin read endpoints (analytics, users list, payments, orders) защищены `JwtAdminGuard`.
+- Публичные client-facing endpoints (каталог, страны, OAuth) остаются открытыми.
+- `POST /auth/register-admin` требует `SUPER_ADMIN` токен.
+- JWT модель усилена: admin payload содержит `type: 'admin'`, guard проверяет whitelist ролей.
+- Admin JWT TTL сокращён до 8 часов.
+- Ручной парсинг JWT в `updateMyEmail` заменён на guard.
+- Прямой неавторизованный вызов любого admin endpoint возвращает `401`.
 
 ## Оценка
 
-Высокий приоритет и высокий риск регрессий: текущая админка может работать за счёт отсутствия серверной защиты на части endpoints.
+~3-4 часа суммарно по всем шагам.
+Высокий приоритет — без этого production API позволяет создавать admin-аккаунты, менять цены и читать PII без аутентификации.
 
 ## Зависит от
 
-- [phase-2-runtime-verification.md](./phase-2-runtime-verification.md)
-- [../architecture/codebase-audit.md](../architecture/codebase-audit.md)
+- [phase-2-runtime-verification.md](./phase-2-runtime-verification.md) — подтверждён рабочий контур
+- [Security Audit от 2026-05-08](../../.agent/agents/security-auditor.md) — findings
 
 ## Пререквизиты
 
-- локально поднят backend и admin;
-- известен текущий admin credential source из `.env.example`, без чтения боевого `.env`;
-- подтверждены текущие admin routes через Swagger или smoke-запросы;
-- зафиксировано, что `admin/lib/api.ts` уже умеет слать `Bearer` из `localStorage`, но текущий UI не получает admin token;
-- подтверждено, что `POST /api/auth/login` существует и возвращает admin JWT.
+- Локально поднят backend и admin.
+- `POST /api/auth/login` работает, возвращает admin JWT.
+- `admin/lib/api.ts` уже отправляет `Bearer` из `localStorage`.
+- `admin/app/page.tsx` уже имеет login form и сохраняет `access_token` в localStorage.
+- `SharedAuthModule` глобально экспортирует `JwtAdminGuard` и `JwtUserGuard`.
 
 ## Архитектурные решения
 
-- Серверная авторизация должна быть обязательной для write operations.
-- CORS и PIN в браузере не считаются защитой API.
-- Сначала внедряется admin login/token propagation, только потом массово включаются guards, чтобы не сломать admin UI вслепую.
-- Нужно разделить user JWT и admin JWT usage: `/auth/me` сейчас валидирует только `payload.type === 'user'`, поэтому для admin session понадобится отдельный backend contract (`/auth/admin/me` или эквивалентная проверка).
-- Для rollout важнее сначала закрыть write routes, но Phase 3 должна также явно решить судьбу публичных admin read routes, которыми сейчас питается dashboard.
+- Admin login UI и token propagation уже реализованы ранее. Шаги 2-3 из предыдущей версии Phase 3 подтверждены как выполненные.
+- Защита endpoints — атомарная операция: добавляем `@UseGuards(JwtAdminGuard)` — admin UI уже отправляет Bearer.
+- `GET /products`, `GET /products/countries`, `GET /products/:id` — остаются публичными (клиентский каталог).
+- `POST /users/find-or-create` — используется ботом. Временно защищается `JwtAdminGuard`, пока не будет реализован inter-service API key.
+- `GET /orders/:id` и `GET /orders/user/:userId` — используются и из admin, и из client. На этом этапе ставим `JwtAdminGuard`. Если client-facing route нужен — это отдельная задача вне Phase 3.
+- Обязательно: `type: 'admin'` в JWT payload + whitelist ролей в guard, чтобы user-токен не проходил admin guard.
 
 ## Шаги (журналы)
 
-- [Шаг 1. Зафиксировать текущую auth-карту](./phase-3/step-1-auth.md)
-- [Шаг 2. Внедрить admin login в UI](./phase-3/step-2-admin-login-ui.md)
-- [Шаг 3. Подключить token к admin API client](./phase-3/step-3-token-admin-api-client.md)
-- [Шаг 4. Закрыть write endpoints guard'ами](./phase-3/step-4-write-endpoints-guard.md)
-- [Шаг 5. Провести security smoke](./phase-3/step-5-security-smoke.md)
+- [Шаг 1. Зафиксировать текущую auth-карту (обновлённый аудит)](./phase-3/step-1-auth.md)
+- [Шаг 2. Подтвердить работоспособность admin login flow](./phase-3/step-2-admin-login-ui.md)
+- [Шаг 3. Закрыть CRITICAL endpoints guard'ами](./phase-3/step-3-critical-guards.md)
+- [Шаг 4. Закрыть HIGH endpoints guard'ами + исправить IDOR](./phase-3/step-4-high-guards-and-idor.md)
+- [Шаг 5. Усилить JWT модель (type, roles, TTL)](./phase-3/step-5-jwt-hardening.md)
+- [Шаг 6. Провести security smoke](./phase-3/step-6-security-smoke.md)
 
 ## Верификация
 
-- `POST/PUT/DELETE` admin endpoint без token возвращает `401/403`.
-- Тот же endpoint с валидным admin token выполняется успешно.
-- Admin UI после refresh сохраняет или корректно восстанавливает auth-состояние.
-- Browser-side PIN не является единственным условием выполнения write-запроса.
-
+- `POST /api/auth/register-admin` без токена → `401`.
+- `POST /api/auth/register-admin` с `SUPPORT` токеном → `403`.
+- `GET /api/analytics/dashboard` без токена → `401`.
+- `POST /api/system-settings/pricing` без токена → `401`.
+- `GET /api/users` без токена → `401`.
+- `GET /api/products` без токена → `200` (публичный каталог).
+- `POST /api/products/sync` без токена → `401`.
+- Admin UI login → dashboard загружается → все вкладки работают.
+- `npm run build` — без ошибок.
+- `npm run test` — все тесты green.
 
 ## Журнал
 
 - **[2026-05-07] Аудит текущего состояния:**
-  - `Шаг 1` выполнен. 
-  - Admin UI использует исключительно frontend-only PIN, сохраняемый в localStorage, и не делает реальной авторизации в API (нет JWT).
-  - `admin/lib/api.ts` уже пытается брать `auth_token` из `localStorage`, но текущий `admin/app/page.tsx` не создаёт этот token и вообще не использует backend login flow.
-  - `POST /api/auth/login` уже существует, но текущая фаза должна уточнить его response contract, admin payload и session recovery strategy для UI.
-  - Большинство admin write-эндпоинтов на backend не имеют реальной защиты и ограничены только `@ApiBearerAuth()`. Подтверждённое исключение в текущем коде: `POST /products/dedupe` уже закрыт `JwtAdminGuard`.
-  - Дополнительный открытый вопрос фазы: часть read routes (`analytics`, `orders`, `users`, `products`) сейчас используются админкой как публичные. Перед массовым включением guard'ов их нужно классифицировать как `admin-only` или намеренно публичные.
-  - Шаги 2-5 не начаты. При внедрении `JwtAdminGuard` необходимо синхронно менять backend contract, admin login UI и проверку session restore.
+  - Шаг 1 выполнен (первичный аудит).
+  - Admin UI использовал frontend-only PIN — обнаружено, что уже переведён на backend login flow.
+  - `admin/lib/api.ts` уже отправляет `Bearer` из localStorage, `page.tsx` уже реализует login form.
 
+- **[2026-05-08] Полный security audit:**
+  - Проведён полный аудит по OWASP Top 10:2025 методологии.
+  - Обнаружено 3 CRITICAL, 5 HIGH, 4 MEDIUM, 3 LOW уязвимостей.
+  - Phase 3 переписана с учётом findings и обновлённого состояния кода.
+  - Шаги 2-3 из предыдущей версии подтверждены как выполненные (login UI + token propagation уже работают).
+  - Новая декомпозиция: 6 шагов с фокусом на guards, JWT hardening и smoke.
 
-## Ссылки на ранее созданные фазы и шаги, которые нужно учитывать при разработке этой фазы и ссылка назад на главный файл фазы из каждого шага.
+## Ссылки
 
 - [Корневой документ wiki](../README.md)
+- [Architecture module map](../architecture/module-map.md)
+- [Codebase audit](../architecture/codebase-audit.md)

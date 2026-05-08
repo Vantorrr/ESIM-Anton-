@@ -26,9 +26,11 @@
   - Документ: [phase-2-runtime-verification.md](./phase-2-runtime-verification.md)
 
 - [ ] **Phase 3: Admin Auth & API Security Hardening**
-  - Перевести admin с frontend-only PIN на backend admin JWT flow.
-  - Закрыть реальные write endpoints через `JwtAdminGuard`, не сломав существующие read flows.
-  - Отдельно проверить незакрытые routes `products`, `promo-codes`, `system-settings`, `loyalty`, `users`, `payments`.
+  - Закрыть все CRITICAL/HIGH уязвимости из security audit 2026-05-08 (3 CRITICAL, 5 HIGH).
+  - Guards на все admin-facing endpoints: analytics, system-settings, users, payments, products, orders.
+  - Защита `register-admin` + IDOR fix в `updateMyEmail`.
+  - Усиление JWT: `type: 'admin'`, whitelist ролей, TTL 8h.
+  - Admin login flow уже работает (шаги 1-2 подтверждены). 6 шагов, ~3-4ч.
   - Документ: [phase-3-admin-auth-and-api-security.md](./phase-3-admin-auth-and-api-security.md)
 
 - [x] **Phase 4: Loyalty & Referral Wiring**
@@ -60,3 +62,10 @@
   - Подготовить rollout для уже существующей production DB с baseline migration `20260507_init`.
   - Выполнять controlled deploy только после завершения security/business-critical фаз и smoke-checklist.
   - Документ: [phase-8-production-readiness-and-railway-rollout.md](./phase-8-production-readiness-and-railway-rollout.md)
+
+- [ ] **Phase 9: API Security Infrastructure (Helmet, CORS, DTO, Rate Limiting)**
+  - Security headers через `helmet`, CORS с явными origins, Swagger скрыт в production.
+  - DTO с `class-validator` для всех admin write endpoints вместо `@Body() dto: any`.
+  - Rate limiting (`@nestjs/throttler`): 5 login / 3 SMS в минуту, webhooks исключены.
+  - Зависит от Phase 3 (guards + JWT). 4 шага, ~2-2.5ч.
+  - Документ: [phase-9-api-security-infrastructure.md](./phase-9-api-security-infrastructure.md)

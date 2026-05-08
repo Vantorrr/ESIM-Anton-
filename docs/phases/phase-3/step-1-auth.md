@@ -1,35 +1,61 @@
-# Шаг 1. Зафиксировать текущую auth-карту
+# Шаг 1. Зафиксировать текущую auth-карту (обновлённый аудит)
 
 > [⬅️ Назад к фазе](../phase-3-admin-auth-and-api-security.md)
 
 ## Цель
 
-Понять, какие endpoints уже защищены, а какие только декларируют `@ApiBearerAuth()`.
+Иметь полную и актуальную карту защиты всех backend controllers: что защищено, что публично, что должно быть закрыто.
 
 ## Что нужно сделать
 
-- проверить backend controllers для products, settings, loyalty, promo codes, orders, payments, users;
-- составить список read/write routes и текущих guards;
-- сверить admin UI API calls с backend routes.
+- Проверить все backend controllers на наличие `@UseGuards`.
+- Классифицировать каждый endpoint как `admin-only`, `user-only`, `public` или `internal`.
+- Зафиксировать расхождения между `@ApiBearerAuth()` (Swagger-декоратор) и реальной защитой.
+- Обновить audit findings в журнале.
 
 ## Результат шага
 
-Документирован список endpoints, которые нельзя закрывать без одновременной правки admin UI.
+Документирована полная auth-карта всех controllers с рекомендациями по каждому endpoint.
 
 ## Статус
 
-Выполнено (Аудит проведен)
+✅ Выполнено (Аудит обновлён 2026-05-08)
 
 ## Журнал изменений
 
-- Проведен аудит. Все админские write endpoints (например в `products`, `promo-codes`, `system-settings`, `users`) используют только декоратор `@ApiBearerAuth()` без реального `@UseGuards(JwtAdminGuard)`. Исключение: `products/dedupe`.
-- Admin UI (папка `admin/app/page.tsx`) использует frontend-only PIN-код, сохраняемый в localStorage (`ADMIN_PIN_STORAGE_KEY`), и не взаимодействует с backend JWT flow.
+- **[2026-05-07]** Первичный аудит. Обнаружено: большинство write endpoints не имеют guards.
+- **[2026-05-08]** Полный security audit по OWASP Top 10:2025. Результаты:
+
+### Auth-карта контроллеров
+
+| Контроллер | Текущие guards | Целевое состояние |
+|-----------|---------------|-------------------|
+| `AuthController` | ❌ Нет на `register-admin` | `JwtAdminGuard` + role check |
+| `AnalyticsController` | ❌ Полностью открыт | `JwtAdminGuard` на контроллере |
+| `SystemSettingsController` | ❌ Полностью открыт | `JwtAdminGuard` на контроллере |
+| `UsersController` | ❌ Полностью открыт | `JwtAdminGuard` на admin endpoints |
+| `PaymentsController` | ⚠️ Только `balance/topup` | `JwtAdminGuard` на admin endpoints |
+| `ProductsController` | ⚠️ Только `dedupe` | `JwtAdminGuard` на все мутирующие |
+| `OrdersController` | ⚠️ Частично | `JwtAdminGuard` на admin, ownership на user |
+| `PromoCodesController` | ✅ Все с `JwtAdminGuard` | Без изменений |
+| `LoyaltyController` | ✅ Все с guards | Без изменений |
+| `ReferralsController` | ✅ Все с guards | Без изменений |
+| `CloudPaymentsController` | ✅ HMAC verification | Без изменений |
+
+### Дополнительные находки
+
+- `updateMyEmail` в `UsersController` парсит JWT вручную **без проверки подписи** — IDOR уязвимость.
+- Admin JWT не содержит `type: 'admin'` — нет чёткого разделения с user tokens.
+- `JwtAdminGuard` проверяет наличие `role`, но не проверяет whitelist допустимых ролей.
 
 ## Файлы
 
 - `backend/src/modules/**/*.controller.ts`
+- `backend/src/common/auth/jwt-user.guard.ts`
+- `backend/src/modules/auth/auth.service.ts`
 - `admin/app/page.tsx`
+- `admin/lib/api.ts`
 
 ## Тестирование / Верификация
 
-- Аудит завершен. Выводы зафиксированы.
+- Аудит завершён. Выводы зафиксированы в таблице выше.
