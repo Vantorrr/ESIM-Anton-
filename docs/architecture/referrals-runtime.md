@@ -81,6 +81,13 @@ Response shape:
 - страница не должна ходить в admin/internal referral endpoints;
 - вся runtime загрузка referral stats должна идти только через `/referrals/me`.
 
+Тот же контракт относится к profile entrypoints и share-UI:
+
+- баннеры и CTA на клиенте не должны хардкодить `20%`, `₽300` или plain bot link;
+- любой share-flow должен использовать backend `referralLink` как canonical invite URL;
+- plain `https://t.me/<bot>` без `?start=ref_<code>` не считается рабочей referral-ссылкой, потому что bot registration живёт только на `/start ref_<code>`;
+- если реферальная программа выключена, профильный баннер должен вести пользователя на `/referrals` или показывать нейтральный статус, а не обещать несуществующие бонусы.
+
 ## Referral Bonus And `minPayout`
 
 `minPayout` относится только к referral bonus, а не ко всему `bonusBalance`.

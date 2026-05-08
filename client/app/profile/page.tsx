@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { referralsApi, type ReferralStats } from '@/lib/api'
 import { 
   DollarSign, Smartphone, ShoppingBag, Globe, Moon, Bell, Sun, Monitor,
   ChevronRight, Gift, HelpCircle, FileText, MessageCircle, X, Check, LogOut
@@ -26,6 +27,7 @@ type Language = 'ru' | 'en'
 export default function ProfilePage() {
   const { user: authUser, isLoading: authLoading } = useAuth()
   const [user, setUser] = useState<UserProfile | null>(null)
+  const [referralStats, setReferralStats] = useState<ReferralStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [promoCode, setPromoCode] = useState('')
   const [theme, setTheme] = useState<Theme>('system')
@@ -104,9 +106,20 @@ export default function ProfilePage() {
     }
   }, [authUser])
 
+  const loadReferralStats = useCallback(async () => {
+    try {
+      const stats = await referralsApi.getStats()
+      setReferralStats(stats)
+    } catch (e) {
+      console.error('Referral stats load error:', e)
+      setReferralStats(null)
+    }
+  }, [])
+
   useEffect(() => {
     if (authLoading) return
     void loadUserData()
+    void loadReferralStats()
     const savedTheme = localStorage.getItem('theme') as Theme
     const savedLang = localStorage.getItem('language') as Language
     const savedNotifications = localStorage.getItem('notifications')
@@ -114,7 +127,7 @@ export default function ProfilePage() {
     if (savedTheme) setTheme(savedTheme)
     if (savedLang) setLanguage(savedLang)
     if (savedNotifications !== null) setNotifications(savedNotifications === 'true')
-  }, [authLoading, loadUserData])
+  }, [authLoading, loadReferralStats, loadUserData])
   
   // Применение темы
   useEffect(() => {
@@ -142,17 +155,39 @@ export default function ProfilePage() {
   }
 
   const shareReferral = () => {
-    const shareText = `🎁 Дарю тебе скидку 20% на первую покупку в Mojo mobile!\n\nИспользуй мой код: ${user?.referralCode}\n\nПереходи: https://t.me/mojo_mobile_bot`
+    if (!referralStats?.enabled || !referralStats.referralLink) {
+      window.location.href = '/referrals'
+      return
+    }
+
+    const shareTitle = 'Mojo mobile'
+    const shareText = [
+      'Подключай eSIM в Mojo mobile по моей ссылке.',
+      `Реферальные бонусы по программе рекомендаций: ${referralStats.referralPercent}%.`,
+      `Ссылка: ${referralStats.referralLink}`,
+    ].join('\n\n')
     const tg = (window as any).Telegram?.WebApp
     if (tg?.openTelegramLink) {
-      tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareText)}`)
+      tg.openTelegramLink(
+        `https://t.me/share/url?url=${encodeURIComponent(referralStats.referralLink)}&text=${encodeURIComponent(shareText)}`
+      )
     } else if (navigator.share) {
-      navigator.share({ text: shareText })
+      navigator.share({ title: shareTitle, text: shareText, url: referralStats.referralLink }).catch(() => {})
     } else {
-      navigator.clipboard?.writeText(shareText)
+      navigator.clipboard?.writeText(`${shareText}\n`)
       alert('Ссылка скопирована!')
     }
   }
+
+  const referralBannerTitle = referralStats?.enabled
+    ? `Получайте ${referralStats.referralPercent}% с покупок друзей`
+    : 'Реферальная программа временно недоступна'
+
+  const referralBannerDescription = referralStats?.enabled
+    ? `Поделитесь своей ссылкой. Реферальные бонусы доступны к использованию от ${referralStats.minPayout} ₽.`
+    : 'Подробности и статус программы доступны на экране рефералов.'
+
+  const referralButtonLabel = referralStats?.enabled ? 'Поделиться ссылкой' : 'Открыть рефералы'
 
   const handleLogout = async () => {
     const { isTelegramWebApp, clearToken } = await import('@/lib/auth')
@@ -243,13 +278,16 @@ export default function ProfilePage() {
           <div className="relative overflow-hidden card-accent p-5">
             <div className="relative z-10">
               <p className="text-white font-semibold text-lg mb-3">
-                Получи бонус ₽300, и дай другу скидку 20%!
+                {referralBannerTitle}
+              </p>
+              <p className="text-sm text-white/90 mb-4 max-w-[18rem]">
+                {referralBannerDescription}
               </p>
               <button
                 onClick={shareReferral}
                 className="px-5 py-2.5 bg-white text-[#f77430] font-semibold rounded-xl shadow-lg hover:shadow-xl transition-shadow"
               >
-                Пригласить друга
+                {referralButtonLabel}
               </button>
             </div>
             {/* Decorative gift */}
