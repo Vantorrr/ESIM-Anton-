@@ -408,6 +408,7 @@ export class CloudPaymentsService {
         data: { status: TransactionStatus.FAILED, metadata: body },
       });
     }
+    await this.ordersService.releaseBonusSpendHold(String(InvoiceId), 'cloudpayments_failed');
     return { code: 0 };
   }
 }

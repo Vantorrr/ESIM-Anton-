@@ -10,6 +10,7 @@
 - [deployment.md](./deployment.md) — production/deployment baseline.
 - [railway-runbook.md](./railway-runbook.md) — практический порядок действий для Railway autodeploy.
 - [local-user-auth-switch.md](./local-user-auth-switch.md) — как локально привязать login flow к существующему пользователю.
+- [referral-production-checklist.md](./referral-production-checklist.md) — pre-deploy и post-deploy smoke checklist для referral runtime.
 - [../architecture/railway-production-baseline.md](../architecture/railway-production-baseline.md) — подробный Prisma baseline для уже существующей Railway БД.
 
 ## Правило

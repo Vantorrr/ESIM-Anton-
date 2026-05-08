@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, RefreshCw, Wifi, AlertCircle, CheckCircle2, Wallet, CreditCard } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
@@ -37,11 +37,6 @@ export default function TopupPage() {
   const [balance, setBalance] = useState<number | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'balance' | 'card'>('card')
 
-  useEffect(() => {
-    if (!orderId) return
-    void loadData()
-  }, [orderId])
-
   // Подгружаем актуальный баланс пользователя — нужен для подсветки кнопки
   // «С баланса» и проверки достаточности средств перед сабмитом.
   useEffect(() => {
@@ -63,7 +58,7 @@ export default function TopupPage() {
     }
   }
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -88,7 +83,12 @@ export default function TopupPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [orderId])
+
+  useEffect(() => {
+    if (!orderId) return
+    void loadData()
+  }, [orderId, loadData])
 
   const handleTopup = async (pkg: TopupPackagePriced) => {
     const priceRub = Number(pkg.priceRub || 0)

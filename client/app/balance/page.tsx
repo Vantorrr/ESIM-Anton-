@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 // Lucide icons removed due to type issues - using emoji instead
 import BottomNav from '@/components/BottomNav'
@@ -73,25 +73,7 @@ function BalancePageInner() {
   const requestedTopup = searchParams.get('topup')
   const autoOpenedRef = useRef(false)
 
-  useEffect(() => {
-    if (authLoading) return
-    void loadData()
-  }, [authLoading, authUser?.id])
-
-  // Авто-открытие формы топапа при заходе с ?topup=NN — один раз за сессию.
-  useEffect(() => {
-    if (autoOpenedRef.current) return
-    if (!requestedTopup) return
-    const n = Number(requestedTopup)
-    if (!Number.isFinite(n) || n <= 0) return
-    autoOpenedRef.current = true
-    // Округляем до сотен в большую сторону, минимум 100 ₽
-    const rounded = Math.max(100, Math.ceil(n / 100) * 100)
-    setTopupAmount(String(rounded))
-    setTopupOpen(true)
-  }, [requestedTopup])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       let userId: string | null = authUser?.id || null
@@ -145,7 +127,25 @@ function BalancePageInner() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [authUser?.id])
+
+  useEffect(() => {
+    if (authLoading) return
+    void loadData()
+  }, [authLoading, loadData])
+
+  // Авто-открытие формы топапа при заходе с ?topup=NN — один раз за сессию.
+  useEffect(() => {
+    if (autoOpenedRef.current) return
+    if (!requestedTopup) return
+    const n = Number(requestedTopup)
+    if (!Number.isFinite(n) || n <= 0) return
+    autoOpenedRef.current = true
+    // Округляем до сотен в большую сторону, минимум 100 ₽
+    const rounded = Math.max(100, Math.ceil(n / 100) * 100)
+    setTopupAmount(String(rounded))
+    setTopupOpen(true)
+  }, [requestedTopup])
 
   const handleTopupSubmit = async () => {
     const amount = Number(topupAmount)

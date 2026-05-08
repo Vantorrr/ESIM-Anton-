@@ -1,7 +1,6 @@
 'use client'
 
 import { ArrowLeft } from '@/components/icons'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 function Step({ num, title, items }: { num: string; title: string; items: string[] }) {

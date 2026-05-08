@@ -9,6 +9,7 @@ interface AuthContextValue {
   token: string | null
   isLoading: boolean
   isTelegram: boolean
+  authError: 'telegram-auth-required' | null
   login: (token: string, user: AuthUser) => void
   logout: () => void
   refreshUser: () => Promise<void>
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextValue>({
   token: null,
   isLoading: true,
   isTelegram: false,
+  authError: null,
   login: () => {},
   logout: () => {},
   refreshUser: async () => {},
@@ -29,11 +31,13 @@ export function AuthProvider({ children }: { children: any }) {
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isTelegram, setIsTelegram] = useState(false)
+  const [authError, setAuthError] = useState<'telegram-auth-required' | null>(null)
 
   useEffect(() => {
     const init = async () => {
       const tgEnv = isTelegramEnvironment()
       setIsTelegram(tgEnv)
+      setAuthError(null)
 
       // Шаг 1: сразу восстанавливаем сессию из localStorage — UI показывается мгновенно
       const storedToken = getToken()
@@ -42,7 +46,6 @@ export function AuthProvider({ children }: { children: any }) {
         setToken(storedToken)
         setUser(storedUser)
       }
-      setIsLoading(false)
 
       // Шаг 2: фоновая верификация / обновление токена
       if (tgEnv) {
@@ -62,6 +65,7 @@ export function AuthProvider({ children }: { children: any }) {
             const jwt = data.access_token
             saveToken(jwt)
             setToken(jwt)
+            setAuthError(null)
             const { data: me } = await api.get('/auth/me', {
               headers: { Authorization: `Bearer ${jwt}` }
             })
@@ -69,27 +73,20 @@ export function AuthProvider({ children }: { children: any }) {
             setStoredUser(me)
           } catch (e) {
             console.error('Telegram WebApp auth failed:', e)
-            // Если нет токена — пробуем find-or-create без JWT
             if (!storedToken) {
-              const tgUser = tgApp?.initDataUnsafe?.user
-              if (tgUser?.id) {
-                try {
-                  const { data } = await api.post('/users/find-or-create', {
-                    telegramId: Number(tgUser.id),
-                    username: tgUser.username,
-                    firstName: tgUser.first_name,
-                    lastName: tgUser.last_name,
-                  })
-                  setUser(data)
-                  setStoredUser(data)
-                } catch (fallbackError) {
-                  console.error('Telegram fallback init failed:', fallbackError)
-                }
-              }
+              setToken(null)
+              setUser(null)
+              setAuthError('telegram-auth-required')
             }
           }
+        } else if (!storedToken) {
+          setToken(null)
+          setUser(null)
+          setAuthError('telegram-auth-required')
         }
+        setIsLoading(false)
       } else if (storedToken) {
+        setIsLoading(false)
         // Тихая фоновая верификация токена
         try {
           const { data } = await api.get('/auth/me', {
@@ -105,6 +102,8 @@ export function AuthProvider({ children }: { children: any }) {
             setUser(null)
           }
         }
+      } else {
+        setIsLoading(false)
       }
     }
 
@@ -139,7 +138,7 @@ export function AuthProvider({ children }: { children: any }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, isTelegram, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, isTelegram, authError, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

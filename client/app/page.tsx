@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { Search } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
 import { productsApi, Product } from '@/lib/api'
-import { formatPrice, getFlagUrl, getCountryName } from '@/lib/utils'
+import { getFlagUrl, getCountryName } from '@/lib/utils'
 import {
   getCoverageCount,
   getCoveragePreview,
@@ -212,7 +212,7 @@ function ListSection({
 }: {
   title: string
   items: CountryGroup[]
-  renderItem: (group: CountryGroup, index: number) => React.ReactNode
+  renderItem: (group: CountryGroup, index: number) => JSX.Element
 }) {
   return (
     <>
@@ -289,8 +289,8 @@ export default function Home() {
   const [globalGroups, setGlobalGroups] = useState<CountryGroup[]>([])
   const [popularCountries, setPopularCountries] = useState<CountryGroup[]>([])
 
-  const dataReadyRef = React.useRef(false)
-  const videoEndedRef = React.useRef(false)
+  const dataReadyRef = useRef(false)
+  const videoEndedRef = useRef(false)
 
   const tryDismissSplash = () => {
     if (dataReadyRef.current && videoEndedRef.current) {
@@ -304,32 +304,7 @@ export default function Home() {
     tryDismissSplash()
   }
 
-  // Hydrate from sessionStorage on mount (client-only)
-  useEffect(() => {
-    const cached = getCachedProducts()
-    const savedSearch = getSavedSearch()
-    if (savedSearch) setSearchQuery(savedSearch)
-
-    if (cached && cached.length > 0) {
-      setProducts(cached)
-      dataReadyRef.current = true
-      // Кэш есть — пропускаем splash и загрузку
-      setShowSplash(false)
-      setLoading(false)
-    } else {
-      loadProducts()
-    }
-  }, [])
-
-  useEffect(() => {
-    groupByCountry()
-  }, [products])
-
-  useEffect(() => {
-    saveSearch(searchQuery)
-  }, [searchQuery])
-
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
       const data = await productsApi.getAll({ isActive: true })
       setProducts(data)
@@ -341,9 +316,9 @@ export default function Home() {
       dataReadyRef.current = true
       tryDismissSplash()
     }
-  }
+  }, [])
 
-  const groupByCountry = () => {
+  const groupByCountry = useCallback(() => {
     const groups: Record<string, CountryGroup> = {}
     const multi: Record<string, CountryGroup> = {}
     const global: Record<string, CountryGroup> = {}
@@ -394,7 +369,32 @@ export default function Home() {
     ).slice(0, 8)
 
     setPopularCountries(popular.length > 0 ? popular : allGroups.slice(0, 8))
-  }
+  }, [products])
+
+  // Hydrate from sessionStorage on mount (client-only)
+  useEffect(() => {
+    const cached = getCachedProducts()
+    const savedSearch = getSavedSearch()
+    if (savedSearch) setSearchQuery(savedSearch)
+
+    if (cached && cached.length > 0) {
+      setProducts(cached)
+      dataReadyRef.current = true
+      // Кэш есть — пропускаем splash и загрузку
+      setShowSplash(false)
+      setLoading(false)
+    } else {
+      void loadProducts()
+    }
+  }, [loadProducts])
+
+  useEffect(() => {
+    groupByCountry()
+  }, [groupByCountry])
+
+  useEffect(() => {
+    saveSearch(searchQuery)
+  }, [searchQuery])
 
   // Поиск по названию страны (на русском) И по ISO коду
   const filteredCountries = searchQuery

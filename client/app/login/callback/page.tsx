@@ -41,7 +41,7 @@ function CallbackInner() {
         setStoredUser(user)
         setStatus('success')
         setTimeout(() => router.replace(returnTo), 800)
-      } catch (e: any) {
+      } catch {
         setErrorMsg('Не удалось получить данные пользователя')
         setStatus('error')
         setTimeout(() => router.replace('/login'), 3000)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, ShoppingBag, RefreshCw } from '@/components/icons'
@@ -29,12 +29,7 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (authLoading) return
-    loadOrders()
-  }, [authLoading])
-
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       let userId: string | null = authUser?.id || null
 
@@ -60,7 +55,12 @@ export default function OrdersPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [authUser?.id])
+
+  useEffect(() => {
+    if (authLoading) return
+    void loadOrders()
+  }, [authLoading, loadOrders])
 
   const getStatusConfig = (status: Order['status']) => {
     const configs = {

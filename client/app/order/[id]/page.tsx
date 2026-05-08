@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, QrCode, Copy, CheckCircle, Download, Info } from '@/components/icons'
 import { ordersApi, Order } from '@/lib/api'
@@ -26,13 +26,7 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (params.id) {
-      loadOrder()
-    }
-  }, [params.id])
-
-  const loadOrder = async () => {
+  const loadOrder = useCallback(async () => {
     try {
       const data = await ordersApi.getById(params.id as string)
       setOrder(data)
@@ -41,7 +35,13 @@ export default function OrderDetailPage() {
       console.error('Ошибка загрузки заказа:', error)
       setLoading(false)
     }
-  }
+  }, [params.id])
+
+  useEffect(() => {
+    if (params.id) {
+      void loadOrder()
+    }
+  }, [params.id, loadOrder])
 
   const copyToClipboard = async (text: string, label: string) => {
     try {
@@ -249,8 +249,8 @@ export default function OrderDetailPage() {
               <h4 className="font-semibold mb-2">Как активировать eSIM?</h4>
               <ol className="tg-hint text-sm space-y-1 list-decimal list-inside">
                 <li>Откройте Настройки → Сотовая связь</li>
-                <li>Нажмите "Добавить eSIM"</li>
-                <li>Выберите "Использовать QR-код"</li>
+                <li>Нажмите &quot;Добавить eSIM&quot;</li>
+                <li>Выберите &quot;Использовать QR-код&quot;</li>
                 <li>Отсканируйте QR-код выше</li>
                 <li>Следуйте инструкциям на экране</li>
               </ol>

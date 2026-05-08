@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
@@ -70,10 +70,6 @@ export default function CountryPage() {
   const [activeTab, setActiveTab] = useState<'standard' | 'unlimited'>(initialTab)
   const [selectedProduct, setSelectedProduct] = useState<string | null>(initialSelected)
 
-  useEffect(() => {
-    loadProducts()
-  }, [country])
-
   // Фильтрация по типу тарифа (используем поле isUnlimited из API)
   const products = allProducts.filter(p => 
     activeTab === 'unlimited' ? p.isUnlimited : !p.isUnlimited
@@ -133,7 +129,7 @@ export default function CountryPage() {
     setSelectedProduct(products[0].id)
   }, [products, selectedProduct])
 
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
       const fetchedProducts = await productsApi.getAll({ isActive: true })
       const countryProducts = fetchedProducts.filter(p => p.country === country)
@@ -145,7 +141,11 @@ export default function CountryPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [country])
+
+  useEffect(() => {
+    void loadProducts()
+  }, [loadProducts])
 
   const handleShare = () => {
     if (navigator.share) {

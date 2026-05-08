@@ -135,15 +135,19 @@ export interface Order {
 }
 
 export interface ReferralStats {
-  referralCount: number;
+  referralCode: string;
+  referralLink: string;
+  referralsCount: number;
   totalEarned: number;
-  totalEarnings?: number;
+  totalEarnings: number;
+  referralPercent: number;
+  enabled: boolean;
+  minPayout: number;
   referrals: Array<{
     id: string;
-    firstName?: string;
     name?: string;
-    createdAt: string;
-    joinedAt?: string;
+    joinedAt: string;
+    totalOrders: number;
     totalSpent: number;
   }>;
 }
@@ -249,20 +253,24 @@ export const ordersApi = {
 
 export const referralsApi = {
   // Получить реферальную статистику
-  async getStats(userId: string): Promise<ReferralStats> {
-    const { data } = await api.get(`/referrals/stats/${userId}`);
+  async getStats(): Promise<ReferralStats> {
+    const { data } = await api.get('/referrals/me');
     return {
       ...data,
-      referralCount: data.referralsCount ?? data.referralCount ?? 0,
+      referralsCount: data.referralsCount ?? 0,
       totalEarned: Number(data.totalEarnings ?? data.totalEarned ?? 0),
+      totalEarnings: Number(data.totalEarnings ?? data.totalEarned ?? 0),
+      referralPercent: Number(data.referralPercent ?? 0),
+      enabled: Boolean(data.enabled),
+      minPayout: Number(data.minPayout ?? 0),
       referrals: data.referrals ?? [],
     };
   },
 
   // Получить рефералов
-  async getReferrals(userId: string): Promise<ReferralStats['referrals']> {
-    const { data } = await api.get(`/referrals/stats/${userId}`);
-    return data.referrals ?? [];
+  async getReferrals(): Promise<ReferralStats['referrals']> {
+    const stats = await this.getStats();
+    return stats.referrals;
   },
 };
 

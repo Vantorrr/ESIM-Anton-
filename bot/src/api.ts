@@ -62,12 +62,20 @@ export const api = {
   },
 
   referrals: {
-    register: async (userId: string, referralCode: string) => {
-      const response = await client.post('/referrals/register', { userId, referralCode });
-      return response.data;
-    },
-    getStats: async (userId: string) => {
-      const response = await client.get(`/referrals/stats/${userId}`);
+    register: async (userId: string, telegramId: bigint, referralCode: string) => {
+      const response = await client.post(
+        '/referrals/register',
+        {
+          userId,
+          telegramId: telegramId.toString(),
+          referralCode,
+        },
+        {
+          headers: {
+            'x-telegram-bot-token': config.botToken,
+          },
+        },
+      );
       return response.data;
     },
   },

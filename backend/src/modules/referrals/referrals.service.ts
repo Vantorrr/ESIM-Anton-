@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { TransactionType, TransactionStatus } from '@prisma/client';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
@@ -8,12 +9,37 @@ export class ReferralsService {
   constructor(
     private prisma: PrismaService,
     private systemSettingsService: SystemSettingsService,
+    private configService: ConfigService,
   ) {}
 
   /**
    * Зарегистрировать реферала
    */
-  async registerReferral(userId: string, referralCode: string) {
+  async registerReferral(
+    userId: string,
+    referralCode: string,
+    expectedTelegramId?: bigint,
+  ) {
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { referredById: true, telegramId: true },
+    });
+
+    if (!currentUser) {
+      return null;
+    }
+
+    if (
+      expectedTelegramId !== undefined &&
+      currentUser.telegramId !== expectedTelegramId
+    ) {
+      throw new ForbiddenException('Telegram identity mismatch');
+    }
+
+    if (currentUser.referredById) {
+      return null;
+    }
+
     // Находим реферера
     const referrer = await this.prisma.user.findUnique({
       where: { referralCode },
@@ -103,6 +129,7 @@ export class ReferralsService {
    * Получить статистику реферальной программы для пользователя
    */
   async getReferralStats(userId: string) {
+    const settings = await this.systemSettingsService.getReferralSettings();
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -141,9 +168,12 @@ export class ReferralsService {
 
     return {
       referralCode: user.referralCode,
-      referralLink: `https://t.me/YOUR_BOT_USERNAME?start=${user.referralCode}`,
+      referralLink: `https://t.me/${this.configService.get('TELEGRAM_BOT_USERNAME', 'mojo_mobile_bot')}?start=ref_${user.referralCode}`,
       referralsCount: user.referrals.length,
       totalEarnings: totalReferralEarnings._sum.amount || 0,
+      referralPercent: settings.bonusPercent,
+      enabled: settings.enabled,
+      minPayout: settings.minPayout,
       referrals: user.referrals.map((ref) => ({
         id: ref.id,
         name: ref.firstName || ref.username || 'Пользователь',

@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Wifi, Clock, Tag, CreditCard, Mail, Wallet } from '@/components/icons'
-import { productsApi, Product, userApi, ordersApi, paymentsApi, promoApi } from '@/lib/api'
+import { productsApi, Product, userApi, ordersApi, promoApi } from '@/lib/api'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
 import { getCoverageItems, getCoverageScopeLabel, getCoverageSummary } from '@/lib/productCoverage'
 import { useAuth } from '@/components/AuthProvider'
@@ -12,7 +12,7 @@ export default function ProductPage() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user: authUser, token: authToken, isTelegram } = useAuth()
+  const { user: authUser, token: authToken } = useAuth()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState(false)
@@ -49,15 +49,11 @@ export default function ProductPage() {
   const returnTo = searchParams.get('returnTo')
 
   useEffect(() => {
-    loadProduct()
-  }, [params.id])
-
-  useEffect(() => {
     if (authUser?.email && !email) {
       setEmail(authUser.email)
       setEmailSaved(true)
     }
-  }, [authUser])
+  }, [authUser, email])
 
   // Загружаем актуальный баланс пользователя для тоггла «С баланса / Картой».
   useEffect(() => {
@@ -95,7 +91,7 @@ export default function ProductPage() {
     }
   }, [balance, totalPrice])
 
-  const loadProduct = async () => {
+  const loadProduct = useCallback(async () => {
     try {
       const data = await productsApi.getById(params.id as string)
       setProduct(data)
@@ -104,7 +100,11 @@ export default function ProductPage() {
       console.error('Ошибка загрузки:', error)
       setLoading(false)
     }
-  }
+  }, [params.id])
+
+  useEffect(() => {
+    void loadProduct()
+  }, [loadProduct])
 
   const handleBack = () => {
     if (returnTo) {

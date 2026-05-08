@@ -33,6 +33,22 @@ const DEFAULT_USAGE_CACHE_SEC = 300;
  * (могут быть сильно устаревшие данные → introduce in error).
  */
 const STALE_CACHE_LIMIT_SEC = 24 * 60 * 60;
+const BONUS_HOLD_TTL_MS = 30 * 60 * 1000;
+
+type BonusSpendAvailability = {
+  totalEligible: number;
+  cashbackEligible: number;
+  referralEligible: number;
+  trackedReferral: number;
+  trackedCashback: number;
+  legacyUntracked: number;
+};
+
+type BonusSpendBreakdown = {
+  bonusToUse: number;
+  spentFromCashback: number;
+  spentFromReferral: number;
+};
 
 @Injectable()
 export class OrdersService {
@@ -50,6 +66,338 @@ export class OrdersService {
     private referralsService: ReferralsService,
     private loyaltyService: LoyaltyService,
   ) {}
+
+  private metadataNumber(value: unknown): number {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim() !== '') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  }
+
+  private async cleanupExpiredBonusSpendHolds(userId?: string) {
+    const cutoff = new Date(Date.now() - BONUS_HOLD_TTL_MS);
+    const pendingHolds = await this.prisma.transaction.findMany({
+      where: {
+        ...(userId ? { userId } : {}),
+        type: TransactionType.BONUS_SPENT,
+        status: TransactionStatus.PENDING,
+      },
+      select: {
+        id: true,
+        orderId: true,
+        order: {
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    const staleHolds = pendingHolds.filter((hold) => {
+      if (!hold.order) return true;
+      if (hold.order.status !== OrderStatus.PENDING) return true;
+      return hold.order.createdAt < cutoff;
+    });
+
+    if (staleHolds.length === 0) return;
+
+    const staleHoldIds = staleHolds.map((hold) => hold.id);
+    const staleOrderIds = staleHolds
+      .map((hold) => hold.orderId)
+      .filter((orderId): orderId is string => Boolean(orderId));
+
+    await this.prisma.transaction.updateMany({
+      where: { id: { in: staleHoldIds } },
+      data: {
+        status: TransactionStatus.CANCELLED,
+        metadata: {
+          releaseReason: 'payment_session_expired',
+        } as any,
+      },
+    });
+
+    if (staleOrderIds.length > 0) {
+      await this.prisma.transaction.updateMany({
+        where: {
+          orderId: { in: staleOrderIds },
+          type: TransactionType.PAYMENT,
+          status: TransactionStatus.PENDING,
+        },
+        data: {
+          status: TransactionStatus.CANCELLED,
+          metadata: {
+            releaseReason: 'payment_session_expired',
+          } as any,
+        },
+      });
+
+      await this.prisma.order.updateMany({
+        where: {
+          id: { in: staleOrderIds },
+          status: OrderStatus.PENDING,
+        },
+        data: {
+          status: OrderStatus.CANCELLED,
+          errorMessage: 'Payment session expired',
+        },
+      });
+    }
+  }
+
+  private async getBonusSpendAvailability(
+    userId: string,
+    currentBonusBalance: number,
+  ): Promise<BonusSpendAvailability> {
+    await this.cleanupExpiredBonusSpendHolds(userId);
+
+    const [settings, transactions] = await Promise.all([
+      this.systemSettingsService.getReferralSettings(),
+      this.prisma.transaction.findMany({
+        where: {
+          userId,
+          type: {
+            in: [
+              TransactionType.REFERRAL_BONUS,
+              TransactionType.BONUS_ACCRUAL,
+              TransactionType.BONUS_SPENT,
+            ],
+          },
+          status: {
+            in: [TransactionStatus.SUCCEEDED, TransactionStatus.PENDING],
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          type: true,
+          status: true,
+          amount: true,
+          metadata: true,
+        },
+      }),
+    ]);
+
+    let referralCredits = 0;
+    let cashbackCredits = 0;
+    let spentReferral = 0;
+    let spentCashback = 0;
+
+    for (const tx of transactions) {
+      const amount = Number(tx.amount);
+      const metadata = tx.metadata as Record<string, unknown> | null;
+
+      if (
+        tx.type === TransactionType.REFERRAL_BONUS &&
+        tx.status === TransactionStatus.SUCCEEDED
+      ) {
+        referralCredits += amount;
+        continue;
+      }
+
+      if (
+        tx.type === TransactionType.BONUS_ACCRUAL &&
+        tx.status === TransactionStatus.SUCCEEDED
+      ) {
+        const restoredToReferral = this.metadataNumber(metadata?.restoredToReferral);
+        const restoredToCashback = this.metadataNumber(metadata?.restoredToCashback);
+
+        if (restoredToReferral > 0 || restoredToCashback > 0) {
+          referralCredits += restoredToReferral;
+          cashbackCredits += restoredToCashback;
+        } else {
+          cashbackCredits += amount;
+        }
+        continue;
+      }
+
+      if (tx.type === TransactionType.BONUS_SPENT) {
+        spentReferral += this.metadataNumber(metadata?.spentFromReferral);
+        spentCashback += this.metadataNumber(metadata?.spentFromCashback);
+      }
+    }
+
+    const trackedReferral = Math.max(0, referralCredits - spentReferral);
+    const trackedCashback = Math.max(0, cashbackCredits - spentCashback);
+    const legacyUntracked = Math.max(
+      0,
+      currentBonusBalance - trackedReferral - trackedCashback,
+    );
+    const cashbackEligible = trackedCashback + legacyUntracked;
+    const referralEligible =
+      trackedReferral >= Number(settings.minPayout) ? trackedReferral : 0;
+
+    return {
+      totalEligible: cashbackEligible + referralEligible,
+      cashbackEligible,
+      referralEligible,
+      trackedReferral,
+      trackedCashback,
+      legacyUntracked,
+    };
+  }
+
+  private async computeBonusSpend(
+    userId: string,
+    currentBonusBalance: number,
+    requestedBonuses: number,
+    totalAmount: number,
+  ): Promise<BonusSpendBreakdown> {
+    const availability = await this.getBonusSpendAvailability(userId, currentBonusBalance);
+    const bonusToUse = Math.min(
+      Math.max(0, requestedBonuses),
+      currentBonusBalance,
+      totalAmount,
+      availability.totalEligible,
+    );
+    const spentFromCashback = Math.min(bonusToUse, availability.cashbackEligible);
+    const spentFromReferral = Math.min(
+      availability.referralEligible,
+      Math.max(0, bonusToUse - spentFromCashback),
+    );
+
+    return {
+      bonusToUse,
+      spentFromCashback,
+      spentFromReferral,
+    };
+  }
+
+  private async createBonusSpendHold(
+    userId: string,
+    orderId: string,
+    bonusSpend: BonusSpendBreakdown,
+  ) {
+    if (bonusSpend.bonusToUse <= 0) return;
+
+    await this.prisma.transaction.create({
+      data: {
+        userId,
+        orderId,
+        type: TransactionType.BONUS_SPENT,
+        status: TransactionStatus.PENDING,
+        amount: new Prisma.Decimal(bonusSpend.bonusToUse),
+        metadata: {
+          source: 'order_bonus_hold',
+          spentFromReferral: bonusSpend.spentFromReferral,
+          spentFromCashback: bonusSpend.spentFromCashback,
+        },
+      },
+    });
+  }
+
+  async finalizeBonusSpendHold(orderId: string) {
+    const hold = await this.prisma.transaction.findFirst({
+      where: {
+        orderId,
+        type: TransactionType.BONUS_SPENT,
+        status: TransactionStatus.PENDING,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!hold) return;
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: hold.userId },
+        data: {
+          bonusBalance: { decrement: hold.amount },
+        },
+      }),
+      this.prisma.transaction.update({
+        where: { id: hold.id },
+        data: {
+          status: TransactionStatus.SUCCEEDED,
+          metadata: {
+            ...((hold.metadata as Record<string, unknown> | null) ?? {}),
+            source: 'order_bonus_spend',
+          } as any,
+        },
+      }),
+    ]);
+  }
+
+  async releaseBonusSpendHold(orderId: string, reason = 'payment_failed') {
+    await this.prisma.transaction.updateMany({
+      where: {
+        orderId,
+        type: TransactionType.BONUS_SPENT,
+        status: TransactionStatus.PENDING,
+      },
+      data: {
+        status: TransactionStatus.CANCELLED,
+        metadata: {
+          releaseReason: reason,
+        } as any,
+      },
+    });
+  }
+
+  private async restoreBonusSpend(orderId: string, reason: string) {
+    const spentTx = await this.prisma.transaction.findFirst({
+      where: {
+        orderId,
+        type: TransactionType.BONUS_SPENT,
+        status: TransactionStatus.SUCCEEDED,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!spentTx) return;
+
+    const metadata = (spentTx.metadata as Record<string, unknown> | null) ?? {};
+    const restoredToReferral = this.metadataNumber(metadata.spentFromReferral);
+    const restoredToCashback = this.metadataNumber(metadata.spentFromCashback);
+    const alreadyRestored = await this.prisma.transaction.findFirst({
+      where: {
+        orderId,
+        type: TransactionType.BONUS_ACCRUAL,
+        status: TransactionStatus.SUCCEEDED,
+        metadata: {
+          path: ['source'],
+          equals: 'order_bonus_refund',
+        },
+      },
+    });
+
+    if (alreadyRestored) return;
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: spentTx.userId },
+        data: {
+          bonusBalance: { increment: spentTx.amount },
+        },
+      }),
+      this.prisma.transaction.create({
+        data: {
+          userId: spentTx.userId,
+          orderId,
+          type: TransactionType.BONUS_ACCRUAL,
+          status: TransactionStatus.SUCCEEDED,
+          amount: spentTx.amount,
+          metadata: {
+            source: 'order_bonus_refund',
+            reason,
+            restoredToReferral,
+            restoredToCashback,
+          } as any,
+        },
+      }),
+    ]);
+  }
+
+  private isBalancePaidOrder(order: any) {
+    return order.transactions?.some(
+      (tx: any) =>
+        tx.type === TransactionType.PAYMENT &&
+        tx.status === TransactionStatus.SUCCEEDED &&
+        (tx.paymentProvider === 'balance' || tx.paymentMethod === 'balance'),
+    );
+  }
 
   /**
    * Гарантирует, что заказ существует и принадлежит пользователю.
@@ -78,6 +426,8 @@ export class OrdersService {
     periodNum?: number,
     promoCodeStr?: string,
   ) {
+    await this.cleanupExpiredBonusSpendHolds(userId);
+
     const [user, product] = await Promise.all([
       this.usersService.findById(userId),
       this.productsService.findById(productId),
@@ -105,8 +455,14 @@ export class OrdersService {
       totalAmount -= discount;
     }
 
-    // Применяем бонусы
-    const bonusToUse = Math.min(useBonuses, Number(user.bonusBalance), totalAmount);
+    // Применяем бонусы: referral bonus подчиняется minPayout, cashback — нет.
+    const bonusSpend = await this.computeBonusSpend(
+      userId,
+      Number(user.bonusBalance),
+      useBonuses,
+      totalAmount,
+    );
+    const bonusToUse = bonusSpend.bonusToUse;
     totalAmount -= bonusToUse;
 
     if (totalAmount < 0) totalAmount = 0;
@@ -131,9 +487,7 @@ export class OrdersService {
       },
     });
 
-    if (bonusToUse > 0) {
-      await this.usersService.updateBalance(userId, -bonusToUse, 'bonusBalance');
-    }
+    await this.createBonusSpendHold(userId, order.id, bonusSpend);
 
     return order;
   }
@@ -162,6 +516,21 @@ export class OrdersService {
       const cashback =
         (Number(order.totalAmount) * Number(order.user.loyaltyLevel.cashbackPercent)) / 100;
       await this.usersService.updateBalance(order.userId, cashback, 'bonusBalance');
+      if (cashback > 0) {
+        await this.prisma.transaction.create({
+          data: {
+            userId: order.userId,
+            orderId: order.id,
+            type: TransactionType.BONUS_ACCRUAL,
+            status: TransactionStatus.SUCCEEDED,
+            amount: new Prisma.Decimal(cashback),
+            metadata: {
+              source: 'loyalty_cashback',
+              cashbackPercent: Number(order.user.loyaltyLevel.cashbackPercent),
+            },
+          },
+        });
+      }
     }
 
     await this.prisma.user.update({
@@ -196,6 +565,8 @@ export class OrdersService {
    * Получить заказы пользователя
    */
   async findByUser(userId: string, limit = 50) {
+    await this.cleanupExpiredBonusSpendHolds(userId);
+
     return this.prisma.order.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -265,6 +636,8 @@ export class OrdersService {
     if (order.status !== OrderStatus.PAID) {
       throw new BadRequestException('Заказ еще не оплачен');
     }
+
+    await this.finalizeBonusSpendHold(orderId);
 
     // === Top-up flow ===
     if (order.parentOrderId && order.topupPackageCode) {
@@ -337,6 +710,16 @@ export class OrdersService {
 
       return updatedOrder;
     } catch (error) {
+      if (!this.isBalancePaidOrder(order)) {
+        try {
+          await this.restoreBonusSpend(orderId, error.message);
+        } catch (restoreError: any) {
+          this.logger.error(
+            `Bonus rollback failed for order ${order.id}: ${restoreError.message}`,
+          );
+        }
+      }
+
       // В случае ошибки помечаем заказ как FAILED
       await this.updateStatus(orderId, OrderStatus.FAILED, {
         errorMessage: error.message,
@@ -837,7 +1220,13 @@ export class OrdersService {
       totalAmount -= discount;
     }
 
-    const bonusToUse = Math.min(useBonuses, Number(user.bonusBalance), totalAmount);
+    const bonusSpend = await this.computeBonusSpend(
+      userId,
+      Number(user.bonusBalance),
+      useBonuses,
+      totalAmount,
+    );
+    const bonusToUse = bonusSpend.bonusToUse;
     totalAmount -= bonusToUse;
     if (totalAmount < 0) totalAmount = 0;
 
@@ -907,6 +1296,23 @@ export class OrdersService {
         },
       });
 
+      if (bonusToUse > 0) {
+        await tx.transaction.create({
+          data: {
+            userId,
+            orderId: newOrder.id,
+            type: TransactionType.BONUS_SPENT,
+            status: TransactionStatus.SUCCEEDED,
+            amount: new Prisma.Decimal(bonusToUse),
+            metadata: {
+              source: 'order_bonus_spend',
+              spentFromReferral: bonusSpend.spentFromReferral,
+              spentFromCashback: bonusSpend.spentFromCashback,
+            } as any,
+          },
+        });
+      }
+
       return newOrder;
     });
 
@@ -925,6 +1331,20 @@ export class OrdersService {
               this.prisma.user.update({
                 where: { id: userId },
                 data: { bonusBalance: { increment: new Prisma.Decimal(bonusToUse) } },
+              }),
+              this.prisma.transaction.create({
+                data: {
+                  userId,
+                  orderId: created.id,
+                  type: TransactionType.BONUS_ACCRUAL,
+                  status: TransactionStatus.SUCCEEDED,
+                  amount: new Prisma.Decimal(bonusToUse),
+                  metadata: {
+                    source: 'order_bonus_refund',
+                    restoredToReferral: bonusSpend.spentFromReferral,
+                    restoredToCashback: bonusSpend.spentFromCashback,
+                  } as any,
+                },
               }),
             ]
           : []),

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { 
   DollarSign, Smartphone, ShoppingBag, Globe, Moon, Bell, Sun, Monitor,
@@ -24,7 +24,7 @@ type Theme = 'light' | 'dark' | 'system'
 type Language = 'ru' | 'en'
 
 export default function ProfilePage() {
-  const { user: authUser, isLoading: authLoading, isTelegram } = useAuth()
+  const { user: authUser, isLoading: authLoading } = useAuth()
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [promoCode, setPromoCode] = useState('')
@@ -37,36 +37,6 @@ export default function ProfilePage() {
   const [showLanguageModal, setShowLanguageModal] = useState(false)
   const [showNotificationsModal, setShowNotificationsModal] = useState(false)
 
-  useEffect(() => {
-    if (authLoading) return
-    loadUserData()
-    const savedTheme = localStorage.getItem('theme') as Theme
-    const savedLang = localStorage.getItem('language') as Language
-    const savedNotifications = localStorage.getItem('notifications')
-    
-    if (savedTheme) setTheme(savedTheme)
-    if (savedLang) setLanguage(savedLang)
-    if (savedNotifications !== null) setNotifications(savedNotifications === 'true')
-  }, [authLoading])
-  
-  // Применение темы
-  useEffect(() => {
-    const root = document.documentElement
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else if (theme === 'light') {
-      root.classList.remove('dark')
-    } else {
-      // system
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        root.classList.add('dark')
-      } else {
-        root.classList.remove('dark')
-      }
-    }
-    localStorage.setItem('theme', theme)
-  }, [theme])
-  
   const changeLanguage = (lang: Language) => {
     setLanguage(lang)
     localStorage.setItem('language', lang)
@@ -84,7 +54,7 @@ export default function ProfilePage() {
     localStorage.setItem('notifications', String(newValue))
   }
 
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     let redirectedToLogin = false
     try {
       if (authUser) {
@@ -98,7 +68,7 @@ export default function ProfilePage() {
           referralCode: authUser.referralCode,
         })
       } else {
-        const { getToken, clearToken } = await import('@/lib/auth')
+        const { getToken } = await import('@/lib/auth')
         const token = getToken()
         if (token) {
           const { api } = await import('@/lib/api')
@@ -132,7 +102,37 @@ export default function ProfilePage() {
         setLoading(false)
       }
     }
-  }
+  }, [authUser])
+
+  useEffect(() => {
+    if (authLoading) return
+    void loadUserData()
+    const savedTheme = localStorage.getItem('theme') as Theme
+    const savedLang = localStorage.getItem('language') as Language
+    const savedNotifications = localStorage.getItem('notifications')
+    
+    if (savedTheme) setTheme(savedTheme)
+    if (savedLang) setLanguage(savedLang)
+    if (savedNotifications !== null) setNotifications(savedNotifications === 'true')
+  }, [authLoading, loadUserData])
+  
+  // Применение темы
+  useEffect(() => {
+    const root = document.documentElement
+    if (theme === 'dark') {
+      root.classList.add('dark')
+    } else if (theme === 'light') {
+      root.classList.remove('dark')
+    } else {
+      // system
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        root.classList.add('dark')
+      } else {
+        root.classList.remove('dark')
+      }
+    }
+    localStorage.setItem('theme', theme)
+  }, [theme])
 
   const applyPromoCode = () => {
     if (promoCode.trim()) {

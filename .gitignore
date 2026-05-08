@@ -5,8 +5,10 @@ node_modules/
 .pnp.js
 AGENTS.md
 info
+.playwright-cli
 scripts
 audits
+plans
 
 # Testing
 coverage/

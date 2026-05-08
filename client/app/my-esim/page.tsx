@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -231,12 +231,7 @@ export default function MyEsimPage() {
   const [esims, setEsims] = useState<MyEsim[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (authLoading) return
-    loadEsims()
-  }, [authLoading])
-
-  const loadEsims = async () => {
+  const loadEsims = useCallback(async () => {
     try {
       let userId: string | null = authUser?.id || null
 
@@ -286,7 +281,12 @@ export default function MyEsimPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [authUser?.id])
+
+  useEffect(() => {
+    if (authLoading) return
+    void loadEsims()
+  }, [authLoading, loadEsims])
 
   const fetchUsageInto = async (esimId: string, force = false) => {
     setEsims((prev) =>

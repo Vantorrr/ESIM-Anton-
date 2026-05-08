@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { ReferralsService } from './referrals.service';
 import { ReferralsController } from './referrals.controller';
 import { UsersModule } from '../users/users.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Module({
-  imports: [UsersModule, SystemSettingsModule],
+  imports: [UsersModule, SystemSettingsModule, ConfigModule],
   controllers: [ReferralsController],
   providers: [ReferralsService],
   exports: [ReferralsService],

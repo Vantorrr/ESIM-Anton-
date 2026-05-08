@@ -26,6 +26,7 @@
 
 - [gotchas.md](./gotchas.md) — подтвержденные риски и неочевидные моменты проекта.
 - [guidelines.md](./guidelines.md) — локальные правила, которые уже диктует кодовая база.
+- [referrals-runtime.md](./referrals-runtime.md) — актуальный runtime-контракт referral flow после referral follow-up.
 
 ## Правило source of truth
 

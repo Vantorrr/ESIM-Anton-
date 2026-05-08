@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, Smartphone, Tablet, Laptop, ChevronDown, Check, Copy, Info } from '@/components/icons'
+import { ArrowLeft, Check, Copy, Info } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
 import { useSmartBack } from '@/lib/useSmartBack'
 
@@ -153,7 +153,6 @@ const deviceData: Record<DeviceCategory, DeviceList> = {
 
 export default function DevicesPage() {
   const [selectedCategory, setSelectedCategory] = useState<DeviceCategory>('apple')
-  const [showDropdown, setShowDropdown] = useState(false)
   const [copied, setCopied] = useState(false)
   const handleBack = useSmartBack('/help')
 

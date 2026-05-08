@@ -1,57 +1,37 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Users, Copy, Share2, Gift, TrendingUp, CheckCircle } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
-
-interface ReferralStats {
-  referralCode: string
-  referralLink: string
-  referralsCount: number
-  totalEarned: number
-  pendingEarnings: number
-  referralPercent: number
-}
+import { ReferralStats, referralsApi } from '@/lib/api'
+import { useAuth } from '@/components/AuthProvider'
 
 export default function ReferralsPage() {
+  const router = useRouter()
+  const { token, isLoading: authLoading, isTelegram, authError } = useAuth()
   const [stats, setStats] = useState<ReferralStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
+    if (authLoading) return
+
+    if (!token) {
+      if (!isTelegram) {
+        router.replace('/login?returnTo=/referrals')
+      }
+      setLoading(false)
+      return
+    }
+
     loadStats()
-  }, [])
+  }, [authLoading, token, isTelegram, router])
 
   const loadStats = async () => {
     try {
-      const { isTelegramWebApp, getTelegramUserId, getToken } = await import('@/lib/auth')
-      const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'mojo_mobile_bot'
-      let referralCode = 'REF000000'
-
-      if (isTelegramWebApp()) {
-        const telegramId = getTelegramUserId()
-        if (telegramId) {
-          const { userApi } = await import('@/lib/api')
-          const user = await userApi.getMe(telegramId)
-          referralCode = user.referralCode
-        }
-      } else {
-        const token = getToken()
-        if (token) {
-          const { api } = await import('@/lib/api')
-          const { data } = await api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
-          referralCode = data.referralCode
-        }
-      }
-      
-      setStats({
-        referralCode,
-        referralLink: `https://t.me/${botUsername}?start=ref_${referralCode}`,
-        referralsCount: 0,
-        totalEarned: 0,
-        pendingEarnings: 0,
-        referralPercent: 5,
-      })
+      const stats = await referralsApi.getStats()
+      setStats(stats)
     } catch (e) {
       console.error('Referrals load error:', e)
     } finally {
@@ -89,7 +69,7 @@ export default function ReferralsPage() {
     }
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="container">
         <header className="mb-6">
@@ -99,6 +79,50 @@ export default function ReferralsPage() {
           <div className="skeleton h-20 w-full mb-4" />
           <div className="skeleton h-12 w-full" />
         </div>
+        <BottomNav />
+      </div>
+    )
+  }
+
+  if (!stats) {
+    if (isTelegram && authError === 'telegram-auth-required') {
+      const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'mojo_mobile_bot'
+
+      return (
+        <div className="container bg-[#f4f5f7]">
+          <header className="mb-6">
+            <h1 className="text-2xl font-bold text-primary">Реферальная программа</h1>
+            <p className="text-secondary text-sm mt-1">
+              Для открытия страницы нужен корректный запуск Mini App через Telegram.
+            </p>
+          </header>
+
+          <div className="card-neutral p-5 mb-6 border border-amber-200 bg-amber-50 text-amber-900">
+            <p className="text-sm font-medium mb-2">Не удалось подтвердить Telegram-сессию.</p>
+            <p className="text-sm text-amber-800 mb-4">
+              Откройте приложение из бота заново, чтобы получить JWT и загрузить ваши реферальные данные.
+            </p>
+            <a
+              href={`https://t.me/${botUsername}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-xl bg-[#f77430] px-4 py-3 text-sm font-medium text-white"
+            >
+              Открыть бота
+            </a>
+          </div>
+
+          <BottomNav />
+        </div>
+      )
+    }
+
+    return (
+      <div className="container bg-[#f4f5f7]">
+        <header className="mb-6">
+          <h1 className="text-2xl font-bold text-primary">Реферальная программа</h1>
+          <p className="text-secondary text-sm mt-1">Не удалось загрузить данные. Попробуйте открыть страницу ещё раз.</p>
+        </header>
         <BottomNav />
       </div>
     )
@@ -122,16 +146,25 @@ export default function ReferralsPage() {
               <Gift className="text-white" size={32} />
             </div>
             <div>
-              <p className="text-3xl font-bold text-white">{stats?.referralPercent}%</p>
+              <p className="text-3xl font-bold text-white">{stats.referralPercent}%</p>
               <p className="text-sm text-white/85">с каждой покупки друга</p>
             </div>
           </div>
           
           <p className="text-white/90 mb-4">
-            Приглашай друзей и получай <span className="font-semibold text-white">{stats?.referralPercent}%</span> от суммы их покупок на свой бонусный счёт!
+            Приглашай друзей и получай <span className="font-semibold text-white">{stats.referralPercent}%</span> от суммы их покупок на свой бонусный счёт!
+          </p>
+          <p className="text-xs text-white/80">
+            Реферальные бонусы доступны к использованию от {stats.minPayout} ₽
           </p>
         </div>
       </div>
+
+      {!stats.enabled && (
+        <div className="card-neutral p-4 mb-6 border border-amber-200 bg-amber-50 text-amber-800 animate-slide-up">
+          Реферальная программа сейчас отключена. Ссылка сохранится, но новые бонусы не начисляются.
+        </div>
+      )}
 
       {/* Referral Link */}
       <div className="card-neutral p-5 mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
@@ -139,7 +172,7 @@ export default function ReferralsPage() {
         
         <div className="soft-input flex items-center gap-3 mb-4 px-4 py-3">
           <p className="flex-1 text-sm text-primary truncate font-mono">
-            {stats?.referralLink}
+            {stats.referralLink}
           </p>
         </div>
         
@@ -176,12 +209,12 @@ export default function ReferralsPage() {
       <div className="grid grid-cols-2 gap-3 mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
         <div className="card-neutral p-4 text-center">
           <Users className="mx-auto mb-2 text-accent" size={28} />
-          <p className="text-2xl font-bold text-primary">{stats?.referralsCount}</p>
+          <p className="text-2xl font-bold text-primary">{stats.referralsCount}</p>
           <p className="text-xs text-muted">Приглашено</p>
         </div>
         <div className="card-neutral p-4 text-center">
           <TrendingUp className="mx-auto mb-2 text-accent" size={28} />
-          <p className="text-2xl font-bold text-primary">₽{stats?.totalEarned}</p>
+          <p className="text-2xl font-bold text-primary">₽{stats.totalEarned}</p>
           <p className="text-xs text-muted">Заработано</p>
         </div>
       </div>
@@ -190,10 +223,10 @@ export default function ReferralsPage() {
       <div className="card-neutral p-5 animate-slide-up" style={{ animationDelay: '0.2s' }}>
         <h3 className="font-semibold text-primary mb-4">Как это работает</h3>
         <div className="space-y-4">
-          {[
+          {[ 
             { step: 1, title: 'Поделитесь ссылкой', desc: 'Отправьте ссылку друзьям' },
             { step: 2, title: 'Друг регистрируется', desc: 'И совершает покупку' },
-            { step: 3, title: 'Получите бонус', desc: `${stats?.referralPercent}% на ваш счёт` },
+            { step: 3, title: 'Получите бонус', desc: `${stats.referralPercent}% на ваш счёт` },
           ].map((item) => (
             <div key={item.step} className="flex items-start gap-4">
               <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-sm font-bold shrink-0">

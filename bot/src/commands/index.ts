@@ -50,7 +50,7 @@ export function setupCommands(bot: Bot<MyContext>) {
           console.log(`🔗 Обработка реферальной ссылки: ${referralCode} для пользователя ${userId}`);
           
           try {
-            await api.referrals.register(user.id, referralCode);
+            await api.referrals.register(user.id, BigInt(userId), referralCode);
             console.log('✅ Реферал успешно зарегистрирован');
           } catch (error) {
             console.error('❌ Ошибка регистрации реферала:', error);

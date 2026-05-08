@@ -55,7 +55,7 @@ export default function MojoSplash() {
         </h2>
       </div>
 
-      <style jsx global>{`
+      <style>{`
         .splash-bg-circle {
           position: absolute;
           border-radius: 50%;
