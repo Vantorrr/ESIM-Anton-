@@ -81,6 +81,7 @@ export default function BottomNav() {
             (item.href === '/' && pathname.startsWith('/country')) ||
             (item.href === '/' && pathname.startsWith('/product')) ||
             (item.href === '/profile' && pathname.startsWith('/orders')) ||
+            (item.href === '/profile' && pathname.startsWith('/loyalty')) ||
             (item.href === '/profile' && pathname.startsWith('/referrals')) ||
             (item.href === '/profile' && pathname.startsWith('/my-esim'))
           

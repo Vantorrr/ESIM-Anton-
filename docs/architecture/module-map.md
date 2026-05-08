@@ -28,7 +28,7 @@
 - `orders` — заказ, free fulfill, usage, top-up flow, balance purchase flow
 - `payments` — Robokassa flow + CloudPayments webhooks/controllers
 - `referrals` — регистрация рефералов и статистика
-- `loyalty` — CRUD уровней лояльности
+- `loyalty` — client-facing `/loyalty/me`, admin CRUD уровней лояльности и пересчёт уровня пользователя после purchase completion
 - `analytics` — dashboard, top-products, sales-chart
 - `esim-provider` — eSIM Access integration, health, purchase, order info
 - `system-settings` — referral settings, pricing, exchange rate, auto update
@@ -56,7 +56,7 @@
 
 - каталог и landing: `/`
 - страна / тариф: `/country/[country]`, `/product/[id]`
-- профиль и заказы: `/profile`, `/orders`, `/order/[id]`, `/my-esim`
+- профиль и заказы: `/profile`, `/orders`, `/order/[id]`, `/my-esim`, `/loyalty`
 - баланс и top-up: `/balance`, `/topup/[orderId]`
 - auth: `/login`, `/login/callback`
 - справка / legal: `/help/*`, `/offer`, `/agreement`

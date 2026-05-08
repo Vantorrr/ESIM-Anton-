@@ -297,6 +297,18 @@ export default function ProfilePage() {
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </Link>
+
+            <div className="h-px bg-gray-100 mx-4" />
+
+            <Link href="/loyalty">
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                  <Check className="text-[#f77430]" size={20} />
+                </div>
+                <span className="flex-1 font-medium text-gray-900">Система лояльности</span>
+                <ChevronRight className="text-gray-400" size={20} />
+              </div>
+            </Link>
             
           </div>
         </section>

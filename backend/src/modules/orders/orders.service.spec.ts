@@ -20,6 +20,7 @@ function makeOrder(overrides: Record<string, unknown> = {}) {
       id: 'user_1',
       email: 'user@example.com',
       telegramId: null,
+      totalSpent: 10000,
       loyaltyLevel: {
         cashbackPercent: 10,
       },
@@ -111,6 +112,7 @@ function makeService(orderOverrides: Record<string, unknown> = {}) {
       id: 'user_1',
       balance: 1000,
       bonusBalance: 100,
+      totalSpent: 10000,
       loyaltyLevel: {
         discount: 0,
       },
@@ -156,6 +158,13 @@ function makeService(orderOverrides: Record<string, unknown> = {}) {
 
   const loyaltyService = {
     updateUserLevel: jest.fn().mockResolvedValue(undefined),
+    getEffectiveLevelForSpent: jest.fn().mockResolvedValue({
+      id: 'silver',
+      name: 'Серебро',
+      minSpent: 10000,
+      cashbackPercent: 10,
+      discount: 0,
+    }),
   };
 
   const service = new OrdersService(
@@ -231,6 +240,7 @@ describe('OrdersService', () => {
       });
       expect(referralsService.awardReferralBonus).toHaveBeenCalledWith('ref_1', 100, 'order_1');
       expect(loyaltyService.updateUserLevel).toHaveBeenCalledWith('user_1');
+      expect(loyaltyService.getEffectiveLevelForSpent).toHaveBeenCalledWith(10000);
       expect(emailService.sendEsimReady).toHaveBeenCalledTimes(1);
       expect(result.status).toBe(OrderStatus.COMPLETED);
     });
@@ -250,6 +260,40 @@ describe('OrdersService', () => {
           data: expect.objectContaining({ status: OrderStatus.FAILED }),
         }),
       );
+    });
+
+    it('использует dynamic loyalty level для скидки при создании заказа', async () => {
+      const { service, prisma, usersService, loyaltyService } = makeService();
+      usersService.findById.mockResolvedValue({
+        id: 'user_1',
+        balance: 1000,
+        bonusBalance: 0,
+        totalSpent: 20000,
+        loyaltyLevel: null,
+      });
+      loyaltyService.getEffectiveLevelForSpent.mockResolvedValue({
+        id: 'gold',
+        name: 'Золото',
+        minSpent: 20000,
+        cashbackPercent: 7,
+        discount: 5,
+      });
+
+      const order = await service.create('user_1', 'product_1', 1, 0);
+
+      expect(loyaltyService.getEffectiveLevelForSpent).toHaveBeenCalledWith(20000);
+      expect(Number(order.discount)).toBe(5);
+      expect(Number(order.totalAmount)).toBe(95);
+      expect(prisma.order.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          discount: expect.anything(),
+          totalAmount: expect.anything(),
+        }),
+        include: {
+          product: true,
+          user: true,
+        },
+      });
     });
   });
 

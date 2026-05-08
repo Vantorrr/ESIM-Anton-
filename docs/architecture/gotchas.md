@@ -32,6 +32,7 @@
 - `admin` navigation показывает вкладки `payments` и `analytics`, но в UI это пока заглушки.
 - catalog sync split-brain: legacy `EsimProviderService.syncProducts()` не пишет в БД, но реальный admin route использует `ProductsService.syncWithProvider()`, который уже делает upsert. При работе с roadmap нельзя путать эти два контура.
 - Purchase completion boundary для loyalty/referral живёт в `OrdersService.fulfillOrder()`: card webhook, balance purchase и free-order flow сходятся в одну точку, а top-up намеренно исключён через `fulfillTopupOrder()`. При изменении referral/loyalty логики нельзя дублировать side effects в payment handlers.
+- Loyalty discount действует на текущую покупку по текущему уровню, а `LoyaltyService.updateUserLevel()` вызывается только после роста `totalSpent`. Новый уровень влияет только на следующую покупку, не на уже завершённую.
 - `client` build исторически ломался из-за отсутствующих SWC optional deps и build-time загрузки Google Fonts; после фикса package manifests и удаления `next/font/google` зависимость от внешнего fetch убрана.
 - Исторические документы и старые клиентские компоненты могут ссылаться на `GET /referrals/stats/:userId` как на user-facing route, но актуальный контракт другой: клиент должен ходить в `GET /referrals/me`, а `stats/:userId` и `top` теперь только admin/internal.
 - `POST /referrals/register` больше нельзя считать публичным mutation endpoint: bot flow требует `x-telegram-bot-token`, а сервис дополнительно сверяет `telegramId` пользователя перед привязкой.

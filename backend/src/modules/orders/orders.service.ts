@@ -50,6 +50,14 @@ type BonusSpendBreakdown = {
   spentFromReferral: number;
 };
 
+type ResolvedLoyaltyLevel = {
+  id: string;
+  name: string;
+  minSpent: number;
+  cashbackPercent: number;
+  discount: number;
+} | null;
+
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -74,6 +82,10 @@ export class OrdersService {
       return Number.isFinite(parsed) ? parsed : 0;
     }
     return 0;
+  }
+
+  private async getEffectiveLoyaltyLevel(totalSpent: number): Promise<ResolvedLoyaltyLevel> {
+    return this.loyaltyService.getEffectiveLevelForSpent(totalSpent);
   }
 
   private async cleanupExpiredBonusSpendHolds(userId?: string) {
@@ -449,9 +461,13 @@ export class OrdersService {
       totalAmount -= promoDiscount;
     }
 
+    const currentLoyaltyLevel = await this.getEffectiveLoyaltyLevel(
+      Number(user.totalSpent),
+    );
+
     // Применяем скидку лояльности
-    if (user.loyaltyLevel) {
-      discount = (totalAmount * Number(user.loyaltyLevel.discount)) / 100;
+    if (currentLoyaltyLevel) {
+      discount = (totalAmount * Number(currentLoyaltyLevel.discount)) / 100;
       totalAmount -= discount;
     }
 
@@ -512,9 +528,13 @@ export class OrdersService {
   }
 
   private async applyPurchaseCompletionEffects(order: any) {
-    if (order.user.loyaltyLevel) {
+    const currentLoyaltyLevel = await this.getEffectiveLoyaltyLevel(
+      Number(order.user.totalSpent),
+    );
+
+    if (currentLoyaltyLevel) {
       const cashback =
-        (Number(order.totalAmount) * Number(order.user.loyaltyLevel.cashbackPercent)) / 100;
+        (Number(order.totalAmount) * Number(currentLoyaltyLevel.cashbackPercent)) / 100;
       await this.usersService.updateBalance(order.userId, cashback, 'bonusBalance');
       if (cashback > 0) {
         await this.prisma.transaction.create({
@@ -526,7 +546,7 @@ export class OrdersService {
             amount: new Prisma.Decimal(cashback),
             metadata: {
               source: 'loyalty_cashback',
-              cashbackPercent: Number(order.user.loyaltyLevel.cashbackPercent),
+              cashbackPercent: Number(currentLoyaltyLevel.cashbackPercent),
             },
           },
         });
@@ -1215,8 +1235,12 @@ export class OrdersService {
       totalAmount -= promoDiscount;
     }
 
-    if (user.loyaltyLevel) {
-      discount = (totalAmount * Number(user.loyaltyLevel.discount)) / 100;
+    const currentLoyaltyLevel = await this.getEffectiveLoyaltyLevel(
+      Number(user.totalSpent),
+    );
+
+    if (currentLoyaltyLevel) {
+      discount = (totalAmount * Number(currentLoyaltyLevel.discount)) / 100;
       totalAmount -= discount;
     }
 

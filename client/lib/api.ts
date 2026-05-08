@@ -47,6 +47,19 @@ export interface LoyaltyLevel {
   discount: number;
 }
 
+export interface LoyaltyProgram {
+  totalSpent: number;
+  bonusBalance: number;
+  currentLevel: LoyaltyLevel | null;
+  nextLevel: LoyaltyLevel | null;
+  amountToNextLevel: number;
+  progressToNextLevel: number;
+  levels: LoyaltyLevel[];
+  currentDiscount: number;
+  currentCashbackPercent: number;
+  effectiveLevelId: string | null;
+}
+
 export interface Product {
   id: string;
   country: string;
@@ -328,5 +341,44 @@ export const paymentsApi = {
       provider: 'robokassa',
     });
     return data;
+  },
+};
+
+export const loyaltyApi = {
+  async getMyProgram(): Promise<LoyaltyProgram> {
+    const { data } = await api.get('/loyalty/me');
+    return {
+      ...data,
+      totalSpent: Number(data.totalSpent ?? 0),
+      bonusBalance: Number(data.bonusBalance ?? 0),
+      amountToNextLevel: Number(data.amountToNextLevel ?? 0),
+      progressToNextLevel: Number(data.progressToNextLevel ?? 0),
+      currentDiscount: Number(data.currentDiscount ?? 0),
+      currentCashbackPercent: Number(data.currentCashbackPercent ?? 0),
+      currentLevel: data.currentLevel
+        ? {
+            ...data.currentLevel,
+            minSpent: Number(data.currentLevel.minSpent ?? 0),
+            cashbackPercent: Number(data.currentLevel.cashbackPercent ?? 0),
+            discount: Number(data.currentLevel.discount ?? 0),
+          }
+        : null,
+      nextLevel: data.nextLevel
+        ? {
+            ...data.nextLevel,
+            minSpent: Number(data.nextLevel.minSpent ?? 0),
+            cashbackPercent: Number(data.nextLevel.cashbackPercent ?? 0),
+            discount: Number(data.nextLevel.discount ?? 0),
+          }
+        : null,
+      levels: Array.isArray(data.levels)
+        ? data.levels.map((level: any) => ({
+            ...level,
+            minSpent: Number(level.minSpent ?? 0),
+            cashbackPercent: Number(level.cashbackPercent ?? 0),
+            discount: Number(level.discount ?? 0),
+          }))
+        : [],
+    };
   },
 };
