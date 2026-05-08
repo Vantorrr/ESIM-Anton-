@@ -1467,9 +1467,16 @@ export class OrdersService {
     status?: OrderStatus;
     page?: number;
     limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
   }) {
-    const { status, page = 1, limit = 20 } = filters || {};
+    const { status, page = 1, limit: rawLimit = 20, sortBy, sortOrder } = filters || {};
+    const limit = Math.min(Math.max(1, rawLimit), 10000);
     const skip = (page - 1) * limit;
+
+    const SORTABLE_FIELDS = new Set(['createdAt', 'totalAmount', 'productPrice', 'status']);
+    const resolvedField = sortBy && SORTABLE_FIELDS.has(sortBy) ? sortBy : 'createdAt';
+    const resolvedOrder = sortOrder === 'asc' ? 'asc' as const : 'desc' as const;
 
     const where: Prisma.OrderWhereInput = {
       ...(status && { status }),
@@ -1480,7 +1487,7 @@ export class OrdersService {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { [resolvedField]: resolvedOrder },
         include: {
           product: true,
           user: {
@@ -1506,5 +1513,31 @@ export class OrdersService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /**
+   * Отменить (архивировать) заказ из админки.
+   * Допускается только для PENDING и FAILED.
+   */
+  async cancelOrder(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, status: true },
+    });
+
+    if (!order) throw new BadRequestException('Заказ не найден');
+
+    const cancellable: OrderStatus[] = [OrderStatus.PENDING, OrderStatus.FAILED];
+    if (!cancellable.includes(order.status)) {
+      throw new BadRequestException(
+        `Нельзя отменить заказ в статусе "${order.status}". Допустимые: ${cancellable.join(', ')}`,
+      );
+    }
+
+    await this.releaseBonusSpendHold(orderId, 'admin_cancel');
+
+    return this.updateStatus(orderId, OrderStatus.CANCELLED, {
+      errorMessage: 'Отменён администратором',
+    });
   }
 }

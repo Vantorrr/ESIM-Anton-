@@ -20,6 +20,24 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// 401 → разлогин
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token')
+      window.location.reload()
+    }
+    return Promise.reject(err)
+  },
+)
+
+// Auth
+export const authApi = {
+  login: (email: string, password: string) =>
+    api.post('/auth/login', { email, password }),
+}
+
 // API методы
 export const dashboardApi = {
   getStats: () => api.get('/analytics/dashboard'),
@@ -35,6 +53,7 @@ export const ordersApi = {
   getAll: (params?: any) => api.get('/orders', { params }),
   getById: (id: string) => api.get(`/orders/${id}`),
   getByUser: (userId: string) => api.get(`/orders/user/${userId}`),
+  cancel: (id: string) => api.patch(`/orders/${id}/cancel`),
 }
 
 export const productsApi = {

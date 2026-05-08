@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Body,
   Query,
@@ -11,7 +12,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { OrderStatus } from '@prisma/client';
-import { JwtUserGuard, CurrentUser, AuthUser } from '@/common/auth/jwt-user.guard';
+import { JwtUserGuard, JwtAdminGuard, CurrentUser, AuthUser } from '@/common/auth/jwt-user.guard';
 
 @ApiTags('orders')
 @ApiBearerAuth()
@@ -20,13 +21,23 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Get()
+  @UseGuards(JwtAdminGuard)
   @ApiOperation({ summary: 'Получить все заказы' })
   async findAll(
     @Query('status') status?: OrderStatus,
     @Query('page') page = 1,
     @Query('limit') limit = 20,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
   ) {
-    return this.ordersService.findAll({ status, page: +page, limit: +limit });
+    return this.ordersService.findAll({ status, page: +page, limit: +limit, sortBy, sortOrder });
+  }
+
+  @Patch(':id/cancel')
+  @UseGuards(JwtAdminGuard)
+  @ApiOperation({ summary: 'Отменить (архивировать) заказ' })
+  async cancelOrder(@Param('id') id: string) {
+    return this.ordersService.cancelOrder(id);
   }
 
   @Get(':id')
@@ -99,6 +110,7 @@ export class OrdersController {
   }
 
   @Post(':id/fulfill-free')
+  @UseGuards(JwtAdminGuard)
   @ApiOperation({ summary: 'Выполнить бесплатный заказ (промокод 100%)' })
   async fulfillFree(@Param('id') id: string) {
     const order = await this.ordersService.findById(id);

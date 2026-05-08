@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { LayoutDashboard, Users as UsersIcon, Package, CreditCard, ShoppingBag, BarChart3, Settings as SettingsIcon, Ticket } from 'lucide-react'
 import Dashboard from '@/components/Dashboard'
 import Orders from '@/components/Orders'
@@ -8,42 +8,42 @@ import Users from '@/components/Users'
 import Products from '@/components/Products'
 import Settings from '@/components/Settings'
 import PromoCodes from '@/components/PromoCodes'
+import { authApi } from '@/lib/api'
 
-const ADMIN_PIN_STORAGE_KEY = 'admin_pin_verified_v1'
-const DEFAULT_ADMIN_PIN = '7391'
+const AUTH_TOKEN_KEY = 'auth_token'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [isAuthorized, setIsAuthorized] = useState(false)
-  const [pinInput, setPinInput] = useState('')
-  const [pinError, setPinError] = useState('')
-
-  const validPin = useMemo(
-    () => process.env.NEXT_PUBLIC_ADMIN_PIN || DEFAULT_ADMIN_PIN,
-    []
-  )
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loginError, setLoginError] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const savedState = localStorage.getItem(ADMIN_PIN_STORAGE_KEY)
-    setIsAuthorized(savedState === '1')
+    setIsAuthorized(!!localStorage.getItem(AUTH_TOKEN_KEY))
   }, [])
 
-  const handlePinSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (pinInput.trim() !== validPin) {
-      setPinError('Неверный PIN-код')
-      return
+    setLoginError('')
+    setLoginLoading(true)
+    try {
+      const { data } = await authApi.login(email, password)
+      localStorage.setItem(AUTH_TOKEN_KEY, data.access_token)
+      setIsAuthorized(true)
+      setEmail('')
+      setPassword('')
+    } catch (err: any) {
+      setLoginError(err.response?.data?.message || 'Ошибка авторизации')
+    } finally {
+      setLoginLoading(false)
     }
-
-    localStorage.setItem(ADMIN_PIN_STORAGE_KEY, '1')
-    setPinError('')
-    setPinInput('')
-    setIsAuthorized(true)
   }
 
   const handleLogout = () => {
-    localStorage.removeItem(ADMIN_PIN_STORAGE_KEY)
+    localStorage.removeItem(AUTH_TOKEN_KEY)
     setIsAuthorized(false)
     setActiveTab('dashboard')
   }
@@ -65,29 +65,41 @@ export default function Home() {
         <div className="w-full max-w-md glass-card p-6">
           <h1 className="text-2xl font-bold mb-2">Вход в админку</h1>
           <p className="text-slate-600 mb-5">
-            Введите PIN-код для доступа к панели управления
+            Введите логин и пароль администратора
           </p>
 
-          <form onSubmit={handlePinSubmit} className="space-y-3">
+          <form onSubmit={handleLogin} className="space-y-3">
             <input
-              type="password"
-              inputMode="numeric"
-              value={pinInput}
+              type="email"
+              value={email}
               onChange={(e) => {
-                setPinInput(e.target.value)
-                if (pinError) setPinError('')
+                setEmail(e.target.value)
+                if (loginError) setLoginError('')
               }}
-              placeholder="PIN-код"
+              placeholder="Email"
+              autoComplete="email"
               className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {pinError && (
-              <p className="text-sm text-red-600">{pinError}</p>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                if (loginError) setLoginError('')
+              }}
+              placeholder="Пароль"
+              autoComplete="current-password"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {loginError && (
+              <p className="text-sm text-red-600">{loginError}</p>
             )}
             <button
               type="submit"
-              className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold hover:opacity-95 transition-opacity"
+              disabled={loginLoading}
+              className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold hover:opacity-95 transition-opacity disabled:opacity-50"
             >
-              Войти
+              {loginLoading ? 'Вход...' : 'Войти'}
             </button>
           </form>
         </div>
