@@ -19,6 +19,9 @@
 - Часть admin write endpoints на backend не закрыта `JwtAdminGuard`; подробности в [codebase-audit.md](./codebase-audit.md).
 - После реализации Phase 3 bot-only backend mutations нельзя вызывать из client/browser-кода: `POST /users/find-or-create` и `POST /referrals/register` теперь требуют `x-telegram-bot-token`, а user-facing профиль должен читаться через `/auth/me` или owner-guarded routes с user JWT.
 - Admin JWT теперь живёт 8 часов и требует `type: 'admin'`; старые токены без `type` после деплоя будут отвергаться `JwtAdminGuard`, поэтому admin runtime должен уметь переживать принудительный re-login.
+- Client redirect-параметры `returnTo` нельзя передавать напрямую в `router.push()` или `router.replace()`: все user-controlled значения должны проходить через `sanitizeRedirect()` из `client/lib/security.ts`. Sanitizer разрешает только same-origin relative URL, но сохраняет query/hash, потому что product/country/balance auto-buy flow использует вложенные внутренние `returnTo`.
+- `client` intentionally не включает полный CSP в первом security hardening pass: активны только baseline headers и `frame-ancestors`, потому что Telegram Mini App и CloudPayments требуют отдельной runtime-проверки для `script-src`, `connect-src` и `frame-src`.
+- URL hash с `tgWebAppData`/`tgWebAppVersion` в client считается только launch hint для ожидания Telegram SDK. Доверенная Telegram WebApp авторизация возможна только при наличии подписанного `window.Telegram.WebApp.initData` и backend-проверки `/auth/telegram/webapp`.
 
 ## Data and migrations
 
@@ -30,6 +33,8 @@
 
 - `pnpm dev` не запускает `client`; для полного локального контура нужен отдельный запуск пользовательского фронта.
 - `client/app/layout.tsx` намеренно выполняет Telegram/PWA scripts до hydration и может мутировать DOM (`html/body`, CSS variables, service worker state) раньше React. В локальном `next dev` это способно давать hydration warnings даже при нормальном production-поведении; для такого layout нужен `suppressHydrationWarning` на корневой boundary.
+- `client/app/layout.tsx` остаётся Server Component, потому что экспортирует `metadata` и `viewport`. Client-only поведение для Telegram SDK нужно выносить в отдельный компонент с `next/script onLoad`, а не добавлять `'use client'` в root layout.
+- Inline scripts в root layout нежелательны для будущего CSP. PWA install prompt и SW reset вынесены в `client/public/pwa-prompt.js` и `client/public/sw-reset.js`; при изменении SW reset нужно сохранять session guard, чтобы не получить reload loop.
 - В текущем `client` связка `next@14.2.x` + `react 18.3.x` + `lucide-react@0.563.x` может давать разный SSR/CSR SVG output (`className`, `aria-hidden`, `path d`) и валить hydration после reload. На пользовательском фронте безопаснее импортировать иконки через локальный client-only shim, а не напрямую из `lucide-react`.
 - `admin` navigation показывает вкладки `payments` и `analytics`, но в UI это пока заглушки.
 - catalog sync split-brain: legacy `EsimProviderService.syncProducts()` не пишет в БД, но реальный admin route использует `ProductsService.syncWithProvider()`, который уже делает upsert. При работе с roadmap нельзя путать эти два контура.

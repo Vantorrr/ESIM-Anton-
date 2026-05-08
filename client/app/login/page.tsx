@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Phone, ArrowRight, ChevronLeft, Loader2, Shield, AlertCircle } from '@/components/icons'
 import { api } from '@/lib/api'
 import { setToken, setStoredUser, isTelegramWebApp, getToken } from '@/lib/auth'
+import { sanitizeRedirect } from '@/lib/security'
 import { Suspense } from 'react'
 
 type Step = 'choose' | 'phone' | 'code'
@@ -31,15 +32,15 @@ function LoginInner() {
 
   useEffect(() => {
     if (isTelegramWebApp()) {
-      const returnTo = searchParams.get('returnTo') || '/'
-      router.replace(returnTo)
+      const safeReturnTo = sanitizeRedirect(searchParams.get('returnTo'), '/')
+      router.replace(safeReturnTo)
       return
     }
 
     const existingToken = getToken()
     if (existingToken) {
-      const returnTo = searchParams.get('returnTo') || '/'
-      router.replace(returnTo)
+      const safeReturnTo = sanitizeRedirect(searchParams.get('returnTo'), '/')
+      router.replace(safeReturnTo)
       return
     }
 
@@ -67,8 +68,8 @@ function LoginInner() {
           headers: { Authorization: `Bearer ${data.access_token}` }
         })
         setStoredUser(user)
-        const returnTo = new URLSearchParams(window.location.search).get('returnTo') || '/'
-        router.replace(returnTo)
+        const safeReturnTo = sanitizeRedirect(new URLSearchParams(window.location.search).get('returnTo'), '/')
+        router.replace(safeReturnTo)
       } catch (e: any) {
         setError(e.response?.data?.message || 'Ошибка входа через Telegram')
         setLoading(false)
@@ -110,15 +111,15 @@ function LoginInner() {
         headers: { Authorization: `Bearer ${data.access_token}` }
       })
       setStoredUser(user)
-      router.replace(searchParams.get('returnTo') || '/')
+      router.replace(sanitizeRedirect(searchParams.get('returnTo'), '/'))
     } catch (e: any) {
       setError(e.response?.data?.message || 'Неверный код')
     } finally { setLoading(false) }
   }
 
   const handleOAuth = (provider: string) => {
-    const returnTo = searchParams.get('returnTo') || '/'
-    const state = encodeURIComponent(returnTo)
+    const safeReturnTo = sanitizeRedirect(searchParams.get('returnTo'), '/')
+    const state = encodeURIComponent(safeReturnTo)
     window.location.href = `${BACKEND_URL}/auth/oauth/${provider}/redirect?state=${state}`
   }
 

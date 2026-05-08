@@ -5,6 +5,7 @@ import TelegramRedirectHandler from '@/components/TelegramRedirectHandler'
 import { AuthProvider } from '@/components/AuthProvider'
 import InstallBanner from '@/components/InstallBanner'
 import TelegramBackButtonProvider from '@/components/TelegramBackButtonProvider'
+import TelegramSdkScript from '@/components/TelegramSdkScript'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://mojomobile.ru'),
@@ -60,71 +61,15 @@ export default function RootLayout({
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.addEventListener('beforeinstallprompt', function(e) {
-                e.preventDefault();
-                window.pwaDeferredPrompt = e;
-              });
-            `,
-          }}
-        />
+        <Script id="pwa-prompt" src="/pwa-prompt.js" strategy="beforeInteractive" />
       </head>
       <body suppressHydrationWarning>
         <Script
           id="sw-reset"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function(){
-                var SW_VER = 'v3';
-                if ('serviceWorker' in navigator && !sessionStorage.getItem('sw_reset_'+SW_VER)) {
-                  caches.keys().then(function(names){
-                    names.forEach(function(n){ caches.delete(n); });
-                  });
-                  navigator.serviceWorker.getRegistrations().then(function(regs){
-                    regs.forEach(function(r){ r.unregister(); });
-                  });
-                  sessionStorage.setItem('sw_reset_'+SW_VER, '1');
-                  if (navigator.serviceWorker.controller) {
-                    location.reload();
-                  }
-                }
-              })();
-            `,
-          }}
-        />
-        <Script
-          id="telegram-sdk"
-          src="https://telegram.org/js/telegram-web-app.js"
+          src="/sw-reset.js"
           strategy="afterInteractive"
         />
-        <Script
-          id="telegram-bootstrap"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                if (window.Telegram && window.Telegram.WebApp) {
-                  var tg = window.Telegram.WebApp;
-                  tg.ready();
-                  tg.expand();
-                  if (tg.themeParams) {
-                    var root = document.documentElement;
-                    root.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
-                    root.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000000');
-                    root.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#999999');
-                    root.style.setProperty('--tg-theme-link-color', tg.themeParams.link_color || '#2481cc');
-                    root.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#2481cc');
-                    root.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
-                    root.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || '#f4f4f5');
-                  }
-                }
-              })();
-            `,
-          }}
-        />
+        <TelegramSdkScript />
         <Script
           id="cloudpayments-sdk"
           src="https://widget.cloudpayments.ru/bundles/cloudpayments.js"

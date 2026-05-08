@@ -8,6 +8,7 @@ Root `package.json` подтверждает следующие dev entrypoints:
 
 - `pnpm dev` — запускает `backend`, `admin`, `bot`
 - `client` в общий `dev` script не включен и поднимается отдельно
+- root `build` сейчас запускает `cd client && npm install --legacy-peer-deps && npm run build`, несмотря на `packageManager: pnpm@9.1.0` и наличие `client` в `pnpm-workspace.yaml`
 
 Ожидаемые порты по коду:
 
@@ -88,6 +89,8 @@ Production topology по проверенным документам и коду
 - `.env.example` восстановлен, но его нужно поддерживать синхронно с кодом при каждом изменении env surface
 - backend `start` и `start:prod` переведены на `prisma migrate deploy`
 - client и admin используют разные major-версии Next/React
+- В репозитории одновременно есть root `pnpm-lock.yaml` и root `package-lock.json`; `client` покрыт pnpm workspace lock, но root build использует npm install внутри `client`. До отдельного решения deploy strategy нельзя добавлять `client/package-lock.json`, чтобы не создать третий source of truth.
+- Безопасный дальнейший путь для package manager зависит от деплоя: если Railway/client стартует из root, предпочтительнее `pnpm --filter client build` и root `pnpm-lock.yaml`; если client деплоится standalone, нужно явно оформить npm-контур и хранить `client/package-lock.json` осознанно.
 - часть корневых документов переведена в archival mode; старые инженерные утверждения нужно брать из wiki, а не из исторических summary/checklist файлов
 - в Phase 2 подтверждено, что `backend`, `bot`, `admin` и `client` собираются; для `admin/client` потребовалась стабилизация workspace-зависимостей и запуск build вне sandbox
 - в Phase 2 подтверждено, что backend HTTP smoke routes, admin `/`, client `/`, `/referrals`, `/balance` локально отвечают `200`

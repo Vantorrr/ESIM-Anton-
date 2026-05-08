@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, CheckCircle, XCircle } from '@/components/icons'
 import { setToken, setStoredUser } from '@/lib/auth'
 import { api } from '@/lib/api'
+import { sanitizeRedirect } from '@/lib/security'
 import { Suspense } from 'react'
 
 function CallbackInner() {
@@ -15,7 +16,7 @@ function CallbackInner() {
 
   useEffect(() => {
     const token = searchParams.get('token')
-    const returnTo = searchParams.get('returnTo') || '/'
+    const safeReturnTo = sanitizeRedirect(searchParams.get('returnTo'), '/')
     const error = searchParams.get('error')
 
     if (error) {
@@ -40,7 +41,7 @@ function CallbackInner() {
         })
         setStoredUser(user)
         setStatus('success')
-        setTimeout(() => router.replace(returnTo), 800)
+        setTimeout(() => router.replace(safeReturnTo), 800)
       } catch {
         setErrorMsg('Не удалось получить данные пользователя')
         setStatus('error')

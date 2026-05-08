@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { sanitizeRedirect } from '@/lib/security'
 
 export function useSmartBack(fallbackRoute: string) {
   const router = useRouter()
@@ -10,7 +11,7 @@ export function useSmartBack(fallbackRoute: string) {
       ? new URLSearchParams(window.location.search).get('returnTo')
       : null
     if (returnTo) {
-      router.push(returnTo)
+      router.push(sanitizeRedirect(returnTo, fallbackRoute))
       return
     }
 

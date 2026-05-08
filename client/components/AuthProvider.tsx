@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect } from 'react'
-import { AuthUser, getToken, setToken as saveToken, getStoredUser, setStoredUser, clearToken, isTelegramEnvironment } from '@/lib/auth'
+import { AuthUser, getToken, setToken as saveToken, getStoredUser, setStoredUser, clearToken, isTelegramEnvironment, hasTelegramLaunchParams } from '@/lib/auth'
 import { api } from '@/lib/api'
 
 interface AuthContextValue {
@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: any }) {
       const tgEnv = isTelegramEnvironment()
       setIsTelegram(tgEnv)
       setAuthError(null)
+      const shouldWaitForTelegram = tgEnv || hasTelegramLaunchParams()
 
       // Шаг 1: сразу восстанавливаем сессию из localStorage — UI показывается мгновенно
       const storedToken = getToken()
@@ -48,7 +49,7 @@ export function AuthProvider({ children }: { children: any }) {
       }
 
       // Шаг 2: фоновая верификация / обновление токена
-      if (tgEnv) {
+      if (shouldWaitForTelegram) {
         // Ждём загрузки Telegram SDK (async скрипт), max 2s
         let tgApp = (window as any).Telegram?.WebApp
         if (!tgApp?.initData) {
@@ -79,10 +80,6 @@ export function AuthProvider({ children }: { children: any }) {
               setAuthError('telegram-auth-required')
             }
           }
-        } else if (!storedToken) {
-          setToken(null)
-          setUser(null)
-          setAuthError('telegram-auth-required')
         }
         setIsLoading(false)
       } else if (storedToken) {

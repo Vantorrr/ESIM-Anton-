@@ -70,6 +70,13 @@ export async function payCloudPayments(
   await waitForCloudPayments()
 
   return new Promise<CloudPaymentsResult>((resolve) => {
+    let settled = false
+    const finish = (result: CloudPaymentsResult) => {
+      if (settled) return
+      settled = true
+      resolve(result)
+    }
+
     const widget = new window.cp!.CloudPayments()
     widget.pay(
       'charge',
@@ -85,17 +92,19 @@ export async function payCloudPayments(
         data: options.data || {},
       },
       {
-        onSuccess: (opts: any) => resolve({ success: true, options: opts }),
+        onSuccess: (opts: any) => finish({ success: true, options: opts }),
         onFail: (reason: string, opts: any) =>
-          resolve({ success: false, reason, options: opts }),
+          finish({ success: false, reason, options: opts }),
         onComplete: (paymentResult: any) => {
           // Если onSuccess/onFail не сработали (некоторые скины) — fallback
           if (paymentResult?.success === false) {
-            resolve({
+            finish({
               success: false,
               reason: paymentResult?.message,
               reasonCode: paymentResult?.code,
             })
+          } else if (paymentResult?.success === true) {
+            finish({ success: true, options: paymentResult })
           }
         },
       },

@@ -8,6 +8,7 @@ import { useSmartBack } from '@/lib/useSmartBack'
 import { useAuth } from '@/components/AuthProvider'
 import { api, paymentsApi } from '@/lib/api'
 import { payCloudPayments } from '@/lib/cloudpayments'
+import { sanitizeRedirect } from '@/lib/security'
 
 interface Transaction {
   id: string
@@ -69,7 +70,7 @@ function BalancePageInner() {
   // Когда нас прислали с продукта/тарифа в формате ?topup=NN&returnTo=...,
   // запоминаем returnTo чтобы после успешного пополнения вернуться обратно
   // и (при наличии autoBuy=1 в returnTo) автоматически докупить тариф.
-  const returnTo = searchParams.get('returnTo')
+  const safeReturnTo = sanitizeRedirect(searchParams.get('returnTo'), '')
   const requestedTopup = searchParams.get('topup')
   const autoOpenedRef = useRef(false)
 
@@ -186,9 +187,9 @@ function BalancePageInner() {
       // 4) Если нас прислали из карточки тарифа (returnTo) — возвращаем туда
       // через небольшую задержку, чтобы успел отобразиться обновлённый баланс
       // и autoBuy=1 на product-странице сработал на свежих данных.
-      if (returnTo) {
+      if (safeReturnTo) {
         setTimeout(() => {
-          router.push(returnTo)
+          router.push(safeReturnTo)
         }, 1800)
       }
     } catch (e: any) {

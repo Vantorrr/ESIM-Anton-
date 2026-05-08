@@ -17,7 +17,6 @@ export default function TelegramRedirectHandler() {
     const checkForNewOrders = async () => {
       const tg = (window as any).Telegram?.WebApp
       if (!tg) {
-        console.log('❌ Telegram WebApp not found')
         return
       }
 
@@ -26,10 +25,8 @@ export default function TelegramRedirectHandler() {
 
       // Проверяем параметр startapp для редиректа
       const startParam = tg.initDataUnsafe?.start_param
-      console.log('🔗 start_param:', startParam)
       
       if (startParam === 'my-esim') {
-        console.log('✅ Redirecting to /my-esim from startapp parameter')
         router.push('/my-esim')
         setChecked(true)
         return
@@ -38,12 +35,8 @@ export default function TelegramRedirectHandler() {
       try {
         const token = getToken()
         if (!token) {
-          console.log('ℹ️ Skip new-order check: no user JWT in storage yet')
           return
         }
-
-        const telegramId = tg.initDataUnsafe?.user?.id
-        console.log('🔍 Checking for new orders, telegramId:', telegramId ?? 'unknown')
 
         // User profile теперь читается через /auth/me и требует валидный JWT.
         const user = await userApi.getMe()
@@ -51,15 +44,11 @@ export default function TelegramRedirectHandler() {
         // Проверяем новые заказы
         const { hasNewOrders, latestOrder } = await ordersApi.checkNew(user.id)
         
-        console.log('📦 Check result:', { hasNewOrders, latestOrder })
-        
         if (hasNewOrders && latestOrder) {
           // Проверяем, показывали ли мы уже уведомление для этого заказа
           const lastNotifiedOrderId = localStorage.getItem(LAST_NOTIFIED_ORDER_KEY)
           
           if (lastNotifiedOrderId !== latestOrder.id) {
-            console.log('✅ New order detected! Showing notification:', latestOrder.id)
-            
             // Сохраняем ID заказа, чтобы не показывать уведомление повторно
             localStorage.setItem(LAST_NOTIFIED_ORDER_KEY, latestOrder.id)
             
@@ -74,14 +63,10 @@ export default function TelegramRedirectHandler() {
               alert(message)
               router.push('/my-esim')
             }
-          } else {
-            console.log('ℹ️ Order already notified:', latestOrder.id)
           }
-        } else {
-          console.log('ℹ️ No new orders')
         }
       } catch (error) {
-        console.error('❌ Error checking new orders:', error)
+        console.error('Telegram order check failed:', error)
       } finally {
         setChecked(true)
       }

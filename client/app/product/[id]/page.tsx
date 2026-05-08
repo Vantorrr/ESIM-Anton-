@@ -8,6 +8,8 @@ import { isTelegramWebApp } from '@/lib/auth'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
 import { getCoverageItems, getCoverageScopeLabel, getCoverageSummary } from '@/lib/productCoverage'
 import { useAuth } from '@/components/AuthProvider'
+import { sanitizeRedirect } from '@/lib/security'
+import { payCloudPayments } from '@/lib/cloudpayments'
 
 export default function ProductPage() {
   const params = useParams()
@@ -47,7 +49,7 @@ export default function ProductPage() {
       ? `${selectedDays} дней использования`
       : `${product.validityDays} дней использования`
     : ''
-  const returnTo = searchParams.get('returnTo')
+  const safeReturnTo = sanitizeRedirect(searchParams.get('returnTo'), '')
 
   useEffect(() => {
     if (authUser?.email && !email) {
@@ -108,8 +110,8 @@ export default function ProductPage() {
   }, [loadProduct])
 
   const handleBack = () => {
-    if (returnTo) {
-      router.push(returnTo)
+    if (safeReturnTo) {
+      router.push(safeReturnTo)
       return
     }
 
@@ -233,31 +235,27 @@ export default function ProductPage() {
         return
       }
 
-      const widget = new (window as any).cp.CloudPayments();
-
-      widget.pay('charge', {
-        publicId: process.env.NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID,
+      const result = await payCloudPayments({
+        publicId: process.env.NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID || '',
         description: `Mojo mobile заказ #${order.id.slice(-8)}`,
         amount: orderTotal,
         currency: 'RUB',
         invoiceId: order.id,
         accountId: user.id,
-      }, {
-        onSuccess: function () {
-          if (tg) {
-            tg.showAlert('Оплата прошла успешно!', () => router.push('/my-esim'))
-          } else {
-            alert('Оплата прошла успешно!')
-            router.push('/my-esim')
-          }
-        },
-        onFail: function (reason: any) {
-          console.error('Payment failed:', reason)
-          if (tg) tg.showAlert('Оплата не прошла. Попробуйте еще раз.')
-          else alert('Оплата не прошла. Попробуйте еще раз.')
-        },
-        onComplete: function () {},
       })
+
+      if (result.success) {
+        if (tg) {
+          tg.showAlert('Оплата прошла успешно!', () => router.push('/my-esim'))
+        } else {
+          alert('Оплата прошла успешно!')
+          router.push('/my-esim')
+        }
+      } else {
+        console.error('Payment failed:', result.reason)
+        if (tg) tg.showAlert('Оплата не прошла. Попробуйте еще раз.')
+        else alert('Оплата не прошла. Попробуйте еще раз.')
+      }
 
     } catch (error: any) {
       console.error('Ошибка создания заказа:', error);
