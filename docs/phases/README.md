@@ -25,7 +25,7 @@
   - Клиентские баги трекаются в [../info/bug-resolution.md](../info/bug-resolution.md).
   - Документ: [phase-2-runtime-verification.md](./phase-2-runtime-verification.md)
 
-- [ ] **Phase 3: Admin Auth & API Security Hardening**
+- [x] **Phase 3: Admin Auth & API Security Hardening**
   - Закрыть все CRITICAL/HIGH уязвимости из security audit 2026-05-08 (3 CRITICAL, 5 HIGH).
   - Guards на все admin-facing endpoints: analytics, system-settings, users, payments, products, orders, esim-provider.
   - Mixed client/admin routes закрываются через `admin OR owner`, а не blind admin-only.
@@ -41,33 +41,27 @@
   - После роста `totalSpent` выполняется пересчёт `loyaltyLevel`; top-up flow отдельно исключён из этих side effects.
   - Документ: [phase-4-loyalty-and-referral-wiring.md](./phase-4-loyalty-and-referral-wiring.md)
 
-- [ ] **Phase 5: eSIM Usage, Status & Activation**
+- [x] **Phase 5: eSIM Usage, Status & Activation**
   - Подтвердить реальный provider contract для `getEsimSnapshot()` и `purchaseEsim()` на контролируемом заказе.
   - Довести единый lifecycle `backend -> client -> bot` для usage, статусов, LPA/QR и top-up readiness.
   - Проверить low-traffic monitoring cron и Telegram delivery на реальном или воспроизводимом сценарии.
   - Документ: [phase-5-esim-usage-status-and-activation.md](./phase-5-esim-usage-status-and-activation.md)
 
-- [ ] **Phase 6: Admin Orders, Analytics & Reporting**
+- [x] **Phase 6: Admin Orders, Analytics & Reporting**
   - Доработать admin orders table, которая пока показывает только базовые поля без promo/discount/export.
   - Вынести формулу `paid revenue` и проверить, что dashboard/analytics не расходятся с business definition.
   - Зафиксировать policy для cancel/delete без потери audit trail.
   - Документ: [phase-6-admin-orders-analytics-and-reporting.md](./phase-6-admin-orders-analytics-and-reporting.md)
 
-- [ ] **Phase 7: Product Catalog Sync & Tariff Metadata**
+- [x] **Phase 7: Product Catalog Sync & Tariff Metadata**
   - Сверить catalog metadata с уже существующим `ProductsService.syncWithProvider()` и dedupe flow.
   - Довести отображение `tags`, `notes`, `region`, `supportTopup` и различий похожих тарифов в client/admin.
   - Зафиксировать безопасные semantics для sync/reprice/dedupe и закрыть их backend auth.
   - Документ: [phase-7-product-catalog-sync-and-tariff-metadata.md](./phase-7-product-catalog-sync-and-tariff-metadata.md)
 
-- [ ] **Phase 8: Production Readiness & Railway Rollout**
-  - Подтвердить Railway service-level commands и env baseline до любых deploy-sensitive изменений.
-  - Подготовить rollout для уже существующей production DB с baseline migration `20260507_init`.
-  - Выполнять controlled deploy только после завершения security/business-critical фаз и smoke-checklist.
-  - Документ: [phase-8-production-readiness-and-railway-rollout.md](./phase-8-production-readiness-and-railway-rollout.md)
-
-- [ ] **Phase 9: API Security Infrastructure (Helmet, CORS, DTO, Rate Limiting)**
+- [ ] **Phase 8: API Security Infrastructure (Helmet, CORS, DTO, Rate Limiting)**
   - Security headers через `helmet`, CORS с явными admin/client origins, Swagger скрыт в production.
   - DTO с `class-validator` для всех external write endpoints вместо `@Body() dto: any`.
   - Rate limiting (`@nestjs/throttler`): 5 login / 3 SMS в минуту, webhooks исключены, proxy/distributed risks зафиксированы.
   - Зависит от Phase 3 (guards + JWT). 4 шага, ~3-4ч.
-  - Документ: [phase-9-api-security-infrastructure.md](./phase-9-api-security-infrastructure.md)
+  - Документ: [phase-8-api-security-infrastructure.md](./phase-8-api-security-infrastructure.md)
