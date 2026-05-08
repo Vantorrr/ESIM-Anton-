@@ -18,6 +18,7 @@ export default function InstallBanner() {
     if (localStorage.getItem('pwa-banner-dismissed')) return
 
     const handler = (e: Event) => {
+      e.preventDefault()
       setDeferredPrompt(e)
       setShow(true)
     }
