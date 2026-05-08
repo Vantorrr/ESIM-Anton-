@@ -6,6 +6,8 @@
 
 Защитить auth endpoints от brute-force и SMS bombing. Исключить webhooks из throttle.
 
+Rate limiting — defense-in-depth, не замена auth/ownership/signature checks. В production нужно учитывать reverse proxy и возможный horizontal scaling.
+
 ## Что нужно сделать
 
 ### 4.1 Установить @nestjs/throttler
@@ -18,7 +20,11 @@
   - Импортировать `ThrottlerModule` и `ThrottlerGuard` из `@nestjs/throttler`.
   - Импортировать `APP_GUARD` из `@nestjs/core`.
   - Добавить `ThrottlerModule.forRoot()` в `imports`.
-  - Добавить `ThrottlerGuard` как глобальный guard через `APP_GUARD`.
+- Добавить `ThrottlerGuard` как глобальный guard через `APP_GUARD`.
+- Для production зафиксировать выбранный storage:
+  - если Railway backend запускается в одном инстансе — in-memory store допустим как временный control;
+  - если инстансов больше одного — использовать Redis-backed throttler storage, иначе лимит обходится распределением запросов между инстансами.
+- Проверить client IP extraction за Railway/reverse proxy. Нельзя слепо доверять произвольному `X-Forwarded-For`; trust proxy должен соответствовать deployment topology.
 
 ```typescript
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -45,6 +51,7 @@ import { APP_GUARD } from '@nestjs/core';
   - Добавить жёсткие лимиты на:
     - `POST /auth/login` → `@Throttle({ default: { ttl: 60000, limit: 5 } })` (5 попыток в минуту)
     - `POST /auth/phone/send-code` → `@Throttle({ default: { ttl: 60000, limit: 3 } })` (3 SMS в минуту)
+- Рассмотреть отдельные named throttles для SMS по phone number, а не только по IP. IP-only лимит слабее против распределённых SMS bombing попыток.
 
 ### 4.4 Исключить webhooks из throttle
 
@@ -62,6 +69,7 @@ export class CloudPaymentsController { ... }
 
 - Аналогично для Robokassa webhook handler (если существует отдельный контроллер).
 - Проверить `payments.controller.ts` → `POST /payments/webhook` → добавить `@SkipThrottle()` на метод, если есть.
+- Не пропускать throttle для `payments/success` и `payments/fail` без необходимости: это browser redirect pages, не provider webhooks.
 
 ## Результат шага
 
@@ -69,6 +77,7 @@ export class CloudPaymentsController { ... }
 - Auth login: 5 попыток в минуту.
 - SMS: 3 запроса в минуту.
 - Webhooks: без ограничений.
+- Production limitation задокументирован: single-instance in-memory или Redis-backed distributed store.
 
 ## Статус
 
@@ -91,6 +100,9 @@ export class CloudPaymentsController { ... }
 - Выполнить 6 последовательных `POST /api/auth/login` за < 60 сек → 6-й запрос → `429 Too Many Requests`.
 - Выполнить 4 последовательных `POST /api/auth/phone/send-code` → 4-й → `429`.
 - `POST /api/payments/cloudpayments/pay` — 100 запросов подряд → все проходят (SkipThrottle).
+- `POST /api/payments/webhook` — Robokassa callback не получает `429` от throttler.
+- `GET /api/payments/success` и `GET /api/payments/fail` не помечены `SkipThrottle`, если нет подтверждённой причины.
 - `GET /api/products` — 61 запрос за минуту → 61-й → `429` (глобальный лимит).
+- Проверить, что разные clients не схлопываются в один proxy IP в логах throttler.
 - `npm run build` — без ошибок.
 - `npm run test` — все тесты green.

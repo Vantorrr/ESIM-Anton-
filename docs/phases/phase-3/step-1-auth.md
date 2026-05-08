@@ -37,6 +37,7 @@
 | `PaymentsController` | ⚠️ Только `balance/topup` | `JwtAdminGuard` на admin endpoints |
 | `ProductsController` | ⚠️ Только `dedupe` | `JwtAdminGuard` на все мутирующие |
 | `OrdersController` | ⚠️ Частично | `JwtAdminGuard` на admin, ownership на user |
+| `EsimProviderController` | ❌ Полностью открыт | `JwtAdminGuard` на provider/admin endpoints |
 | `PromoCodesController` | ✅ Все с `JwtAdminGuard` | Без изменений |
 | `LoyaltyController` | ✅ Все с guards | Без изменений |
 | `ReferralsController` | ✅ Все с guards | Без изменений |
@@ -47,6 +48,9 @@
 - `updateMyEmail` в `UsersController` парсит JWT вручную **без проверки подписи** — IDOR уязвимость.
 - Admin JWT не содержит `type: 'admin'` — нет чёткого разделения с user tokens.
 - `JwtAdminGuard` проверяет наличие `role`, но не проверяет whitelist допустимых ролей.
+- `POST /esim-provider/purchase` позволяет прямую provider purchase операцию вне order/payment lifecycle и должен быть admin/internal-only.
+- Mixed routes (`orders/:id`, `orders/user/:userId`, `payments/user/:userId`, `users/:id`) нельзя закрывать только `JwtAdminGuard` без правки client: требуется ownership model.
+- Bot `/users/find-or-create` нельзя переводить на admin JWT: нужен service-token guard, совместимый с `bot/src/api.ts`.
 
 ## Файлы
 

@@ -33,6 +33,8 @@
 - `POST /api/products`
 - `PUT /api/products/<any-id>`
 - `DELETE /api/products/<any-id>`
+- `POST /api/esim-provider/purchase`
+- `POST /api/esim-provider/sync`
 - `GET /api/orders/<any-id>`
 - `PATCH /api/orders/<any-id>/cancel`
 - `GET /api/payments/cloudpayments/test-notify`
@@ -44,6 +46,8 @@
 - С JWT: `GET /api/system-settings` → `200`.
 - С JWT: `GET /api/users` → `200`.
 - С JWT: `GET /api/payments` → `200`.
+- С JWT: `GET /api/esim-provider/health` → `200` или provider-level health response.
+- С JWT: `GET /api/orders/<any-id>` → `200`.
 
 ### 6.4 Публичные endpoints (без токена — должны работать)
 
@@ -52,6 +56,25 @@
 - `GET /api/products/<existing-id>` → `200`
 - `POST /api/auth/login` → `200` (с валидными credentials) / `401` (с невалидными)
 - `POST /api/auth/phone/send-code` → ответ (может быть ошибка SMS, но не 401)
+
+### 6.4.1 User ownership tests
+
+- Получить user JWT.
+- `GET /api/orders/<own-order-id>` → `200`.
+- `GET /api/orders/<other-order-id>` → `403`.
+- `GET /api/orders/user/<own-user-id>` → `200`.
+- `GET /api/orders/user/<other-user-id>` → `403`.
+- `GET /api/orders/user/<own-user-id>/check-new` → `200`.
+- `GET /api/payments/user/<own-user-id>` → `200`.
+- `GET /api/payments/user/<other-user-id>` → `403`.
+- `POST /api/payments/create` с чужим `orderId` → `403`.
+- `PATCH /api/users/me/email` с валидным user JWT → `200`; с поддельным JWT payload без валидной подписи → `401`.
+
+### 6.4.2 Bot/internal token tests
+
+- `POST /api/users/find-or-create` без `x-telegram-bot-token` → `401`/`403`.
+- `POST /api/users/find-or-create` с валидным `x-telegram-bot-token` → `200`.
+- Bot smoke: `/start` не падает на middleware `findOrCreate`.
 
 ### 6.5 Token confusion тест
 
@@ -71,6 +94,15 @@
 - Переключить все вкладки: Dashboard, Orders, Users, Products, Promo, Settings.
 - Выполнить хотя бы одну write операцию (например, toggle promo code).
 - Logout → all tabs show login form.
+
+### 6.8 Client Mini App smoke
+
+- Phone/Telegram auth → `/my-esim` загружает свои заказы.
+- `/orders` загружает только свои заказы.
+- `/order/<own-id>` открывается; `/order/<other-id>` возвращает controlled forbidden/error state.
+- `/balance` загружает баланс и свои транзакции.
+- Покупка с `paymentMethod=card` создаёт order и payment только для текущего пользователя.
+- Покупка с 100% promo не требует admin JWT на client path.
 
 ## Результат шага
 

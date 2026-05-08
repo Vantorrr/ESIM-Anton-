@@ -11,6 +11,9 @@
 - Все admin write endpoints защищены `JwtAdminGuard`.
 - Все admin read endpoints (analytics, users list, payments, orders) защищены `JwtAdminGuard`.
 - Публичные client-facing endpoints (каталог, страны, OAuth) остаются открытыми.
+- Mixed admin/client endpoints (`orders/:id`, `orders/user/:userId`, `payments/user/:userId`, `users/:id`) не закрываются blind `JwtAdminGuard`: для user-facing доступа обязателен `JwtUserGuard` + ownership, для admin-facing доступа — `JwtAdminGuard`.
+- Provider-facing debug/admin endpoints (`esim-provider/*`) закрыты `JwtAdminGuard`; прямой purchase у провайдера без order/payment boundary недоступен анонимно.
+- Bot/internal endpoint `POST /users/find-or-create` закрыт service-token механизмом, совместимым с bot runtime, а не admin JWT.
 - `POST /auth/register-admin` требует `SUPER_ADMIN` токен.
 - JWT модель усилена: admin payload содержит `type: 'admin'`, guard проверяет whitelist ролей.
 - Admin JWT TTL сокращён до 8 часов.
@@ -19,7 +22,7 @@
 
 ## Оценка
 
-~3-4 часа суммарно по всем шагам.
+~4-5 часов суммарно по всем шагам.
 Высокий приоритет — без этого production API позволяет создавать admin-аккаунты, менять цены и читать PII без аутентификации.
 
 ## Зависит от
@@ -38,10 +41,13 @@
 ## Архитектурные решения
 
 - Admin login UI и token propagation уже реализованы ранее. Шаги 2-3 из предыдущей версии Phase 3 подтверждены как выполненные.
-- Защита endpoints — атомарная операция: добавляем `@UseGuards(JwtAdminGuard)` — admin UI уже отправляет Bearer.
+- Защита endpoints — атомарная операция только для чистых admin routes: добавляем `@UseGuards(JwtAdminGuard)` — admin UI уже отправляет Bearer.
 - `GET /products`, `GET /products/countries`, `GET /products/:id` — остаются публичными (клиентский каталог).
-- `POST /users/find-or-create` — используется ботом. Временно защищается `JwtAdminGuard`, пока не будет реализован inter-service API key.
-- `GET /orders/:id` и `GET /orders/user/:userId` — используются и из admin, и из client. На этом этапе ставим `JwtAdminGuard`. Если client-facing route нужен — это отдельная задача вне Phase 3.
+- `POST /users/find-or-create` — используется ботом и legacy client helpers. Его нельзя закрывать `JwtAdminGuard`: вводится `ServiceTokenGuard` для bot (`x-telegram-bot-token`) и/или отдельный user-authenticated контракт для client.
+- `GET /orders/:id`, `GET /orders/user/:userId`, `GET /payments/user/:userId`, `GET /users/:id` используются и из admin, и из client. Для них нужен split-by-ownership: admin видит любой ресурс, user — только свой.
+- Для mixed endpoints предпочтителен `OrGuard([JwtAdminGuard, JwtUserGuard])` + явная ownership проверка. Если `OrGuard` усложняет DI/Swagger, допустимы отдельные routes: `/admin/*` под `JwtAdminGuard` и `/me/*` под `JwtUserGuard`.
+- `POST /payments/create` под `JwtUserGuard` должен проверять, что `order.userId === currentUser.id`, иначе остаётся IDOR по `orderId`.
+- `POST /orders/:id/fulfill-free` сейчас вызывается client при 100% promo. Либо переводим free-order fulfillment внутрь `POST /orders`, либо оставляем endpoint user-owned для `totalAmount === 0`; blind `JwtAdminGuard` ломает client flow.
 - Обязательно: `type: 'admin'` в JWT payload + whitelist ролей в guard, чтобы user-токен не проходил admin guard.
 
 ## Шаги (журналы)
@@ -62,6 +68,10 @@
 - `GET /api/users` без токена → `401`.
 - `GET /api/products` без токена → `200` (публичный каталог).
 - `POST /api/products/sync` без токена → `401`.
+- `POST /api/esim-provider/purchase` без токена → `401`.
+- `GET /api/orders/<own-id>` с user JWT владельца → `200`; с user JWT другого пользователя → `403`.
+- `POST /api/payments/create` с чужим `orderId` → `403`.
+- Bot `/users/find-or-create` с `x-telegram-bot-token` → `200`; без token → `401`/`403`.
 - Admin UI login → dashboard загружается → все вкладки работают.
 - `npm run build` — без ошибок.
 - `npm run test` — все тесты green.
@@ -79,6 +89,11 @@
   - Phase 3 переписана с учётом findings и обновлённого состояния кода.
   - Шаги 2-3 из предыдущей версии подтверждены как выполненные (login UI + token propagation уже работают).
   - Новая декомпозиция: 6 шагов с фокусом на guards, JWT hardening и smoke.
+
+- **[2026-05-08] Review плана hardening:**
+  - Уточнено, что Phase 3 не должна ломать client/bot runtime.
+  - `EsimProviderController` добавлен в critical scope.
+  - Mixed routes переведены на модель `admin OR owner`, а не blanket admin-only.
 
 ## Ссылки
 

@@ -13,14 +13,17 @@
 - Выполнить `cd backend && npm install helmet`.
 - В `backend/src/main.ts`:
   - Добавить `import helmet from 'helmet';` в начало файла.
-  - Вызвать `app.use(helmet());` сразу после `NestFactory.create()`, до `setGlobalPrefix`.
+  - Вызвать `app.use(helmet(...))` сразу после `NestFactory.create()`, до `setGlobalPrefix`.
+  - Не включать CSP вслепую: `payments/success` и `payments/fail` отдают inline HTML/CSS/JS и подключают Telegram script. До отдельного CSP hardening использовать `contentSecurityPolicy: false` или явно разрешить нужные источники.
 
 ```
 import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: false,
+  }));
   app.setGlobalPrefix('api');
   // ...
 }
@@ -29,7 +32,9 @@ async function bootstrap() {
 ### 1.2 Ограничить CORS
 
 - В `backend/src/main.ts`:
-  - Заменить `origin: process.env.CORS_ORIGIN || '*'` на `origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3001', 'http://localhost:3002']`.
+  - Заменить `origin: process.env.CORS_ORIGIN || '*'` на parser для comma-separated origins.
+  - Trim для каждого origin обязателен, пустые элементы удалить.
+  - Fallback только localhost origins для admin и client.
 
 ```
 До:
@@ -39,8 +44,15 @@ async function bootstrap() {
   });
 
 После:
+  const corsOrigins = (process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3001', 'http://localhost:3002'],
+    origin: corsOrigins.length > 0
+      ? corsOrigins
+      : ['http://localhost:3001', 'http://localhost:3002'],
     credentials: true,
   });
 ```
@@ -50,14 +62,19 @@ async function bootstrap() {
 - Добавить или обновить переменную `CORS_ORIGIN` с комментарием:
 
 ```
-# Comma-separated list of allowed CORS origins
-CORS_ORIGIN=https://admin.mojomobile.ru,https://mojomobile.ru,https://app.mojomobile.ru
+# Comma-separated list of allowed browser origins for admin and client/PWA
+CORS_ORIGIN=http://localhost:3001,http://localhost:3002,https://admin.mojomobile.ru,https://mojomobile.ru,https://app.mojomobile.ru
 ```
+
+- Не добавлять `*` как fallback или как production value.
+- Если Railway/Рег.ру фактические domains отличаются, перед deploy обновить `.env.example` и Railway env синхронно.
+- Проверить, что bot/server-to-server calls не зависят от CORS: CORS защищает только browser requests, не является backend auth boundary.
 
 ## Результат шага
 
 - Backend отдаёт security headers на каждый ответ.
 - CORS ограничен явным списком доменов.
+- Payment callback HTML не ломается из-за CSP.
 
 ## Статус
 
@@ -81,4 +98,6 @@ CORS_ORIGIN=https://admin.mojomobile.ru,https://mojomobile.ru,https://app.mojomo
   - `X-DNS-Prefetch-Control: off` ✓
 - Запрос с `Origin: https://evil.com` → CORS блокирует.
 - Запрос с `Origin: http://localhost:3001` → CORS пропускает.
+- Запрос с `Origin: http://localhost:3002` → CORS пропускает.
+- `GET /api/payments/success` и `GET /api/payments/fail` возвращают HTML без CSP-related runtime breakage.
 - `npm run build` — без ошибок.

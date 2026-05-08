@@ -1,10 +1,10 @@
-# Шаг 3. DTO с class-validator для admin endpoints
+# Шаг 3. DTO с class-validator для external write endpoints
 
 > [⬅️ Назад к фазе](../phase-9-api-security-infrastructure.md)
 
 ## Цель
 
-Заменить `@Body() dto: any` на типизированные DTO с `class-validator`, чтобы глобальный `ValidationPipe(whitelist: true)` реально фильтровал поля.
+Заменить `@Body() dto: any` и небезопасные inline body contracts на типизированные DTO с `class-validator`, чтобы глобальный `ValidationPipe(whitelist: true, forbidNonWhitelisted: true)` реально фильтровал поля.
 
 ## Что нужно сделать
 
@@ -78,6 +78,16 @@ export class UpdateProductDto extends PartialType(CreateProductDto) {}
 
 - Обновить `products.controller.ts`: заменить `@Body() createDto: any` / `@Body() updateDto: any`.
 
+### 3.2.1 DTO для product bulk/admin mutations
+
+- Создать DTO для bulk endpoints:
+  - `BulkToggleActiveDto`: `ids: string[]`, `isActive: boolean`.
+  - `BulkToggleByTypeDto`: `tariffType: 'standard' | 'unlimited'`, `isActive: boolean`.
+  - `BulkSetBadgeDto`: `ids: string[]`, `badge?: string | null`, `badgeColor?: string | null`.
+  - `BulkSetMarkupDto`: `ids: string[]`, `markupPercent: number`, ограничить `0..1000` или бизнес-лимитом.
+- Все `ids` валидировать как non-empty string array.
+- Не принимать unknown fields: `forbidNonWhitelisted` должен вернуть `400`.
+
 ### 3.3 DTO для system-settings
 
 - Создать `backend/src/modules/system-settings/dto/update-pricing.dto.ts`:
@@ -105,9 +115,33 @@ export class UpdateReferralSettingsDto {
 
 - Обновить `system-settings.controller.ts`: заменить inline `@Body()` типы на DTO.
 
+### 3.4 DTO для auth/user-facing mutations
+
+- `auth/dto/login-admin.dto.ts`: `email`, `password`.
+- `auth/dto/send-phone-code.dto.ts`: `phone`.
+- `auth/dto/verify-phone-code.dto.ts`: `phone`, `code`.
+- `auth/dto/telegram-webapp-auth.dto.ts`: `initData`.
+- `users/dto/update-my-email.dto.ts`: `email`.
+- `users/dto/find-or-create-user.dto.ts`: `telegramId`, optional profile/utm fields; используется вместе с service-token guard.
+- `users/dto/push-subscription.dto.ts`: `endpoint`, `p256dh`, `auth`.
+- `users/dto/push-unsubscribe.dto.ts`: `endpoint`.
+
+### 3.5 DTO для orders/payments user mutations
+
+- `orders/dto/create-order.dto.ts`: `productId`, optional `quantity`, `useBonuses`, `periodNum`, `promoCode`, `paymentMethod`.
+- `orders/dto/create-topup-order.dto.ts`: `packageCode`, optional `paymentMethod`.
+- `payments/dto/create-payment.dto.ts`: `orderId`.
+- `payments/dto/create-balance-topup.dto.ts`: `amount`, optional `provider`.
+- Для money fields использовать `@Type(() => Number)`, `@IsNumber()`, `@Min(0)`; для quantities — integer/min constraints.
+
+### 3.6 Webhook payloads
+
+- CloudPayments и Robokassa webhook bodies могут оставаться `any`/provider-specific raw payloads, потому что подпись/HMAC и provider parser являются primary validation.
+- Не применять strict DTO к webhook raw body так, чтобы сломать signature verification или provider callback compatibility.
+
 ## Результат шага
 
-- Все admin write endpoints валидируют входные данные через `class-validator`.
+- Все external write endpoints валидируют входные данные через `class-validator`, кроме provider webhooks, где primary control — signature/HMAC parser.
 - `whitelist: true` отсекает неизвестные поля (mass assignment prevention).
 - Некорректные данные → `400 Bad Request` с описанием ошибок.
 
@@ -125,15 +159,25 @@ export class UpdateReferralSettingsDto {
 - `backend/src/modules/auth/auth.controller.ts` [MODIFY]
 - `backend/src/modules/products/dto/create-product.dto.ts` [NEW]
 - `backend/src/modules/products/dto/update-product.dto.ts` [NEW]
+- `backend/src/modules/products/dto/bulk-product.dto.ts` [NEW]
 - `backend/src/modules/products/products.controller.ts` [MODIFY]
 - `backend/src/modules/system-settings/dto/update-pricing.dto.ts` [NEW]
 - `backend/src/modules/system-settings/dto/update-referral-settings.dto.ts` [NEW]
 - `backend/src/modules/system-settings/system-settings.controller.ts` [MODIFY]
+- `backend/src/modules/auth/dto/*.dto.ts` [NEW/MODIFY]
+- `backend/src/modules/users/dto/*.dto.ts` [NEW]
+- `backend/src/modules/orders/dto/*.dto.ts` [NEW]
+- `backend/src/modules/payments/dto/*.dto.ts` [NEW]
 
 ## Тестирование / Верификация
 
 - `POST /api/auth/register-admin` с `{ email: "not-an-email" }` → `400` с ошибкой `email must be an email`.
 - `POST /api/auth/register-admin` с `{ email: "a@b.com", password: "123" }` → `400` с ошибкой `password must be longer than or equal to 8 characters`.
-- `POST /api/products` с `{ country: "RU", name: "Test", extraField: "hack" }` → `extraField` отброшен (whitelist).
+- `POST /api/products` с `{ country: "RU", name: "Test", extraField: "hack" }` → `400` из-за `forbidNonWhitelisted`.
+- `POST /api/products/bulk/toggle-active` с пустым `ids` → `400`.
 - `POST /api/system-settings/pricing` с `{ exchangeRate: -5 }` → `400`.
+- `POST /api/payments/create` без `orderId` → `400`.
+- `POST /api/orders` без `productId` → `400`.
+- `POST /api/auth/phone/send-code` без `phone` → `400`.
+- CloudPayments webhook с валидной подписью не ломается из-за DTO validation.
 - `npm run build` — без ошибок.

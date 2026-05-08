@@ -4,7 +4,7 @@
 
 ## Цель
 
-Скрыть Swagger UI в production и закрыть отладочный endpoint `test-notify`.
+Скрыть Swagger UI в production и проверить, что отладочный endpoint `test-notify` закрыт. Если Phase 3 уже закрыла `test-notify`, этот шаг должен только подтвердить guard и не дублировать конфликтующие изменения.
 
 ## Что нужно сделать
 
@@ -38,6 +38,7 @@
 - В `backend/src/modules/payments/cloudpayments.controller.ts`:
   - Добавить `@UseGuards(JwtAdminGuard)` на метод `testNotify()`.
   - Импортировать `UseGuards` из `@nestjs/common`, `JwtAdminGuard` из `@/common/auth/jwt-user.guard`.
+- Если guard уже добавлен в Phase 3, не менять код повторно; только оставить verification.
 
 ```
 @Get('test-notify')

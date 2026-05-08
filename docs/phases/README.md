@@ -27,10 +27,12 @@
 
 - [ ] **Phase 3: Admin Auth & API Security Hardening**
   - Закрыть все CRITICAL/HIGH уязвимости из security audit 2026-05-08 (3 CRITICAL, 5 HIGH).
-  - Guards на все admin-facing endpoints: analytics, system-settings, users, payments, products, orders.
+  - Guards на все admin-facing endpoints: analytics, system-settings, users, payments, products, orders, esim-provider.
+  - Mixed client/admin routes закрываются через `admin OR owner`, а не blind admin-only.
+  - Bot/internal `find-or-create` требует service-token, не admin JWT.
   - Защита `register-admin` + IDOR fix в `updateMyEmail`.
   - Усиление JWT: `type: 'admin'`, whitelist ролей, TTL 8h.
-  - Admin login flow уже работает (шаги 1-2 подтверждены). 6 шагов, ~3-4ч.
+  - Admin login flow уже работает (шаги 1-2 подтверждены). 6 шагов, ~4-5ч.
   - Документ: [phase-3-admin-auth-and-api-security.md](./phase-3-admin-auth-and-api-security.md)
 
 - [x] **Phase 4: Loyalty & Referral Wiring**
@@ -64,8 +66,8 @@
   - Документ: [phase-8-production-readiness-and-railway-rollout.md](./phase-8-production-readiness-and-railway-rollout.md)
 
 - [ ] **Phase 9: API Security Infrastructure (Helmet, CORS, DTO, Rate Limiting)**
-  - Security headers через `helmet`, CORS с явными origins, Swagger скрыт в production.
-  - DTO с `class-validator` для всех admin write endpoints вместо `@Body() dto: any`.
-  - Rate limiting (`@nestjs/throttler`): 5 login / 3 SMS в минуту, webhooks исключены.
-  - Зависит от Phase 3 (guards + JWT). 4 шага, ~2-2.5ч.
+  - Security headers через `helmet`, CORS с явными admin/client origins, Swagger скрыт в production.
+  - DTO с `class-validator` для всех external write endpoints вместо `@Body() dto: any`.
+  - Rate limiting (`@nestjs/throttler`): 5 login / 3 SMS в минуту, webhooks исключены, proxy/distributed risks зафиксированы.
+  - Зависит от Phase 3 (guards + JWT). 4 шага, ~3-4ч.
   - Документ: [phase-9-api-security-infrastructure.md](./phase-9-api-security-infrastructure.md)
