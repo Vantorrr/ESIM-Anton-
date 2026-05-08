@@ -60,6 +60,16 @@ export default function RootLayout({
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                window.pwaDeferredPrompt = e;
+              });
+            `,
+          }}
+        />
       </head>
       <body suppressHydrationWarning>
         <Script

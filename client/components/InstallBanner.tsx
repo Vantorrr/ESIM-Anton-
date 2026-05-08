@@ -23,6 +23,11 @@ export default function InstallBanner() {
       setShow(true)
     }
 
+    // Если событие успело произойти до монтирования компонента
+    if (typeof window !== 'undefined' && (window as any).pwaDeferredPrompt) {
+      handler((window as any).pwaDeferredPrompt)
+    }
+
     window.addEventListener('beforeinstallprompt', handler)
 
     // iOS Safari detection
