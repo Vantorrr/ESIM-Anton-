@@ -12,7 +12,7 @@
 - sorting/filtering работает по ключевым колонкам;
 - export формирует согласованный отчёт;
 - analytics считает revenue по фактически оплаченным заказам;
-- вкладка `analytics` в admin перестаёт быть заглушкой и использует существующие backend endpoints осознанно;
+- backend analytics endpoints и dashboard widgets используют согласованную revenue-логику; отдельная route-level страница `analytics` в admin остаётся вне scope этой фазы и может сохраняться как заглушка;
 - delete/cancel policy для строк заказов явно зафиксирована.
 
 ## Оценка

@@ -73,3 +73,11 @@
   - Добавить minimal reconciliation/visibility path для сценариев paid-but-not-fulfilled.
   - В wiki закреплены rollout guardrails: без возврата blind timeout coordination, raw payload logging по умолчанию, sweeping SSR/RSC migration и speculative reconciliation platform внутри этой фазы.
   - Документ: [phase-10-client-payments-and-provider-hardening.md](./phase-10-client-payments-and-provider-hardening.md)
+
+- [ ] **Phase 11: Admin Panel Refactoring**
+  - Типизация API и state (устранение `any`), декомпозиция God-компонентов.
+  - UI-примитивы (`Button`, `Modal`, `Toast`, `ConfirmDialog`) и замена `alert()`/`confirm()`.
+  - Auth-слой (`AuthProvider` + `AuthGuard`), переход на App Router с URL search params.
+  - ESLint setup, cleanup dead CSS/deps, обновление wiki.
+  - Зависит от Phase 3 (auth guards), Phase 6 (orders table). 7 шагов.
+  - Документ: [phase-11-admin-panel-refactoring.md](./phase-11-admin-panel-refactoring.md)
