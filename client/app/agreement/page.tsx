@@ -7,7 +7,7 @@ export default function AgreementPage() {
   const handleBack = useSmartBack('/profile')
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
         <div className="flex items-center justify-between px-4 py-3">
@@ -92,7 +92,7 @@ export default function AgreementPage() {
 
         <Section title="2. Порядок оказания услуг">
           <p className="mb-3">Оказание услуг Исполнителем происходит в следующем порядке:</p>
-          <ul className="list-disc pl-5 space-y-2 mb-3">
+          <ul className="list-disc pl-5 [&>li+li]:mt-2 mb-3">
             <li>Клиент заходит на сайт <a href="https://mojomobile.ru/" className="text-[#f77430] underline" target="_blank" rel="noreferrer">https://mojomobile.ru/</a> либо в Telegram-бот <a href="https://t.me/mojo_mobile_bot" className="text-[#f77430] underline" target="_blank" rel="noreferrer">https://t.me/mojo_mobile_bot</a>;</li>
             <li>Выбирает тариф с наименованием страны-использования eSIM;</li>
             <li>Выбирает срок действия (количество дней) после активации Тарифа и количество трафика в гигабайтах;</li>

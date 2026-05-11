@@ -13,7 +13,7 @@ import { payCloudPayments } from '@/lib/cloudpayments'
 
 export default function ProductPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#f4f5f7]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950" />}>
       <ProductPageInner />
     </Suspense>
   )
@@ -324,9 +324,9 @@ function ProductPageInner() {
   }
 
   return (
-    <div className="container bg-[#f4f5f7]">
+    <div className="container bg-[#f4f5f7] dark:bg-gray-950">
       {/* Sticky Back Header */}
-      <div className="sticky top-0 z-40 bg-[#f4f5f7]/95 backdrop-blur-sm -mx-5 px-5 pt-2 pb-3 mb-4">
+      <div className="sticky top-0 z-40 bg-[#f4f5f7]/95 dark:bg-gray-950/95 backdrop-blur-sm -mx-5 px-5 pt-2 pb-3 mb-4">
         <button
           onClick={handleBack}
           className="flex items-center gap-2 text-accent font-medium"
@@ -403,8 +403,8 @@ function ProductPageInner() {
       {/* What is included */}
       <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.11s' }}>
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Что входит в тариф</h3>
-        <div className="space-y-3">
-          <div className="rounded-xl bg-white border border-gray-100 px-3 py-3">
+        <div className="flex flex-col gap-3">
+          <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-3">
             <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Трафик</p>
             <p className="text-sm font-semibold text-primary">{trafficSummary}</p>
             <p className="text-xs text-gray-500 mt-1">
@@ -414,7 +414,7 @@ function ProductPageInner() {
             </p>
           </div>
 
-          <div className="rounded-xl bg-white border border-gray-100 px-3 py-3">
+          <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-3">
             <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Срок действия</p>
             <p className="text-sm font-semibold text-primary">{validitySummary}</p>
             {product.description && (
@@ -422,7 +422,7 @@ function ProductPageInner() {
             )}
           </div>
 
-          <div className="rounded-xl bg-white border border-gray-100 px-3 py-3">
+          <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-3">
             <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Покрытие</p>
             <p className="text-sm font-semibold text-primary">{coverageSummary}</p>
             <p className="text-xs text-gray-500 mt-1">
@@ -449,16 +449,16 @@ function ProductPageInner() {
             )}
           </div>
 
-          <div className="rounded-xl bg-white border border-gray-100 px-3 py-3">
+          <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-3">
             <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Подключение</p>
             <p className="text-sm font-semibold text-primary">Только мобильный интернет</p>
             <p className="text-xs text-gray-500 mt-1">Звонки и SMS в тариф не входят.</p>
           </div>
 
           {product.isUnlimited && product.speed && (
-            <div className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-3">
-              <p className="text-xs uppercase tracking-wide text-amber-600 mb-1">После лимита в день</p>
-              <p className="text-sm font-semibold text-amber-900">Скорость снижается до {product.speed}</p>
+            <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 px-3 py-3">
+              <p className="text-xs uppercase tracking-wide text-amber-600 dark:text-amber-500 mb-1">После лимита в день</p>
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-400">Скорость снижается до {product.speed}</p>
             </div>
           )}
 
@@ -467,14 +467,14 @@ function ProductPageInner() {
             const tags = product.tags ?? []
             if (tags.length === 0 && !product.notes) return null
             return (
-              <div className="rounded-xl bg-yellow-50 border border-yellow-100 px-3 py-3">
-                <p className="text-xs uppercase tracking-wide text-yellow-700 mb-1">Примечание</p>
+              <div className="rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-900/30 px-3 py-3">
+                <p className="text-xs uppercase tracking-wide text-yellow-700 dark:text-yellow-500 mb-1">Примечание</p>
                 {tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {tags.map((tag) => (
                       <span
                         key={tag}
-                        className="text-[11px] font-semibold px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200"
+                        className="text-[11px] font-semibold px-2 py-0.5 rounded border bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50"
                       >
                         {tag}
                       </span>
@@ -482,7 +482,7 @@ function ProductPageInner() {
                   </div>
                 )}
                 {product.notes && (
-                  <p className="text-sm text-yellow-900 mt-1 whitespace-pre-line">{product.notes}</p>
+                  <p className="text-sm text-yellow-900 dark:text-yellow-400 mt-1 whitespace-pre-line">{product.notes}</p>
                 )}
               </div>
             )
@@ -497,7 +497,7 @@ function ProductPageInner() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSelectedDays(d => Math.max(1, d - 1))}
-              className="w-10 h-10 rounded-xl border border-gray-200 bg-white flex items-center justify-center text-lg font-bold text-gray-600 active:bg-gray-100"
+              className="w-10 h-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-center text-lg font-bold text-gray-600 dark:text-gray-300 active:bg-gray-100 dark:active:bg-gray-700"
             >
               −
             </button>
@@ -510,11 +510,11 @@ function ProductPageInner() {
                 const v = parseInt(e.target.value)
                 if (!isNaN(v) && v >= 1 && v <= 365) setSelectedDays(v)
               }}
-              className="flex-1 text-center py-2.5 rounded-xl border border-gray-200 bg-white text-lg font-bold text-primary focus:outline-none focus:ring-2 focus:ring-[#f77430]/25"
+              className="flex-1 text-center py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-lg font-bold text-primary focus:outline-none focus:ring-2 focus:ring-[#f77430]/25"
             />
             <button
               onClick={() => setSelectedDays(d => Math.min(365, d + 1))}
-              className="w-10 h-10 rounded-xl border border-gray-200 bg-white flex items-center justify-center text-lg font-bold text-gray-600 active:bg-gray-100"
+              className="w-10 h-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-center text-lg font-bold text-gray-600 dark:text-gray-300 active:bg-gray-100 dark:active:bg-gray-700"
             >
               +
             </button>
@@ -527,7 +527,7 @@ function ProductPageInner() {
                 className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   selectedDays === d
                     ? 'bg-[#f77430] text-white'
-                    : 'bg-gray-100 text-gray-600'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
                 }`}
               >
                 {d} дн.
@@ -553,8 +553,8 @@ function ProductPageInner() {
                 setPromoError('')
               }}
               placeholder="Введите промокод"
-              className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#f77430]/25 ${
-                promoApplied ? 'border-green-400 bg-green-50' : promoError ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'
+              className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#f77430]/25 ${
+                promoApplied ? 'border-green-400 bg-green-50 dark:bg-green-900/20' : promoError ? 'border-red-300 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
               }`}
             />
           </div>
@@ -593,7 +593,7 @@ function ProductPageInner() {
 
       {/* Discount summary */}
       {promoApplied && discountAmount > 0 && (
-        <div className="card-neutral p-4 mb-4 animate-slide-up bg-green-50 border border-green-200">
+        <div className="card-neutral p-4 mb-4 animate-slide-up bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/30">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">Без скидки</span>
             <span className="text-sm text-gray-400 line-through">₽{formatPrice(basePrice)}</span>
@@ -620,8 +620,8 @@ function ProductPageInner() {
             value={email}
             onChange={(e) => { setEmail(e.target.value); setEmailSaved(false) }}
             placeholder="your@email.com (необязательно)"
-            className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#f77430]/25 transition-colors ${
-              emailSaved ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-white'
+            className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#f77430]/25 transition-colors ${
+              emailSaved ? 'border-green-400 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
             }`}
           />
         </div>
@@ -644,8 +644,8 @@ function ProductPageInner() {
                   onClick={() => setPaymentMethod('balance')}
                   className={`flex flex-col items-start text-left px-3 py-3 rounded-xl border transition-all ${
                     paymentMethod === 'balance'
-                      ? 'border-[#f77430] bg-orange-50'
-                      : 'border-gray-200 bg-white'
+                      ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20'
+                      : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -667,8 +667,8 @@ function ProductPageInner() {
                   onClick={() => setPaymentMethod('card')}
                   className={`flex flex-col items-start text-left px-3 py-3 rounded-xl border transition-all ${
                     paymentMethod === 'card'
-                      ? 'border-[#f77430] bg-orange-50'
-                      : 'border-gray-200 bg-white'
+                      ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20'
+                      : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-center gap-2">

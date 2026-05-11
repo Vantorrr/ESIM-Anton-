@@ -91,7 +91,7 @@ export default function OrdersPage() {
         <header className="mb-6">
           <h1 className="text-2xl font-bold text-primary">Мои заказы</h1>
         </header>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="glass-card">
               <div className="skeleton h-6 w-32 mb-2" />
@@ -131,7 +131,7 @@ export default function OrdersPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {orders.map((order, index) => {
             const statusConfig = getStatusConfig(order.status)
             const StatusIcon = statusConfig.icon

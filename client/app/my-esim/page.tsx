@@ -176,7 +176,7 @@ function ActivationBlock({
   }
 
   return (
-    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
+    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-2">
       <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Установка eSIM</p>
       <div className="grid grid-cols-2 gap-2">
         {links.appleUniversalLink && (
@@ -214,7 +214,7 @@ function ActivationBlock({
         Инструкция вручную {showInstructions ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
       {showInstructions && (
-        <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 space-y-1.5">
+        <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 flex flex-col gap-1.5">
           <p className="font-medium">Если кнопки не открыли установку:</p>
           <p><b>iPhone:</b> Настройки → Сотовая связь → Добавить eSIM → «Использовать QR-код» → «Ввести данные вручную». Вставьте LPA-код выше.</p>
           <p><b>Android:</b> Настройки → Сеть и интернет → SIM-карты → Добавить eSIM → «Нет QR-кода?» → «Ввести вручную». Вставьте LPA-код выше.</p>
@@ -331,7 +331,7 @@ export default function MyEsimPage() {
   const refreshUsage = (esimId: string) => fetchUsageInto(esimId, true)
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
         <div className="flex items-center justify-between px-4 py-3">
           <button
@@ -348,7 +348,7 @@ export default function MyEsimPage() {
       <div className="px-4 py-6 max-w-lg mx-auto">
 
         {loading ? (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             {[1, 2].map((i) => (
               <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl p-4">
                 <div className="flex items-center gap-4">
@@ -381,7 +381,7 @@ export default function MyEsimPage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             {esims.map((esim) => {
               const statusConfig = getStatusConfig(esim.status)
               const StatusIcon = statusConfig.icon

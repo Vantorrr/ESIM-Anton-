@@ -48,7 +48,7 @@ function describeTxType(type: string): string {
  */
 export default function BalancePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 dark:bg-gray-900" />}>
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 dark:bg-gray-950" />}>
       <BalancePageInner />
     </Suspense>
   )
@@ -210,7 +210,7 @@ function BalancePageInner() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
         <div className="flex items-center justify-between px-4 py-3">
@@ -313,7 +313,7 @@ function BalancePageInner() {
           </h2>
           
           {loading ? (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-4">
                   <div className="flex items-center gap-3">
@@ -334,7 +334,7 @@ function BalancePageInner() {
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               {transactions.map((tx) => (
                 <div 
                   key={tx.id}

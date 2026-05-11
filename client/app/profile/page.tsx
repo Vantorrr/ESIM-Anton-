@@ -11,6 +11,7 @@ import {
 } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
 import { useAuth } from '@/components/AuthProvider'
+import { useTheme } from '@/components/ThemeProvider'
 
 interface UserProfile {
   id: string
@@ -23,16 +24,15 @@ interface UserProfile {
   referralCode: string
 }
 
-type Theme = 'light' | 'dark' | 'system'
 type Language = 'ru' | 'en'
 
 export default function ProfilePage() {
   const { user: authUser, isLoading: authLoading } = useAuth()
+  const { theme, setTheme } = useTheme()
   const [user, setUser] = useState<UserProfile | null>(null)
   const [referralStats, setReferralStats] = useState<ReferralStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [promoCode, setPromoCode] = useState('')
-  const [theme, setTheme] = useState<Theme>('system')
   const [language, setLanguage] = useState<Language>('ru')
   const [notifications, setNotifications] = useState(true)
   
@@ -47,7 +47,7 @@ export default function ProfilePage() {
     setShowLanguageModal(false)
   }
   
-  const changeTheme = (newTheme: Theme) => {
+  const changeTheme = (newTheme: 'light' | 'dark' | 'system') => {
     setTheme(newTheme)
     setShowThemeModal(false)
   }
@@ -122,32 +122,12 @@ export default function ProfilePage() {
     if (authLoading) return
     void loadUserData()
     void loadReferralStats()
-    const savedTheme = localStorage.getItem('theme') as Theme
     const savedLang = localStorage.getItem('language') as Language
     const savedNotifications = localStorage.getItem('notifications')
     
-    if (savedTheme) setTheme(savedTheme)
     if (savedLang) setLanguage(savedLang)
     if (savedNotifications !== null) setNotifications(savedNotifications === 'true')
   }, [authLoading, loadReferralStats, loadUserData])
-  
-  // Применение темы
-  useEffect(() => {
-    const root = document.documentElement
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else if (theme === 'light') {
-      root.classList.remove('dark')
-    } else {
-      // system
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        root.classList.add('dark')
-      } else {
-        root.classList.remove('dark')
-      }
-    }
-    localStorage.setItem('theme', theme)
-  }, [theme])
 
   const applyPromoCode = () => {
     if (promoCode.trim()) {
@@ -203,7 +183,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f4f5f7] pb-20">
+      <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
         <div className="px-4 py-6">
           <div className="skeleton h-8 w-32 mb-6" />
           <div className="skeleton h-20 w-full rounded-2xl mb-4" />
@@ -216,17 +196,17 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] pb-20">
+    <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
       <div className="px-4 py-6 max-w-lg mx-auto">
         
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Аккаунт
           </h1>
           <button
             onClick={handleLogout}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-gray-200 text-[#f2622a] hover:bg-orange-50 transition-colors text-sm font-medium"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-[#f2622a] hover:bg-orange-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
           >
             <LogOut size={16} />
             Выйти
@@ -235,16 +215,16 @@ export default function ProfilePage() {
 
         {/* Deposit / Balance */}
         <section className="mb-6">
-          <p className="text-sm text-gray-500 mb-2 px-1">Депозит</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 px-1">Депозит</p>
           <Link href="/balance">
             <div className="card-neutral p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
                   <DollarSign className="text-[#f77430]" size={24} />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Баланс:</p>
-                  <p className="text-xl font-bold text-gray-900">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Баланс:</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">
                     ₽ {user?.balance || 0}
                   </p>
                 </div>
@@ -263,7 +243,7 @@ export default function ProfilePage() {
                 value={promoCode}
                 onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                 placeholder="Промокод"
-                className="flex-1 px-4 py-3 rounded-xl soft-input text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#f77430]"
+                className="flex-1 px-4 py-3 rounded-xl soft-input text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#f77430]"
               />
               <button
                 onClick={applyPromoCode}
@@ -301,51 +281,51 @@ export default function ProfilePage() {
 
         {/* Profile Section */}
         <section className="mb-6">
-          <p className="text-sm text-gray-500 mb-2 px-1">Профиль</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 px-1">Профиль</p>
           <div className="card-neutral overflow-hidden">
             
             <Link href="/my-esim">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
                   <Smartphone className="text-[#f77430]" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900">Мои eSIM</span>
+                <span className="flex-1 font-medium text-gray-900 dark:text-white">Мои eSIM</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </Link>
             
-            <div className="h-px bg-gray-100 mx-4" />
+            <div className="h-px bg-gray-100 dark:bg-gray-800 mx-4" />
             
             <Link href="/orders">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
                   <ShoppingBag className="text-[#f77430]" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900">Заказы</span>
+                <span className="flex-1 font-medium text-gray-900 dark:text-white">Заказы</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </Link>
 
-            <div className="h-px bg-gray-100 mx-4" />
+            <div className="h-px bg-gray-100 dark:bg-gray-800 mx-4" />
             
             <Link href="/referrals">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
                   <Gift className="text-[#f77430]" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900">Реферальная программа</span>
+                <span className="flex-1 font-medium text-gray-900 dark:text-white">Реферальная программа</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </Link>
 
-            <div className="h-px bg-gray-100 mx-4" />
+            <div className="h-px bg-gray-100 dark:bg-gray-800 mx-4" />
 
             <Link href="/loyalty">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
                   <Check className="text-[#f77430]" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900">Система лояльности</span>
+                <span className="flex-1 font-medium text-gray-900 dark:text-white">Система лояльности</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </Link>
@@ -355,51 +335,51 @@ export default function ProfilePage() {
 
         {/* Settings Section */}
         <section className="mb-6">
-          <p className="text-sm text-gray-500 mb-2 px-1">Настройки</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 px-1">Настройки</p>
           <div className="card-neutral overflow-hidden">
             
             <button 
               onClick={() => setShowLanguageModal(true)}
-              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
                 <Globe className="text-[#f77430]" size={20} />
               </div>
-              <span className="flex-1 font-medium text-gray-900 text-left">Язык</span>
+              <span className="flex-1 font-medium text-gray-900 dark:text-white text-left">Язык</span>
               <span className="text-gray-400 text-sm mr-1">
                 {language === 'ru' ? 'Русский' : 'English'}
               </span>
               <ChevronRight className="text-gray-400" size={20} />
             </button>
             
-            <div className="h-px bg-gray-100 mx-4" />
+            <div className="h-px bg-gray-100 dark:bg-gray-800 mx-4" />
             
             <button 
               onClick={() => setShowThemeModal(true)}
-              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               <div className="w-10 h-10 rounded-xl bg-gray-800 flex items-center justify-center">
                 {theme === 'dark' ? <Moon className="text-white" size={20} /> : 
                  theme === 'light' ? <Sun className="text-white" size={20} /> :
                  <Monitor className="text-white" size={20} />}
               </div>
-              <span className="flex-1 font-medium text-gray-900 text-left">Тема</span>
+              <span className="flex-1 font-medium text-gray-900 dark:text-white text-left">Тема</span>
               <span className="text-gray-400 text-sm mr-1">
                 {theme === 'light' ? 'Светлая' : theme === 'dark' ? 'Тёмная' : 'Авто'}
               </span>
               <ChevronRight className="text-gray-400" size={20} />
             </button>
             
-            <div className="h-px bg-gray-100 mx-4" />
+            <div className="h-px bg-gray-100 dark:bg-gray-800 mx-4" />
             
             <button 
               onClick={() => setShowNotificationsModal(true)}
-              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
                 <Bell className="text-[#f77430]" size={20} />
               </div>
-              <span className="flex-1 font-medium text-gray-900 text-left">Уведомления</span>
+              <span className="flex-1 font-medium text-gray-900 dark:text-white text-left">Уведомления</span>
               <span className={`text-sm mr-1 ${notifications ? 'text-green-500' : 'text-gray-400'}`}>
                 {notifications ? 'Вкл' : 'Выкл'}
               </span>
@@ -411,51 +391,51 @@ export default function ProfilePage() {
 
         {/* Other Section */}
         <section className="mb-6">
-          <p className="text-sm text-gray-500 mb-2 px-1">Другое</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 px-1">Другое</p>
           <div className="card-neutral overflow-hidden">
             
             <Link href="/help">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
                   <HelpCircle className="text-[#f77430]" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900">Помощь</span>
+                <span className="flex-1 font-medium text-gray-900 dark:text-white">Помощь</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </Link>
             
-            <div className="h-px bg-gray-100 mx-4" />
+            <div className="h-px bg-gray-100 dark:bg-gray-800 mx-4" />
             
             <a href="https://t.me/support" target="_blank" rel="noopener noreferrer">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
                   <MessageCircle className="text-[#f77430]" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900">Поддержка</span>
+                <span className="flex-1 font-medium text-gray-900 dark:text-white">Поддержка</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </a>
             
-            <div className="h-px bg-gray-100 mx-4" />
+            <div className="h-px bg-gray-100 dark:bg-gray-800 mx-4" />
             
             <Link href="/offer">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors cursor-pointer">
-                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
-                  <FileText className="text-gray-600" size={20} />
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+                <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                  <FileText className="text-gray-600 dark:text-gray-400" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900">Публичная оферта</span>
+                <span className="flex-1 font-medium text-gray-900 dark:text-white">Публичная оферта</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </Link>
 
-            <div className="h-px bg-gray-100 mx-4" />
+            <div className="h-px bg-gray-100 dark:bg-gray-800 mx-4" />
 
             <Link href="/agreement">
-              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors cursor-pointer">
-                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
-                  <FileText className="text-gray-600" size={20} />
+              <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+                <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                  <FileText className="text-gray-600 dark:text-gray-400" size={20} />
                 </div>
-                <span className="flex-1 font-medium text-gray-900">Пользовательское соглашение</span>
+                <span className="flex-1 font-medium text-gray-900 dark:text-white">Пользовательское соглашение</span>
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </Link>
@@ -464,7 +444,7 @@ export default function ProfilePage() {
         </section>
 
         {/* App Version */}
-        <p className="text-center text-gray-400 text-sm">
+        <p className="text-center text-gray-400 dark:text-gray-600 text-sm">
           Версия 1.0.0
         </p>
 
@@ -474,16 +454,16 @@ export default function ProfilePage() {
       {showLanguageModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowLanguageModal(false)}>
           <div 
-            className="w-full max-w-lg bg-white rounded-t-3xl p-6 animate-slide-up"
+            className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-3xl p-6 animate-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Выбор языка</h3>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Выбор языка</h3>
               <button onClick={() => setShowLanguageModal(false)} className="p-2">
                 <X className="text-gray-400" size={24} />
               </button>
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <button 
                 onClick={() => changeLanguage('ru')}
                 className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
@@ -492,7 +472,7 @@ export default function ProfilePage() {
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🇷🇺</span>
-                  <span className="font-medium text-gray-900">Русский</span>
+                  <span className="font-medium text-gray-900 dark:text-white">Русский</span>
                 </div>
                 {language === 'ru' && <Check className="text-[#f77430]" size={20} />}
               </button>
@@ -504,7 +484,7 @@ export default function ProfilePage() {
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🇬🇧</span>
-                  <span className="font-medium text-gray-900">English</span>
+                  <span className="font-medium text-gray-900 dark:text-white">English</span>
                 </div>
                 {language === 'en' && <Check className="text-[#f77430]" size={20} />}
               </button>
@@ -517,16 +497,16 @@ export default function ProfilePage() {
       {showThemeModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowThemeModal(false)}>
           <div 
-            className="w-full max-w-lg bg-white rounded-t-3xl p-6 animate-slide-up"
+            className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-3xl p-6 animate-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Выбор темы</h3>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Выбор темы</h3>
               <button onClick={() => setShowThemeModal(false)} className="p-2">
                 <X className="text-gray-400" size={24} />
               </button>
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <button 
                 onClick={() => changeTheme('light')}
                 className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-colors ${
@@ -535,7 +515,7 @@ export default function ProfilePage() {
               >
                 <div className="flex items-center gap-3">
                   <Sun className="text-yellow-500" size={24} />
-                  <span className="font-medium text-gray-900">Светлая</span>
+                  <span className="font-medium text-gray-900 dark:text-white">Светлая</span>
                 </div>
                 {theme === 'light' && <Check className="text-[#f77430]" size={20} />}
               </button>
@@ -547,7 +527,7 @@ export default function ProfilePage() {
               >
                 <div className="flex items-center gap-3">
                   <Moon className="text-[#f29b41]" size={24} />
-                  <span className="font-medium text-gray-900">Тёмная</span>
+                  <span className="font-medium text-gray-900 dark:text-white">Тёмная</span>
                 </div>
                 {theme === 'dark' && <Check className="text-[#f77430]" size={20} />}
               </button>
@@ -559,7 +539,7 @@ export default function ProfilePage() {
               >
                 <div className="flex items-center gap-3">
                   <Monitor className="text-gray-500" size={24} />
-                  <span className="font-medium text-gray-900">Как в системе</span>
+                  <span className="font-medium text-gray-900 dark:text-white">Как в системе</span>
                 </div>
                 {theme === 'system' && <Check className="text-[#f77430]" size={20} />}
               </button>
@@ -572,20 +552,20 @@ export default function ProfilePage() {
       {showNotificationsModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setShowNotificationsModal(false)}>
           <div 
-            className="w-full max-w-lg bg-white rounded-t-3xl p-6 animate-slide-up"
+            className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-3xl p-6 animate-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Уведомления</h3>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Уведомления</h3>
               <button onClick={() => setShowNotificationsModal(false)} className="p-2">
                 <X className="text-gray-400" size={24} />
               </button>
             </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between px-4 py-4 bg-gray-50 rounded-xl">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between px-4 py-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
                 <div>
-                  <p className="font-medium text-gray-900">Push-уведомления</p>
-                  <p className="text-sm text-gray-500">Статус заказов, акции</p>
+                  <p className="font-medium text-gray-900 dark:text-white">Push-уведомления</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Статус заказов, акции</p>
                 </div>
                 <button
                   onClick={toggleNotifications}

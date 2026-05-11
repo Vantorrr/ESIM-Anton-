@@ -89,7 +89,7 @@ export default function ReferralsPage() {
       const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'mojo_mobile_bot'
 
       return (
-        <div className="container bg-[#f4f5f7]">
+        <div className="container bg-[#f4f5f7] dark:bg-gray-950">
           <header className="mb-6">
             <h1 className="text-2xl font-bold text-primary">Реферальная программа</h1>
             <p className="text-secondary text-sm mt-1">
@@ -118,7 +118,7 @@ export default function ReferralsPage() {
     }
 
     return (
-      <div className="container bg-[#f4f5f7]">
+      <div className="container bg-[#f4f5f7] dark:bg-gray-950">
         <header className="mb-6">
           <h1 className="text-2xl font-bold text-primary">Реферальная программа</h1>
           <p className="text-secondary text-sm mt-1">Не удалось загрузить данные. Попробуйте открыть страницу ещё раз.</p>
@@ -129,7 +129,7 @@ export default function ReferralsPage() {
   }
 
   return (
-    <div className="container bg-[#f4f5f7]">
+    <div className="container bg-[#f4f5f7] dark:bg-gray-950">
       {/* Header */}
       <header className="mb-6 animate-fade-in">
         <h1 className="text-2xl font-bold text-primary">Пригласи друзей</h1>
@@ -222,7 +222,7 @@ export default function ReferralsPage() {
       {/* How it works */}
       <div className="card-neutral p-5 animate-slide-up" style={{ animationDelay: '0.2s' }}>
         <h3 className="font-semibold text-primary mb-4">Как это работает</h3>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {[ 
             { step: 1, title: 'Поделитесь ссылкой', desc: 'Отправьте ссылку друзьям' },
             { step: 2, title: 'Друг регистрируется', desc: 'И совершает покупку' },

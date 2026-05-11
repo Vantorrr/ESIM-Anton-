@@ -147,7 +147,7 @@ export default function TopupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
         <div className="flex items-center justify-between px-4 py-3">
           <button onClick={handleBack} className="p-2 -ml-2 text-gray-600 dark:text-gray-300">
@@ -160,7 +160,7 @@ export default function TopupPage() {
         </div>
       </div>
 
-      <div className="px-4 py-6 max-w-lg mx-auto space-y-4">
+      <div className="px-4 py-6 max-w-lg mx-auto flex flex-col gap-4">
         {order && (
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm">
             <div className="flex items-center gap-3">
@@ -235,7 +235,7 @@ export default function TopupPage() {
         )}
 
         {loading ? (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl p-4">
                 <div className="skeleton h-5 w-32 mb-2" />
@@ -250,7 +250,7 @@ export default function TopupPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {packages.map((pkg) => {
               const priceRub = Number(pkg.priceRub || 0)
               const insufficient =

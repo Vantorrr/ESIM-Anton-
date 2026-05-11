@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import type { ReactNode } from 'react'
 import Script from 'next/script'
 import './globals.css'
 import TelegramRedirectHandler from '@/components/TelegramRedirectHandler'
@@ -6,6 +7,7 @@ import { AuthProvider } from '@/components/AuthProvider'
 import InstallBanner from '@/components/InstallBanner'
 import TelegramBackButtonProvider from '@/components/TelegramBackButtonProvider'
 import TelegramSdkScript from '@/components/TelegramSdkScript'
+import ThemeProvider from '@/components/ThemeProvider'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://mojomobile.ru'),
@@ -51,14 +53,29 @@ export const viewport: Viewport = {
   themeColor: '#f77430',
 }
 
+// Inline script to apply theme class before first paint (prevents FOUC)
+const themeInitScript = `
+(function(){
+  try {
+    var t = localStorage.getItem('theme') || 'system';
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var tgDark = tg && tg.colorScheme === 'dark';
+    var osDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var d = t === 'dark' || (t === 'system' && (tgDark || osDark));
+    if (d) document.documentElement.classList.add('dark');
+  } catch(e){}
+})();
+`
+
 export default function RootLayout({
   children,
 }: {
-  children: any
+  children: ReactNode
 }) {
   return (
     <html lang="ru" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <Script id="pwa-prompt" src="/pwa-prompt.js" strategy="beforeInteractive" />
@@ -77,12 +94,15 @@ export default function RootLayout({
         />
         {/* Font stack задаётся в globals.css, чтобы build не зависел от fetch Google Fonts */}
         <AuthProvider>
-          <TelegramRedirectHandler />
-          <TelegramBackButtonProvider />
-          <InstallBanner />
-          {children}
+          <ThemeProvider>
+            <TelegramRedirectHandler />
+            <TelegramBackButtonProvider />
+            <InstallBanner />
+            {children}
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>
   )
 }
+

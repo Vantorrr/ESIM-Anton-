@@ -149,7 +149,7 @@ function LoginInner() {
 
         {/* Шаг 1: выбор способа */}
         {step === 'choose' && (
-          <div className="glass-card space-y-3">
+          <div className="glass-card flex flex-col gap-3">
             <h2 className="text-lg font-semibold text-primary mb-4">Войти или создать аккаунт</h2>
 
             {error && (
@@ -160,7 +160,7 @@ function LoginInner() {
 
             {/* Телефон */}
             <button onClick={() => { setError(''); setStep('phone') }}
-              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-gray-200 bg-white/60 hover:bg-white/80 transition-all text-left">
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 transition-all text-left">
               <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
                 <Phone size={20} className="text-green-600" />
               </div>
@@ -173,13 +173,13 @@ function LoginInner() {
 
             <div className="relative my-1">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-              <div className="relative flex justify-center text-xs text-muted"><span className="bg-white/80 px-3 rounded">или войти через</span></div>
+              <div className="relative flex justify-center text-xs text-muted"><span className="bg-white/80 dark:bg-gray-800/80 px-3 rounded">или войти через</span></div>
             </div>
 
             {/* OAuth кнопки */}
             {OAUTH_PROVIDERS.map(({ id, label, color, bg, icon: Icon }) => (
               <button key={id} onClick={() => handleOAuth(id)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-gray-200 bg-white/60 hover:bg-white/80 transition-all">
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 transition-all">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: bg }}>
                   <Icon color={color} />
                 </div>
@@ -222,7 +222,7 @@ function LoginInner() {
               value={formatPhone(phone)}
               onChange={(e) => { const d = e.target.value.replace(/\D/g, ''); setPhone(d.slice(0, 11)) }}
               placeholder="+7 (999) 000-00-00"
-              className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 bg-white/80 text-primary placeholder-gray-400 focus:outline-none focus:border-[#f29b41] text-lg font-medium mb-3"
+              className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-white/5 text-primary placeholder-gray-400 focus:outline-none focus:border-[#f29b41] text-lg font-medium mb-3"
             />
 
             {error && <p className="text-red-500 text-xs mb-3">{error}</p>}

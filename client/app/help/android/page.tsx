@@ -10,9 +10,9 @@ function Step({ num, title, items }: { num: string; title: string; items: string
         <div className="w-8 h-8 rounded-full bg-[#f77430] flex items-center justify-center shrink-0">
           <span className="text-white text-sm font-bold">{num}</span>
         </div>
-        <h2 className="font-bold text-gray-900 text-base">{title}</h2>
+        <h2 className="font-bold text-gray-900 dark:text-white text-base">{title}</h2>
       </div>
-      <ul className="space-y-2 pl-11">
+      <ul className="[&>li+li]:mt-2 pl-11">
         {items.map((item, i) => (
           <li key={i} className="text-sm text-gray-700 leading-relaxed flex gap-2">
             <span className="text-[#f77430] shrink-0">•</span>
@@ -29,9 +29,9 @@ function Brand({ emoji, name, items }: { emoji: string; name: string; items: str
     <div className="card-neutral p-4 mb-4">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-xl">{emoji}</span>
-        <p className="font-semibold text-gray-900">{name}</p>
+        <p className="font-semibold text-gray-900 dark:text-white">{name}</p>
       </div>
-      <ul className="space-y-2">
+      <ul className="[&>li+li]:mt-2">
         {items.map((item, i) => (
           <li key={i} className="text-sm text-gray-700 leading-relaxed flex gap-2">
             <span className="text-[#f77430] shrink-0">•</span>
@@ -55,14 +55,14 @@ export default function AndroidInstallPage() {
   const router = useRouter()
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] pb-20">
+    <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-gray-200/70">
+      <div className="sticky top-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800">
         <div className="flex items-center justify-between px-4 py-3">
           <button onClick={() => router.back()} className="p-2 -ml-2 text-gray-600">
             <ArrowLeft size={24} />
           </button>
-          <h1 className="font-semibold text-lg text-gray-900">Установка на Android</h1>
+          <h1 className="font-semibold text-lg text-gray-900 dark:text-white">Установка на Android</h1>
           <div className="w-10" />
         </div>
       </div>
@@ -75,7 +75,7 @@ export default function AndroidInstallPage() {
             <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4483-.9993.9993-.9993c.5511 0 .9993.4483.9993.9993.0001.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4483.9993.9993 0 .5511-.4483.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 0 0-.1521-.5676.416.416 0 0 0-.5676.1521l-2.0223 3.503C15.5902 8.2439 13.8533 7.8508 12 7.8508s-3.5902.3931-5.1367 1.0989L4.841 5.4467a.4161.4161 0 0 0-.5677-.1521.4157.4157 0 0 0-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3435-4.1021-2.6892-7.5743-6.1185-9.4396"/>
           </svg>
           <div>
-            <p className="font-bold text-gray-900">Android-смартфоны</p>
+            <p className="font-bold text-gray-900 dark:text-white">Android-смартфоны</p>
             <p className="text-sm text-gray-500">Samsung, Xiaomi, Google Pixel и другие</p>
           </div>
         </div>
@@ -101,7 +101,7 @@ export default function AndroidInstallPage() {
             <div className="w-8 h-8 rounded-full bg-[#f77430] flex items-center justify-center shrink-0">
               <span className="text-white text-sm font-bold">2</span>
             </div>
-            <h2 className="font-bold text-gray-900 text-base">Установка по марке устройства</h2>
+            <h2 className="font-bold text-gray-900 dark:text-white text-base">Установка по марке устройства</h2>
           </div>
 
           <Brand

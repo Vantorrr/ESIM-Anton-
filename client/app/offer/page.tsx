@@ -7,7 +7,7 @@ export default function OfferPage() {
   const handleBack = useSmartBack('/profile')
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
         <div className="flex items-center justify-between px-4 py-3">
@@ -31,7 +31,7 @@ export default function OfferPage() {
           о заключении договора об оказании услуг
         </p>
 
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
           
           <section>
             <h2 className="font-bold text-base text-gray-900 dark:text-white mb-2">1. Общие положения</h2>
@@ -51,7 +51,7 @@ export default function OfferPage() {
 
           <section className="bg-gray-100 dark:bg-gray-800/50 p-4 rounded-xl">
             <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-2">Термины и определения:</h3>
-            <ul className="space-y-2">
+            <ul className="[&>li+li]:mt-2">
               <li>
                 <span className="font-semibold">Договор</span> – текст настоящей Оферты с Приложениями, являющимися неотъемлемой частью настоящей Оферты, акцептованный Заказчиком путем совершения конклюдентных действий, предусмотренных настоящей Офертой.
               </li>
@@ -76,7 +76,7 @@ export default function OfferPage() {
             <p className="mb-2">2.2. Наименование, количество, порядок и иные условия оказания Услуг определяются на основании сведений Исполнителя при оформлении заявки Заказчиком, либо устанавливаются на сайте Исполнителя в сети «Интернет» <a href="https://t.me/mojo_mobile_bot" className="text-[#f77430] hover:underline">https://t.me/mojo_mobile_bot</a></p>
             <p className="mb-2">2.3. Исполнитель оказывает Услуги по настоящему Договору лично, либо с привлечением третьих лиц, при этом за действия третьих лиц Исполнитель отвечает перед Заказчиком как за свои собственные.</p>
             <p className="mb-2">2.4. Договор заключается путем акцепта настоящей Оферты через совершение конклюдентных действий, выраженных в:</p>
-            <ul className="list-disc pl-5 space-y-1 mb-2">
+            <ul className="list-disc pl-5 [&>li+li]:mt-1 mb-2">
               <li>действиях, связанных с регистрацией учетной записи на Сайте Исполнителя в сети «Интернет» при наличии необходимости регистрации учетной записи;</li>
               <li>оформлении и направлении Заказчиком заявки в адрес Исполнителя для оказания Услуг;</li>
               <li>действиях, связанных с оплатой Услуг Заказчиком;</li>
@@ -151,7 +151,7 @@ export default function OfferPage() {
 
           <section className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-8">
             <h2 className="font-bold text-base text-gray-900 dark:text-white mb-4">10. Реквизиты Исполнителя</h2>
-            <div className="space-y-2 text-sm">
+            <div className="flex flex-col gap-2 text-sm">
               <p><span className="font-semibold text-gray-900 dark:text-white">Полное наименование:</span> Кирпичёва Елена Сергеевна</p>
               <p><span className="font-semibold text-gray-900 dark:text-white">ИНН:</span> 402918235949</p>
               <p><span className="font-semibold text-gray-900 dark:text-white">ОГРН/ОГРНИП:</span> 323400000038692</p>

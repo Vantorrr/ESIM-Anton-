@@ -46,7 +46,7 @@ export default function LoyaltyPage() {
 
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen bg-[#f4f5f7] pb-20">
+      <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
         <div className="px-4 py-6 max-w-lg mx-auto">
           <div className="skeleton h-8 w-40 mb-6" />
           <div className="skeleton h-40 w-full rounded-3xl mb-4" />
@@ -66,9 +66,9 @@ export default function LoyaltyPage() {
       const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'mojo_mobile_bot'
 
       return (
-        <div className="min-h-screen bg-[#f4f5f7] pb-20">
+        <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
           <div className="px-4 py-6 max-w-lg mx-auto">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Система лояльности</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Система лояльности</h1>
             <p className="text-sm text-gray-500 mb-6">
               Для открытия страницы нужен корректный запуск Mini App через Telegram.
             </p>
@@ -93,9 +93,9 @@ export default function LoyaltyPage() {
     }
 
     return (
-      <div className="min-h-screen bg-[#f4f5f7] pb-20">
+      <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
         <div className="px-4 py-6 max-w-lg mx-auto">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Система лояльности</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Система лояльности</h1>
           <p className="text-sm text-gray-500">
             Не удалось загрузить данные программы. Попробуйте открыть страницу ещё раз.
           </p>
@@ -108,13 +108,13 @@ export default function LoyaltyPage() {
   const currentLevelName = program.currentLevel?.name || 'Базовый уровень'
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] pb-20">
-      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-gray-200/70">
+    <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
+      <div className="sticky top-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
           <button onClick={handleBack} className="p-2 -ml-2 text-gray-600">
             <ArrowLeft size={24} />
           </button>
-          <h1 className="font-semibold text-lg text-gray-900">Система лояльности</h1>
+          <h1 className="font-semibold text-lg text-gray-900 dark:text-white">Система лояльности</h1>
           <div className="w-10" />
         </div>
       </div>
@@ -148,12 +148,12 @@ export default function LoyaltyPage() {
           <div className="card-neutral p-4">
             <TrendingUp className="text-[#f77430] mb-2" size={24} />
             <p className="text-xs text-gray-500 mb-1">Скидка сейчас</p>
-            <p className="text-2xl font-bold text-gray-900">{program.currentDiscount}%</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{program.currentDiscount}%</p>
           </div>
           <div className="card-neutral p-4">
             <Wallet className="text-[#f77430] mb-2" size={24} />
             <p className="text-xs text-gray-500 mb-1">Cashback сейчас</p>
-            <p className="text-2xl font-bold text-gray-900">{program.currentCashbackPercent}%</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{program.currentCashbackPercent}%</p>
           </div>
         </div>
 
@@ -161,7 +161,7 @@ export default function LoyaltyPage() {
           <div className="flex items-start justify-between gap-3 mb-4">
             <div>
               <p className="text-sm text-gray-500 mb-1">До следующего уровня</p>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
                 {program.nextLevel ? program.nextLevel.name : 'Максимальный уровень'}
               </p>
             </div>
@@ -190,8 +190,8 @@ export default function LoyaltyPage() {
         </div>
 
         <div className="card-neutral p-5 mb-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Уровни программы</h3>
-          <div className="space-y-3">
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Уровни программы</h3>
+          <div className="flex flex-col gap-3">
             {program.levels.map((level) => {
               const isCurrent = level.id === program.effectiveLevelId
               const isReached = program.totalSpent >= level.minSpent
@@ -209,7 +209,7 @@ export default function LoyaltyPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold text-gray-900">{level.name}</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">{level.name}</p>
                       <p className="text-sm text-gray-500 mt-1">
                         От {formatMoney(level.minSpent)} суммарных покупок
                       </p>
@@ -237,8 +237,8 @@ export default function LoyaltyPage() {
         </div>
 
         <div className="card-neutral p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">Правила программы</h3>
-          <div className="space-y-4 text-sm text-gray-600">
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Правила программы</h3>
+          <div className="flex flex-col gap-4 text-sm text-gray-600">
             {[
               'Ваш уровень зависит от общей суммы завершённых покупок eSIM.',
               'Скидка уровня применяется к новой покупке до списания бонусов и промокодов.',

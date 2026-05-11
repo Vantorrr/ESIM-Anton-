@@ -138,7 +138,7 @@ function CountryListRow({ group, index }: { group: CountryGroup; index: number }
             )}
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-gray-900 truncate">{countryName}</p>
+            <p className="font-medium text-gray-900 dark:text-white truncate">{countryName}</p>
           </div>
         </div>
         <svg className="w-5 h-5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -164,7 +164,7 @@ function RegionListRow({ group, index }: { group: CountryGroup; index: number })
             <img src={icon.img} alt={title} className="w-7 h-7" loading="lazy" />
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-gray-900 truncate">{title}</p>
+            <p className="font-medium text-gray-900 dark:text-white truncate">{title}</p>
             <p className="text-xs text-gray-400 mt-0.5">
               {group.coverageCount > 1 ? `${group.coverageSummary}` : 'Региональный пакет'}
             </p>
@@ -191,7 +191,7 @@ function GlobalListRow({ group, index }: { group: CountryGroup; index: number })
             <img src={GLOBE_GRID} alt="Глобальный" className="w-7 h-7" loading="lazy" />
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-gray-900 truncate">{title}</p>
+            <p className="font-medium text-gray-900 dark:text-white truncate">{title}</p>
             <p className="text-xs text-gray-400 mt-0.5">
               {group.coverageSummary}
             </p>
@@ -216,10 +216,10 @@ function ListSection({
 }) {
   return (
     <>
-      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+      <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">
         {title}
       </h2>
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         {items.map((group, index) => renderItem(group, index))}
       </div>
     </>
@@ -421,7 +421,7 @@ export default function Home() {
   }
 
   return (
-    <div className="container animate-fade-in bg-[#f4f5f7]">
+    <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950">
       {/* Header */}
       <header className="mb-6">
         <div className="flex items-center gap-3">
@@ -438,10 +438,10 @@ export default function Home() {
       {/* Search */}
       <div className="mb-4 animate-slide-up">
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
           <input
             type="text"
-            className="w-full py-3 pl-11 pr-10 soft-input text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#f77430]/25"
+            className="w-full py-3 pl-11 pr-10 soft-input text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#f77430]/25"
             placeholder="Поиск страны..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -450,7 +450,7 @@ export default function Home() {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-300 dark:bg-white/20 flex items-center justify-center text-xs text-gray-600 dark:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-xs text-gray-600 dark:text-gray-300"
             >
               ✕
             </button>
@@ -460,7 +460,7 @@ export default function Home() {
 
       {/* Tabs */}
       <div className="mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-        <div className="w-full rounded-full bg-white/75 border border-gray-200 p-1 flex gap-1.5">
+        <div className="w-full rounded-full bg-white/75 dark:bg-gray-900/75 border border-gray-200 dark:border-gray-800 p-1 flex gap-1.5">
           {[
             { id: 'countries' as const, label: 'Страны' },
             { id: 'multi' as const, label: 'Мульти-страны' },
@@ -470,8 +470,8 @@ export default function Home() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 py-2.5 rounded-full text-sm font-medium text-center transition-all ${activeTab === tab.id
-                  ? 'bg-[#f77430] text-white shadow-md shadow-orange-200'
-                  : 'bg-white text-gray-600 border border-gray-200'
+                  ? 'bg-[#f77430] text-white shadow-md shadow-orange-200 dark:shadow-orange-900/30'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
                 }`}
             >
               {tab.label}

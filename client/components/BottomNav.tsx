@@ -74,7 +74,7 @@ export default function BottomNav() {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 border-t border-gray-200 pb-safe shadow-[0_-6px_24px_rgba(15,23,42,0.08)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 border-t border-gray-200 dark:border-gray-800 pb-safe shadow-[0_-6px_24px_rgba(15,23,42,0.08)]">
       <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
         {navItems.map((item) => {
           const isActive = pathname === item.href || 
@@ -93,7 +93,7 @@ export default function BottomNav() {
               className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                 isActive 
                   ? 'text-[#f77430]' 
-                  : 'text-gray-400 hover:text-gray-600'
+                  : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
               }`}
             >
               {item.href === '/' ? (

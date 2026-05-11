@@ -59,7 +59,7 @@ function ShareIcon() {
 
 export default function CountryPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#f4f5f7]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950" />}>
       <CountryPageInner />
     </Suspense>
   )
@@ -166,13 +166,13 @@ function CountryPageInner() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7]">
+    <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-gray-200/70">
+      <div className="sticky top-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800">
         <div className="flex items-center justify-between px-4 py-3">
           <button 
             onClick={() => router.push('/')}
-            className="p-2 -ml-2 text-gray-600"
+            className="p-2 -ml-2 text-gray-600 dark:text-gray-400"
             aria-label="Назад"
           >
             <BackIcon />
@@ -183,11 +183,11 @@ function CountryPageInner() {
             ) : (
               <img src="/logo-mark.png" alt="Mojo mobile" className="w-8 h-8 rounded-lg object-contain" />
             )}
-            <span className="font-semibold text-lg">{getCountryName(country)}</span>
+            <span className="font-semibold text-lg dark:text-white">{getCountryName(country)}</span>
           </div>
           <button 
             onClick={handleShare}
-            className="p-2 -mr-2 text-gray-600"
+            className="p-2 -mr-2 text-gray-600 dark:text-gray-400"
             aria-label="Поделиться"
           >
             <ShareIcon />
@@ -201,7 +201,7 @@ function CountryPageInner() {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
               {getCoverageScopeLabel(selectedProd)}
             </p>
-            <p className="text-base font-semibold text-gray-900">
+            <p className="text-base font-semibold text-gray-900 dark:text-white">
               Покрывает {getCoverageSummary(selectedProd)}
             </p>
           </div>
@@ -244,8 +244,8 @@ function CountryPageInner() {
             onClick={() => setActiveTab('standard')}
             className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
               activeTab === 'standard'
-                ? 'bg-[#f77430] text-white shadow-md shadow-orange-200'
-                : 'bg-white text-gray-600 border border-gray-200'
+                ? 'bg-[#f77430] text-white shadow-md shadow-orange-200 dark:shadow-orange-900/30'
+                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
             }`}
           >
             Стандартные
@@ -254,8 +254,8 @@ function CountryPageInner() {
             onClick={() => setActiveTab('unlimited')}
             className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
               activeTab === 'unlimited'
-                ? 'bg-[#f77430] text-white shadow-md shadow-orange-200'
-                : 'bg-white text-gray-600 border border-gray-200'
+                ? 'bg-[#f77430] text-white shadow-md shadow-orange-200 dark:shadow-orange-900/30'
+                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
             }`}
           >
             Безлимитные
@@ -264,7 +264,7 @@ function CountryPageInner() {
 
         {/* Products List */}
         {loading ? (
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="card-neutral p-4">
                 <div className="flex justify-between items-center">
@@ -287,16 +287,16 @@ function CountryPageInner() {
                 onClick={() => setSelectedProduct(product.id)}
                 className={`
                   flex items-center justify-between px-4 py-3 cursor-pointer transition-all
-                  ${index !== products.length - 1 ? 'border-b border-gray-100' : ''}
+                  ${index !== products.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''}
                   ${selectedProduct === product.id 
-                    ? 'bg-orange-50 border-l-4 border-l-[#f77430]'
-                    : 'hover:bg-gray-50 border-l-4 border-l-transparent'
+                    ? 'bg-orange-50 dark:bg-orange-900/20 border-l-4 border-l-[#f77430]'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-l-4 border-l-transparent'
                   }
                 `}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-gray-900">
+                    <span className="font-semibold text-gray-900 dark:text-white">
                       {formatDataAmount(product.dataAmount)}
                     </span>
                     <span className="text-gray-500 text-sm">
@@ -340,7 +340,7 @@ function CountryPageInner() {
                           {tags.map((tag) => (
                             <span
                               key={tag}
-                              className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200"
+                              className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50"
                             >
                               {tag}
                             </span>
@@ -369,14 +369,14 @@ function CountryPageInner() {
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  <span className="font-bold text-gray-900">
+                  <span className="font-bold text-gray-900 dark:text-white">
                     {formatPrice(product.ourPrice)} ₽
                   </span>
                   <div className={`
                     w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
                     ${selectedProduct === product.id 
                       ? 'border-[#f77430] bg-[#f77430]'
-                      : 'border-gray-300'
+                      : 'border-gray-300 dark:border-gray-600'
                     }
                   `}>
                     {selectedProduct === product.id && (
@@ -397,14 +397,14 @@ function CountryPageInner() {
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
               Что входит в тариф
             </h3>
-            <div className="card-neutral divide-y divide-gray-100">
+            <div className="card-neutral divide-y divide-gray-100 dark:divide-gray-800">
               <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                   <span className="text-lg">📦</span>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 uppercase">Интернет</p>
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-gray-900 dark:text-white">
                     {selectedProd.isUnlimited
                       ? `${formatDataAmount(selectedProd.dataAmount)} в день`
                       : `${formatDataAmount(selectedProd.dataAmount)} на весь срок`}
@@ -412,12 +412,12 @@ function CountryPageInner() {
                 </div>
               </div>
               <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
                   <span className="text-lg">📅</span>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 uppercase">Срок действия</p>
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-gray-900 dark:text-white">
                     {selectedProd.validityDays} дней
                   </p>
                   {selectedProd.description && (
@@ -426,12 +426,12 @@ function CountryPageInner() {
                 </div>
               </div>
               <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
                   <span className="text-lg">🌍</span>
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs text-gray-400 uppercase">Где работает</p>
-                  <p className="font-medium text-gray-900">{getCoverageSummary(selectedProd)}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{getCoverageSummary(selectedProd)}</p>
                   {selectedCoverageItems.length > 1 && !showRegionCoverage && (
                     <details className="mt-2 group">
                       <summary className="list-none cursor-pointer text-xs font-medium text-[#f77430]">
@@ -441,7 +441,7 @@ function CountryPageInner() {
                         {selectedCoverageItems.map(item => (
                           <span
                             key={item}
-                            className="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-700"
+                            className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-1 text-[11px] font-medium text-gray-700 dark:text-gray-300"
                           >
                             {item}
                           </span>
@@ -452,12 +452,12 @@ function CountryPageInner() {
                 </div>
               </div>
               <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
                   <span className="text-lg">📶</span>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 uppercase">Скорость сети</p>
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-gray-900 dark:text-white">
                     {selectedProd.isUnlimited && selectedProd.speed
                       ? `3G/4G/5G, после лимита ${selectedProd.speed}`
                       : '3G/4G/5G'}
@@ -465,18 +465,18 @@ function CountryPageInner() {
                 </div>
               </div>
               <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                   <span className="text-lg">📡</span>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 uppercase">Тип подключения</p>
-                  <p className="font-medium text-gray-900">Только данные</p>
+                  <p className="font-medium text-gray-900 dark:text-white">Только данные</p>
                   <p className="text-xs text-gray-500 mt-1">Звонки и SMS в тариф не входят.</p>
                 </div>
               </div>
               {((selectedProd.tags && selectedProd.tags.length > 0) || selectedProd.notes) && (
                 <div className="flex items-start gap-3 px-4 py-3">
-                  <div className="w-10 h-10 rounded-xl bg-yellow-100 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center shrink-0">
                     <span className="text-lg">ℹ️</span>
                   </div>
                   <div className="min-w-0">
@@ -486,7 +486,7 @@ function CountryPageInner() {
                         {selectedProd.tags.map((tag) => (
                           <span
                             key={tag}
-                            className="text-[11px] font-medium px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200"
+                            className="text-[11px] font-semibold px-2 py-0.5 rounded border bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50"
                           >
                             {tag}
                           </span>

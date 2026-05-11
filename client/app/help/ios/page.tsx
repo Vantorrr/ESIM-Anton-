@@ -10,9 +10,9 @@ function Step({ num, title, items }: { num: string; title: string; items: string
         <div className="w-8 h-8 rounded-full bg-[#f77430] flex items-center justify-center shrink-0">
           <span className="text-white text-sm font-bold">{num}</span>
         </div>
-        <h2 className="font-bold text-gray-900 text-base">{title}</h2>
+        <h2 className="font-bold text-gray-900 dark:text-white text-base">{title}</h2>
       </div>
-      <ul className="space-y-2 pl-11">
+      <ul className="[&>li+li]:mt-2 pl-11">
         {items.map((item, i) => (
           <li key={i} className="text-sm text-gray-700 leading-relaxed flex gap-2">
             <span className="text-[#f77430] shrink-0">•</span>
@@ -36,14 +36,14 @@ export default function IosInstallPage() {
   const router = useRouter()
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] pb-20">
+    <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-gray-200/70">
+      <div className="sticky top-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800">
         <div className="flex items-center justify-between px-4 py-3">
           <button onClick={() => router.back()} className="p-2 -ml-2 text-gray-600">
             <ArrowLeft size={24} />
           </button>
-          <h1 className="font-semibold text-lg text-gray-900">Установка на iPhone</h1>
+          <h1 className="font-semibold text-lg text-gray-900 dark:text-white">Установка на iPhone</h1>
           <div className="w-10" />
         </div>
       </div>
@@ -56,7 +56,7 @@ export default function IosInstallPage() {
             <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/>
           </svg>
           <div>
-            <p className="font-bold text-gray-900">iPhone и iPad</p>
+            <p className="font-bold text-gray-900 dark:text-white">iPhone и iPad</p>
             <p className="text-sm text-gray-500">Пошаговая инструкция по установке eSIM MojoMobile</p>
           </div>
         </div>
