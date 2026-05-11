@@ -1,5 +1,5 @@
 import {
-  buildAndroidIntent,
+  buildAndroidQuickInstall,
   buildAppleQuickInstall,
   buildEsimActivationLinks,
   buildLpaString,
@@ -29,10 +29,10 @@ describe('buildLpaString', () => {
 });
 
 describe('buildAppleQuickInstall', () => {
-  it('строит Apple Universal Link с URL-энкодом', () => {
+  it('строит Apple Universal Link с LPA в carddata', () => {
     const lpa = 'LPA:1$rsp.truphone.com$ABC';
     expect(buildAppleQuickInstall(lpa)).toBe(
-      'https://esimsetup.apple.com/esim_qrcode_provisioning?carddata=LPA%3A1%24rsp.truphone.com%24ABC',
+      'https://esimsetup.apple.com/esim_qrcode_provisioning?carddata=LPA:1$rsp.truphone.com$ABC',
     );
   });
 
@@ -42,17 +42,16 @@ describe('buildAppleQuickInstall', () => {
   });
 });
 
-describe('buildAndroidIntent', () => {
-  it('строит intent без префикса LPA:', () => {
-    const intent = buildAndroidIntent('LPA:1$rsp.truphone.com$ABC');
-    expect(intent).toContain('intent://');
-    expect(intent).toContain('scheme=lpa');
-    expect(intent).toContain('package=com.android.settings');
-    expect(intent).toContain(encodeURIComponent('1$rsp.truphone.com$ABC'));
+describe('buildAndroidQuickInstall', () => {
+  it('строит Android Universal Link с LPA в carddata', () => {
+    const link = buildAndroidQuickInstall('LPA:1$rsp.truphone.com$ABC');
+    expect(link).toBe(
+      'https://esimsetup.android.com/esim_qrcode_provisioning?carddata=LPA:1$rsp.truphone.com$ABC',
+    );
   });
 
   it('null при пустой LPA', () => {
-    expect(buildAndroidIntent(null)).toBeNull();
+    expect(buildAndroidQuickInstall(null)).toBeNull();
   });
 });
 
@@ -61,14 +60,21 @@ describe('buildEsimActivationLinks', () => {
     const links = buildEsimActivationLinks('rsp.truphone.com', 'ABC');
     expect(links.lpa).toBe('LPA:1$rsp.truphone.com$ABC');
     expect(links.appleUniversalLink).toContain('esimsetup.apple.com');
-    expect(links.androidIntent).toContain('intent://');
+    expect(links.androidUniversalLink).toContain('esimsetup.android.com');
   });
 
-  it('все три null если smdp пустой', () => {
+  it('все три null если smdp пустой и ac не LPA', () => {
     const links = buildEsimActivationLinks('', 'ABC');
     expect(links.lpa).toBeNull();
     expect(links.appleUniversalLink).toBeNull();
-    expect(links.androidIntent).toBeNull();
+    expect(links.androidUniversalLink).toBeNull();
+  });
+
+  it('использует activationCode как LPA если он уже в формате LPA', () => {
+    const links = buildEsimActivationLinks('', 'LPA:1$rsp-eu.simlessly.com$8E6A01EC');
+    expect(links.lpa).toBe('LPA:1$rsp-eu.simlessly.com$8E6A01EC');
+    expect(links.appleUniversalLink).toContain('esimsetup.apple.com');
+    expect(links.androidUniversalLink).toContain('esimsetup.android.com');
   });
 });
 

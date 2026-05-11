@@ -4,11 +4,12 @@
  */
 
 const APPLE_QUICK_INSTALL_BASE = 'https://esimsetup.apple.com/esim_qrcode_provisioning'
+const ANDROID_QUICK_INSTALL_BASE = 'https://esimsetup.android.com/esim_qrcode_provisioning'
 
 export interface EsimActivationLinks {
   lpa: string | null
   appleUniversalLink: string | null
-  androidIntent: string | null
+  androidUniversalLink: string | null
 }
 
 export function buildLpaString(
@@ -23,23 +24,34 @@ export function buildLpaString(
 
 export function buildAppleQuickInstall(lpa: string | null): string | null {
   if (!lpa) return null
-  return `${APPLE_QUICK_INSTALL_BASE}?carddata=${encodeURIComponent(lpa)}`
+  return `${APPLE_QUICK_INSTALL_BASE}?carddata=${lpa}`
 }
 
-export function buildAndroidIntent(lpa: string | null): string | null {
+export function buildAndroidQuickInstall(lpa: string | null): string | null {
   if (!lpa) return null
-  const payload = lpa.startsWith('LPA:') ? lpa.slice(4) : lpa
-  return `intent://${encodeURIComponent(payload)}#Intent;scheme=lpa;package=com.android.settings;end`
+  return `${ANDROID_QUICK_INSTALL_BASE}?carddata=${lpa}`
 }
 
 export function buildEsimActivationLinks(
   smdpAddress?: string | null,
   activationCode?: string | null,
 ): EsimActivationLinks {
-  const lpa = buildLpaString(smdpAddress, activationCode)
+  const ac = (activationCode ?? '').trim()
+  const smdp = (smdpAddress ?? '').trim()
+
+  const lpa = ac.startsWith('LPA:') ? ac : buildLpaString(smdp, ac)
+
   return {
     lpa,
     appleUniversalLink: buildAppleQuickInstall(lpa),
-    androidIntent: buildAndroidIntent(lpa),
+    androidUniversalLink: buildAndroidQuickInstall(lpa),
   }
+}
+
+export function parseLpaString(lpa?: string | null): { smdp: string; ac: string } | null {
+  if (!lpa) return null
+  const trimmed = lpa.trim()
+  const match = /^LPA:\d+\$([^$]+)\$([^$]*)$/i.exec(trimmed)
+  if (!match) return null
+  return { smdp: match[1] ?? '', ac: match[2] ?? '' }
 }

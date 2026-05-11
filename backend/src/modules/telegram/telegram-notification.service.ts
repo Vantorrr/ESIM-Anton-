@@ -174,16 +174,11 @@ export class TelegramNotificationService {
         url: links.appleUniversalLink,
       }]);
     }
-    // Android intent в Telegram не открывается, поэтому ведём в mini-app —
-    // там у нас есть «Скопировать LPA» + пошаговая инструкция
-    if (links.lpa) {
+    // Android Universal Link (esimsetup.android.com) — работает напрямую в Telegram
+    if (links.androidUniversalLink) {
       keyboardRows.push([{
         text: '🤖 Установить на Android',
-        web_app: {
-          url: details.orderId
-            ? `${this.miniAppUrl}/my-esim?activate=${encodeURIComponent(details.orderId)}`
-            : `${this.miniAppUrl}/my-esim`,
-        },
+        url: links.androidUniversalLink,
       }]);
     }
     keyboardRows.push([{
