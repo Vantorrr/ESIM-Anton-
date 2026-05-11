@@ -10,15 +10,15 @@ function bootstrapTelegram() {
     if (tg.initData) {
       tg.ready()
       tg.expand()
-      
+
       // Попытка развернуть в настоящий full-screen (Bot API 8.0+)
-      if (typeof tg.requestFullscreen === 'function') {
-        try {
-          tg.requestFullscreen()
-        } catch (e) {
-          console.warn('requestFullscreen failed:', e)
-        }
-      }
+      // if (typeof tg.requestFullscreen === 'function') {
+      //   try {
+      //     tg.requestFullscreen()
+      //   } catch (e) {
+      //     console.warn('requestFullscreen failed:', e)
+      //   }
+      // }
 
       // Dispatch theme info so ThemeProvider can sync dark/light mode
       if (tg.colorScheme) {
