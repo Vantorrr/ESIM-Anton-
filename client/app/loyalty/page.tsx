@@ -165,8 +165,8 @@ export default function LoyaltyPage() {
                 {program.nextLevel ? program.nextLevel.name : 'Максимальный уровень'}
               </p>
             </div>
-            <div className="rounded-2xl bg-orange-50 px-3 py-2 text-right">
-              <p className="text-xs text-gray-500">
+            <div className="rounded-2xl bg-orange-50 dark:bg-amber-900/30 px-3 py-2 text-right">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {program.nextLevel ? 'Осталось потратить' : 'Статус'}
               </p>
               <p className="font-semibold text-[#f77430]">
@@ -175,7 +175,7 @@ export default function LoyaltyPage() {
             </div>
           </div>
 
-          <div className="h-3 rounded-full bg-gray-100 overflow-hidden mb-2">
+          <div className="h-3 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden mb-2">
             <div
               className="h-full rounded-full bg-gradient-to-r from-[#f77430] to-[#f29b41] transition-all"
               style={{ width: `${Math.max(6, program.progressToNextLevel)}%` }}
@@ -201,16 +201,16 @@ export default function LoyaltyPage() {
                   key={level.id}
                   className={`rounded-2xl border px-4 py-4 ${
                     isCurrent
-                      ? 'border-[#f77430] bg-orange-50'
+                      ? 'border-[#f77430] dark:border-[#f77430]/70 bg-orange-50 dark:bg-[#f77430]/20'
                       : isReached
-                        ? 'border-green-200 bg-green-50'
-                        : 'border-gray-200 bg-white'
+                        ? 'border-green-200 dark:border-green-900/50 bg-green-50 dark:bg-green-900/20'
+                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-gray-900 dark:text-white">{level.name}</p>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                         От {formatMoney(level.minSpent)} суммарных покупок
                       </p>
                     </div>
@@ -223,10 +223,10 @@ export default function LoyaltyPage() {
                     ) : null}
                   </div>
                   <div className="mt-3 flex gap-2 flex-wrap">
-                    <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-200">
+                    <span className="rounded-full bg-white dark:bg-gray-900 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
                       Скидка {level.discount}%
                     </span>
-                    <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-200">
+                    <span className="rounded-full bg-white dark:bg-gray-900 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
                       Cashback {level.cashbackPercent}%
                     </span>
                   </div>
@@ -238,7 +238,7 @@ export default function LoyaltyPage() {
 
         <div className="card-neutral p-5">
           <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Правила программы</h3>
-          <div className="flex flex-col gap-4 text-sm text-gray-600">
+          <div className="flex flex-col gap-4 text-sm text-gray-600 dark:text-gray-400">
             {[
               'Ваш уровень зависит от общей суммы завершённых покупок eSIM.',
               'Скидка уровня применяется к новой покупке до списания бонусов и промокодов.',
@@ -246,7 +246,7 @@ export default function LoyaltyPage() {
               'Top-up пакеты не повышают уровень и не начисляют cashback по программе лояльности.',
             ].map((item, index) => (
               <div key={index} className="flex items-start gap-3">
-                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-50 text-[#f77430]">
+                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-50 dark:bg-amber-900/30 text-[#f77430]">
                   {index === 2 ? <Gift size={16} /> : <CheckCircle size={16} />}
                 </div>
                 <p>{item}</p>
