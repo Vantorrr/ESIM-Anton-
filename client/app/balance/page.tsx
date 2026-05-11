@@ -210,10 +210,10 @@ function BalancePageInner() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+    <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
-        <div className="flex items-center justify-between px-4 py-3">
+      <div className="sticky top-0 z-40 bg-[#f4f5f7]/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800 -mx-5 px-5 pt-3 pb-3 mb-4">
+        <div className="flex items-center justify-between">
           <button 
             onClick={handleBack}
             className="p-2 -ml-2 text-gray-600 dark:text-gray-300"
@@ -224,10 +224,8 @@ function BalancePageInner() {
           <div className="w-10" />
         </div>
       </div>
-
-      <div className="px-4 py-6 max-w-lg mx-auto">
         
-        {/* Balance Cards */}
+      {/* Balance Cards */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-5 text-white">
             <p className="text-sm opacity-80 mb-1">Основной баланс</p>
@@ -361,8 +359,6 @@ function BalancePageInner() {
             </div>
           )}
         </section>
-
-      </div>
 
       <BottomNav />
     </div>

@@ -97,7 +97,7 @@ export default function OrderDetailPage() {
 
   if (loading) {
     return (
-      <div className="container bg-[#f4f5f7] dark:bg-gray-950">
+      <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
         <div className="mt-6 flex flex-col gap-4">
           <div className="skeleton h-8 w-32" />
           <div className="skeleton h-64 w-full" />
@@ -109,7 +109,7 @@ export default function OrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="container bg-[#f4f5f7] dark:bg-gray-950">
+      <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
         <div className="glass-card mt-6 py-12 text-center">
           <p className="text-secondary">Заказ не найден</p>
           <button onClick={() => router.push('/orders')} className="glass-button mx-auto mt-4 max-w-xs">
@@ -133,7 +133,7 @@ export default function OrderDetailPage() {
   const countryName = getCountryName(order.product.country)
 
   return (
-    <div className="container bg-[#f4f5f7] dark:bg-gray-950 pb-20">
+    <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
       <header className="mb-6 mt-6 animate-fade-in">
         <button
           onClick={() => router.push('/orders')}

@@ -183,21 +183,18 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-        <div className="px-4 py-6">
-          <div className="skeleton h-8 w-32 mb-6" />
-          <div className="skeleton h-20 w-full rounded-2xl mb-4" />
-          <div className="skeleton h-14 w-full rounded-2xl mb-4" />
-          <div className="skeleton h-32 w-full rounded-2xl" />
-        </div>
+      <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
+        <div className="skeleton h-8 w-32 mb-6" />
+        <div className="skeleton h-20 w-full rounded-2xl mb-4" />
+        <div className="skeleton h-14 w-full rounded-2xl mb-4" />
+        <div className="skeleton h-32 w-full rounded-2xl" />
         <BottomNav />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-      <div className="px-4 py-6 max-w-lg mx-auto">
+    <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
         
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -447,8 +444,6 @@ export default function ProfilePage() {
         <p className="text-center text-gray-400 dark:text-gray-600 text-sm">
           Версия 1.0.0
         </p>
-
-      </div>
       
       {/* Language Modal */}
       {showLanguageModal && (

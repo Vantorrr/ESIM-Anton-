@@ -165,10 +165,10 @@ export default function DevicesPage() {
   const currentData = deviceData[selectedCategory]
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+    <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
-        <div className="flex items-center justify-between px-4 py-3">
+      <div className="sticky top-0 z-40 bg-[#f4f5f7]/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800 -mx-5 px-5 pt-3 pb-3 mb-4">
+        <div className="flex items-center justify-between">
           <button 
             onClick={handleBack}
             className="p-2 -ml-2 text-gray-600 dark:text-gray-300"
@@ -179,10 +179,8 @@ export default function DevicesPage() {
           <div className="w-10" />
         </div>
       </div>
-
-      <div className="px-4 py-6 max-w-lg mx-auto">
         
-        {/* Check eSIM Support Card */}
+      {/* Check eSIM Support Card */}
         <div className="bg-gradient-to-br from-[#f77430] to-[#f2622a] rounded-2xl p-5 mb-6 text-white">
           <div className="flex items-start gap-3 mb-4">
             <Info size={24} />
@@ -273,8 +271,6 @@ export default function DevicesPage() {
             вашем телефоне. Если в результате отображается EID — ваше устройство поддерживает eSIM.
           </p>
         </div>
-
-      </div>
 
       <BottomNav />
     </div>

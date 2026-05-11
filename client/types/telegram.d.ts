@@ -72,6 +72,7 @@ declare global {
         };
         ready(): void;
         expand(): void;
+        requestFullscreen?(): void;
         close(): void;
         enableClosingConfirmation(): void;
         disableClosingConfirmation(): void;

@@ -46,16 +46,14 @@ export default function LoyaltyPage() {
 
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-        <div className="px-4 py-6 max-w-lg mx-auto">
-          <div className="skeleton h-8 w-40 mb-6" />
-          <div className="skeleton h-40 w-full rounded-3xl mb-4" />
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="skeleton h-28 w-full rounded-2xl" />
-            <div className="skeleton h-28 w-full rounded-2xl" />
-          </div>
-          <div className="skeleton h-64 w-full rounded-2xl" />
+      <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950">
+        <div className="skeleton h-8 w-40 mb-6 mt-6" />
+        <div className="skeleton h-40 w-full rounded-3xl mb-4" />
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="skeleton h-28 w-full rounded-2xl" />
+          <div className="skeleton h-28 w-full rounded-2xl" />
         </div>
+        <div className="skeleton h-64 w-full rounded-2xl" />
         <BottomNav />
       </div>
     )
@@ -66,12 +64,11 @@ export default function LoyaltyPage() {
       const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'mojo_mobile_bot'
 
       return (
-        <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-          <div className="px-4 py-6 max-w-lg mx-auto">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Система лояльности</h1>
-            <p className="text-sm text-gray-500 mb-6">
-              Для открытия страницы нужен корректный запуск Mini App через Telegram.
-            </p>
+        <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 mt-6">Система лояльности</h1>
+          <p className="text-sm text-gray-500 mb-6">
+            Для открытия страницы нужен корректный запуск Mini App через Telegram.
+          </p>
             <div className="card-neutral p-5 border border-amber-200 bg-amber-50 text-amber-900">
               <p className="text-sm font-medium mb-2">Не удалось подтвердить Telegram-сессию.</p>
               <p className="text-sm text-amber-800 mb-4">
@@ -86,20 +83,17 @@ export default function LoyaltyPage() {
                 Открыть бота
               </a>
             </div>
-          </div>
           <BottomNav />
         </div>
       )
     }
 
     return (
-      <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-        <div className="px-4 py-6 max-w-lg mx-auto">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Система лояльности</h1>
-          <p className="text-sm text-gray-500">
-            Не удалось загрузить данные программы. Попробуйте открыть страницу ещё раз.
-          </p>
-        </div>
+      <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 mt-6">Система лояльности</h1>
+        <p className="text-sm text-gray-500">
+          Не удалось загрузить данные программы. Попробуйте открыть страницу ещё раз.
+        </p>
         <BottomNav />
       </div>
     )
@@ -108,9 +102,9 @@ export default function LoyaltyPage() {
   const currentLevelName = program.currentLevel?.name || 'Базовый уровень'
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-      <div className="sticky top-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800">
-        <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
+    <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950">
+      <div className="sticky top-0 z-40 bg-[#f4f5f7]/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800 -mx-5 px-5 pt-3 pb-3 mb-6">
+        <div className="flex items-center justify-between">
           <button onClick={handleBack} className="p-2 -ml-2 text-gray-600">
             <ArrowLeft size={24} />
           </button>
@@ -118,8 +112,6 @@ export default function LoyaltyPage() {
           <div className="w-10" />
         </div>
       </div>
-
-      <div className="px-4 py-6 max-w-lg mx-auto">
         <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#f77430] via-[#f29b41] to-[#f9d17f] p-6 text-white shadow-[0_20px_50px_rgba(242,116,48,0.28)] mb-6">
           <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/15 blur-2xl" />
           <div className="absolute -left-8 bottom-0 h-24 w-24 rounded-full bg-black/10 blur-2xl" />
@@ -254,8 +246,6 @@ export default function LoyaltyPage() {
             ))}
           </div>
         </div>
-      </div>
-
       <BottomNav />
     </div>
   )

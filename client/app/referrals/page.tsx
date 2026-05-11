@@ -89,7 +89,7 @@ export default function ReferralsPage() {
       const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'mojo_mobile_bot'
 
       return (
-        <div className="container bg-[#f4f5f7] dark:bg-gray-950">
+        <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
           <header className="mb-6">
             <h1 className="text-2xl font-bold text-primary">Реферальная программа</h1>
             <p className="text-secondary text-sm mt-1">
@@ -118,7 +118,7 @@ export default function ReferralsPage() {
     }
 
     return (
-      <div className="container bg-[#f4f5f7] dark:bg-gray-950">
+      <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
         <header className="mb-6">
           <h1 className="text-2xl font-bold text-primary">Реферальная программа</h1>
           <p className="text-secondary text-sm mt-1">Не удалось загрузить данные. Попробуйте открыть страницу ещё раз.</p>
@@ -129,7 +129,7 @@ export default function ReferralsPage() {
   }
 
   return (
-    <div className="container bg-[#f4f5f7] dark:bg-gray-950">
+    <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
       {/* Header */}
       <header className="mb-6 animate-fade-in">
         <h1 className="text-2xl font-bold text-primary">Пригласи друзей</h1>

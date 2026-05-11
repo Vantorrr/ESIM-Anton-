@@ -79,10 +79,10 @@ export default function HelpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950 pb-20">
+    <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800">
-        <div className="flex items-center justify-between px-4 py-3">
+      <div className="sticky top-0 z-40 bg-[#f4f5f7]/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800 -mx-5 px-5 pt-3 pb-3 mb-6">
+        <div className="flex items-center justify-between">
           <button onClick={handleBack} className="p-2 -ml-2 text-gray-600">
             <ArrowLeft size={24} />
           </button>
@@ -91,7 +91,6 @@ export default function HelpPage() {
         </div>
       </div>
 
-      <div className="px-4 py-6 max-w-lg mx-auto">
 
         {/* Check Device */}
         <section className="mb-6">
@@ -179,7 +178,7 @@ export default function HelpPage() {
           </div>
         </section>
 
-      </div>
+
 
       <BottomNav />
     </div>

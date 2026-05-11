@@ -14,7 +14,7 @@ import { payCloudPayments } from '@/lib/cloudpayments'
 
 export default function ProductPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950" />}>
+    <Suspense fallback={<div className="min-h-screen" />}>
       <ProductPageInner />
     </Suspense>
   )
@@ -317,7 +317,7 @@ function ProductPageInner() {
   }
 
   return (
-    <div className="container bg-[#f4f5f7] dark:bg-gray-950">
+    <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-32">
       {/* Sticky Back Header */}
       <div className="sticky top-0 z-40 bg-[#f4f5f7]/95 dark:bg-gray-950/95 backdrop-blur-sm -mx-5 px-5 pt-2 pb-3 mb-4">
         <button

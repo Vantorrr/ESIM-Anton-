@@ -144,9 +144,9 @@ function CountryPageInner() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] dark:bg-gray-950">
+    <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800">
+      <div className="sticky top-0 z-40 bg-[#f4f5f7]/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800 -mx-5 px-5 pt-3 pb-3 mb-4">
         <div className="flex items-center justify-between px-4 py-3">
           <button 
             onClick={() => router.push('/')}
@@ -172,8 +172,6 @@ function CountryPageInner() {
           </button>
         </div>
       </div>
-
-      <div className="px-4 py-4">
         {firstProd && (isMultiProduct(firstProd) || isGlobalProduct(firstProd)) && (
           <div className="card-neutral p-4 mb-4 animate-slide-up">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
@@ -356,9 +354,6 @@ function CountryPageInner() {
             ))}
           </div>
         )}
-
-
-      </div>
 
       <BottomNav />
     </div>
