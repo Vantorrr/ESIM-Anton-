@@ -3,10 +3,11 @@
 import { Suspense, useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Wifi, Clock, Tag, CreditCard, Mail, Wallet } from '@/components/icons'
+import { MapPin, Smartphone, Ban } from 'lucide-react'
 import { productsApi, Product, userApi, ordersApi, promoApi } from '@/lib/api'
 import { isTelegramWebApp } from '@/lib/auth'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
-import { getCoverageItems, getCoverageScopeLabel, getCoverageSummary } from '@/lib/productCoverage'
+import { getCoverageSummary } from '@/lib/productCoverage'
 import { useAuth } from '@/components/AuthProvider'
 import { sanitizeRedirect } from '@/lib/security'
 import { payCloudPayments } from '@/lib/cloudpayments'
@@ -37,6 +38,9 @@ function ProductPageInner() {
   const [emailSaved, setEmailSaved] = useState(false)
   const [balance, setBalance] = useState<number | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'balance' | 'card'>('card')
+  const [agreedEsim, setAgreedEsim] = useState(false)
+  const [agreedOnlyInternet, setAgreedOnlyInternet] = useState(false)
+  const [agreedTerms, setAgreedTerms] = useState(false)
   // autoBuy=1 — пользователь вернулся с /balance после успешного пополнения,
   // нужно сразу запустить покупку с баланса. Гард не даёт вызвать дважды.
   const autoBuyTriggeredRef = useRef(false)
@@ -45,18 +49,7 @@ function ProductPageInner() {
   const basePrice = isDaily ? product.ourPrice * selectedDays : product?.ourPrice ?? 0
   const discountAmount = promoApplied ? Math.round(basePrice * promoDiscount / 100) : 0
   const totalPrice = basePrice - discountAmount
-  const coverageItems = product ? getCoverageItems(product) : []
   const coverageSummary = product ? getCoverageSummary(product) : ''
-  const trafficSummary = product
-    ? product.isUnlimited
-      ? `${formatDataAmount(product.dataAmount)} каждый день`
-      : `${formatDataAmount(product.dataAmount)} на весь срок тарифа`
-    : ''
-  const validitySummary = product
-    ? product.isUnlimited
-      ? `${selectedDays} дней использования`
-      : `${product.validityDays} дней использования`
-    : ''
   const safeReturnTo = sanitizeRedirect(searchParams.get('returnTo'), '')
 
   useEffect(() => {
@@ -354,21 +347,18 @@ function ProductPageInner() {
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-primary leading-tight truncate">{getCountryName(product.country)}</h1>
             <p className="text-sm text-secondary truncate">{product.name}</p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-medium text-[#f77430]">
-                {product.isUnlimited ? 'Ежедневный пакет' : 'Фиксированный пакет'}
-              </span>
-              <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-700">
-                {getCoverageScopeLabel(product)}: {coverageSummary}
-              </span>
-            </div>
+            <p className="text-sm text-gray-500 mt-2 leading-snug">
+              {product.isUnlimited
+                ? 'Лимит обновляется каждый день в течение выбранного периода.'
+                : 'Весь объём можно использовать в любой день до окончания срока.'}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Order summary */}
       <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-        <div className="flex items-center justify-between py-2 border-b border-gray-100">
+        <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800/50">
           <div className="flex items-center gap-2 text-secondary">
             <Wifi size={16} />
             <span className="text-sm">Трафик</span>
@@ -377,7 +367,7 @@ function ProductPageInner() {
             {formatDataAmount(product.dataAmount)}{isDaily ? ' / день' : ''}
           </span>
         </div>
-        <div className="flex items-center justify-between py-2">
+        <div className={`flex items-center justify-between py-2 ${!isDaily ? 'border-b border-gray-100 dark:border-gray-800/50' : 'border-b border-gray-100 dark:border-gray-800/50'}`}>
           <div className="flex items-center gap-2 text-secondary">
             <Clock size={16} />
             <span className="text-sm">Срок действия</span>
@@ -387,106 +377,62 @@ function ProductPageInner() {
           </span>
         </div>
         {isDaily && (
-          <div className="flex items-center justify-between py-2 border-t border-gray-100">
-            <span className="text-sm text-secondary">Цена за день</span>
+          <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800/50">
+            <div className="flex items-center gap-2 text-secondary">
+              <Tag size={16} />
+              <span className="text-sm">Цена за день</span>
+            </div>
             <span className="font-semibold text-primary">₽{formatPrice(product.ourPrice)}</span>
           </div>
         )}
-        <div className="flex items-center justify-between py-2 border-t border-gray-100">
+        <div className="flex items-center justify-between py-2">
           <div className="flex items-center gap-2 text-secondary">
+            <MapPin size={16} />
             <span className="text-sm">Где работает</span>
           </div>
           <span className="font-semibold text-primary text-right max-w-[60%]">{coverageSummary}</span>
         </div>
       </div>
 
-      {/* What is included */}
-      <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.11s' }}>
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Что входит в тариф</h3>
-        <div className="flex flex-col gap-3">
-          <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-3">
-            <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Трафик</p>
-            <p className="text-sm font-semibold text-primary">{trafficSummary}</p>
-            <p className="text-xs text-gray-500 mt-1">
-              {product.isUnlimited
-                ? 'Лимит обновляется каждый день в течение выбранного периода.'
-                : 'Весь объём можно использовать в любой день до окончания срока.'}
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-3">
-            <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Срок действия</p>
-            <p className="text-sm font-semibold text-primary">{validitySummary}</p>
-            {product.description && (
-              <p className="text-xs text-gray-500 mt-1">{product.description}</p>
-            )}
-          </div>
-
-          <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-3">
-            <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Покрытие</p>
-            <p className="text-sm font-semibold text-primary">{coverageSummary}</p>
-            <p className="text-xs text-gray-500 mt-1">
-              {coverageItems.length > 1
-                ? 'Ниже показаны страны, которые входят в этот пакет.'
-                : `Пакет работает в зоне ${coverageSummary}.`}
-            </p>
-            {coverageItems.length > 1 && (
-              <details className="mt-2 group">
-                <summary className="list-none cursor-pointer text-xs font-medium text-[#f77430]">
-                  Показать страны ({coverageItems.length})
-                </summary>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {coverageItems.map(item => (
-                    <span
-                      key={item}
-                      className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-700"
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </details>
-            )}
-          </div>
-
-          <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-3">
-            <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Подключение</p>
-            <p className="text-sm font-semibold text-primary">Только мобильный интернет</p>
-            <p className="text-xs text-gray-500 mt-1">Звонки и SMS в тариф не входят.</p>
-          </div>
-
-          {product.isUnlimited && product.speed && (
-            <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 px-3 py-3">
-              <p className="text-xs uppercase tracking-wide text-amber-600 dark:text-amber-500 mb-1">После лимита в день</p>
-              <p className="text-sm font-semibold text-amber-900 dark:text-amber-400">Скорость снижается до {product.speed}</p>
-            </div>
-          )}
-
-          {/* Теги и примечание из админки — универсально */}
-          {(() => {
-            const tags = product.tags ?? []
-            if (tags.length === 0 && !product.notes) return null
-            return (
-              <div className="rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-900/30 px-3 py-3">
-                <p className="text-xs uppercase tracking-wide text-yellow-700 dark:text-yellow-500 mb-1">Примечание</p>
-                {tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="text-[11px] font-semibold px-2 py-0.5 rounded border bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {product.notes && (
-                  <p className="text-sm text-yellow-900 dark:text-yellow-400 mt-1 whitespace-pre-line">{product.notes}</p>
-                )}
+      {/* Примечание из админки */}
+      {(() => {
+        const tags = product.tags ?? []
+        if (tags.length === 0 && !product.notes) return null
+        return (
+          <div className="card-neutral p-4 mb-4 animate-slide-up bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-900/30" style={{ animationDelay: '0.11s' }}>
+            <p className="text-xs uppercase tracking-wide text-yellow-700 dark:text-yellow-500 mb-1">Примечание</p>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-[11px] font-semibold px-2 py-0.5 rounded border bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50"
+                  >
+                    {tag}
+                  </span>
+                ))}
               </div>
-            )
-          })()}
+            )}
+            {product.notes && (
+              <p className="text-sm text-yellow-900 dark:text-yellow-400 whitespace-pre-line">{product.notes}</p>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* Info block */}
+      <div className="card-neutral p-4 mb-4 animate-slide-up bg-orange-50/70 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/30" style={{ animationDelay: '0.12s' }}>
+        <div className="flex items-start gap-3 mb-3">
+          <Smartphone size={20} className="text-orange-700 dark:text-orange-500 shrink-0 mt-0.5" />
+          <span className="text-sm text-orange-900 dark:text-orange-400">
+            Только интернет. Звонки и СМС недоступны.
+          </span>
+        </div>
+        <div className="flex items-start gap-3">
+          <Ban size={20} className="text-orange-700 dark:text-orange-500 shrink-0 mt-0.5" />
+          <span className="text-sm text-orange-900 dark:text-orange-400">
+            Не подходит для регистрации в сервисах (WhatsApp, Telegram и др.)
+          </span>
         </div>
       </div>
 
@@ -685,6 +631,61 @@ function ProductPageInner() {
         </div>
       </div>
 
+      {/* Checkboxes before purchase */}
+      <div className="mb-4 animate-slide-up flex flex-col gap-2" style={{ animationDelay: '0.22s' }}>
+        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+          agreedEsim 
+            ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20' 
+            : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50'
+        }`}>
+          <div className="shrink-0 flex items-center justify-center">
+            <input
+              type="checkbox"
+              checked={agreedEsim}
+              onChange={(e) => setAgreedEsim(e.target.checked)}
+              className="w-5 h-5 rounded border-gray-300 text-[#f77430] focus:ring-[#f77430] dark:bg-gray-800 dark:border-gray-600 cursor-pointer"
+            />
+          </div>
+          <span className="text-sm text-gray-700 dark:text-gray-300 leading-snug">
+            Я подтверждаю, что моё устройство совместимо с технологией eSIM
+          </span>
+        </label>
+        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+          agreedOnlyInternet 
+            ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20' 
+            : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50'
+        }`}>
+          <div className="shrink-0 flex items-center justify-center">
+            <input
+              type="checkbox"
+              checked={agreedOnlyInternet}
+              onChange={(e) => setAgreedOnlyInternet(e.target.checked)}
+              className="w-5 h-5 rounded border-gray-300 text-[#f77430] focus:ring-[#f77430] dark:bg-gray-800 dark:border-gray-600 cursor-pointer"
+            />
+          </div>
+          <span className="text-sm text-gray-700 dark:text-gray-300 leading-snug">
+            Я понимаю, что eSIM работает только в стране назначения и на ней недоступны СМС и звонки
+          </span>
+        </label>
+        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+          agreedTerms 
+            ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20' 
+            : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50'
+        }`}>
+          <div className="shrink-0 flex items-center justify-center">
+            <input
+              type="checkbox"
+              checked={agreedTerms}
+              onChange={(e) => setAgreedTerms(e.target.checked)}
+              className="w-5 h-5 rounded border-gray-300 text-[#f77430] focus:ring-[#f77430] dark:bg-gray-800 dark:border-gray-600 cursor-pointer"
+            />
+          </div>
+          <span className="text-sm text-gray-700 dark:text-gray-300 leading-snug">
+            Я принимаю <a href="https://mojomobile.ru/oferta.pdf" target="_blank" className="text-blue-500 hover:underline" onClick={(e) => e.stopPropagation()}>условия оферты</a>
+          </span>
+        </label>
+      </div>
+
       {/* Bottom fixed purchase CTA */}
       <div className="h-28" />
       <div
@@ -700,8 +701,8 @@ function ProductPageInner() {
             return (
               <button
                 onClick={() => handlePurchase()}
-                disabled={purchasing}
-                className="w-full py-4 rounded-2xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold text-lg transition-colors shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2"
+                disabled={purchasing || !agreedEsim || !agreedOnlyInternet || !agreedTerms}
+                className="w-full py-4 rounded-2xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold text-lg transition-colors shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
               >
                 {purchasing ? (
                   <>
