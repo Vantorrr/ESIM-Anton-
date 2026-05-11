@@ -38,32 +38,34 @@ export default function Dashboard() {
     }
   }
 
+  const fmt = (v: number | string | undefined) => Number(v || 0).toLocaleString('ru-RU', { maximumFractionDigits: 0 })
+
   const statsCards = [
     {
       title: 'Всего пользователей',
-      value: Number(stats?.users.total || 0).toLocaleString(),
+      value: fmt(stats?.users.total),
       change: `+${stats?.users.new || 0}`,
       icon: Users,
       color: 'from-blue-500 to-cyan-500',
     },
     {
-      title: 'Заказы (всего)',
-      value: Number(stats?.orders.total || 0).toLocaleString(),
-      change: `${stats?.orders.completed || 0} выполнено`,
+      title: 'Заказы (выполнено)',
+      value: fmt(stats?.orders.completed),
+      change: `Всего: ${fmt(stats?.orders.total)} · По промокодам: ${stats?.orders.withPromo || 0} · Бесплатных: ${stats?.orders.freeOrders || 0}`,
       icon: Package,
       color: 'from-purple-500 to-pink-500',
     },
     {
-      title: 'Выручка (всего)',
-      value: `₽${Number(stats?.revenue.total || 0).toLocaleString()}`,
-      change: `Средний чек: ₽${Number(stats?.revenue.average || 0).toFixed(0)}`,
+      title: 'Фактическая выручка',
+      value: `₽${fmt(stats?.revenue.total)}`,
+      change: `Средний чек: ₽${fmt(stats?.revenue.average)}`,
       icon: CreditCard,
       color: 'from-green-500 to-emerald-500',
     },
     {
       title: 'Конверсия',
       value: `${Number(stats?.orders.conversionRate || 0).toFixed(1)}%`,
-      change: 'Завершенные заказы',
+      change: 'Завершённые / все заказы',
       icon: TrendingUp,
       color: 'from-orange-500 to-red-500',
     },
@@ -113,6 +115,35 @@ export default function Dashboard() {
           )
         })}
       </div>
+
+      {/* Breakdown выручки */}
+      {stats && Number(stats.revenue.gross || 0) > 0 && (
+        <div className="glass-card p-6 animate-slide-up" style={{ animationDelay: '0.4s' }}>
+          <h2 className="text-lg font-bold mb-4">Breakdown выручки</h2>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Полная стоимость</p>
+              <p className="text-lg font-semibold text-slate-900">₽{fmt(stats.revenue.gross)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Промокоды</p>
+              <p className="text-lg font-semibold text-red-500">−₽{fmt(stats.revenue.promoDiscounts)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Лояльность</p>
+              <p className="text-lg font-semibold text-red-500">−₽{fmt(stats.revenue.loyaltyDiscounts)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Бонусы</p>
+              <p className="text-lg font-semibold text-red-500">−₽{fmt(stats.revenue.bonusesUsed)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Итого оплачено</p>
+              <p className="text-lg font-semibold text-green-600">₽{fmt(stats.revenue.total)}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Последние заказы */}
       <div className="glass-card p-6">

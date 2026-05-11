@@ -164,10 +164,16 @@ export interface DashboardStats {
   orders: {
     total: number
     completed: number
+    withPromo: number
+    freeOrders: number
     conversionRate: number
   }
   revenue: {
     total: NumericLike
+    gross: NumericLike
+    promoDiscounts: NumericLike
+    loyaltyDiscounts: NumericLike
+    bonusesUsed: NumericLike
     average: NumericLike
   }
   topProducts: TopProductAnalyticsItem[]
@@ -175,7 +181,9 @@ export interface DashboardStats {
 }
 
 export interface TopProductAnalyticsItem {
-  product: AdminProduct
+  productId: string
+  productName: string
+  country: string
   count: number
   revenue: number
 }
