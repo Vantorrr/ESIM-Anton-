@@ -49,7 +49,7 @@
 
 ## Статус
 
-`planned`
+`completed`
 
 ## Файлы
 
@@ -61,6 +61,8 @@
 
 ## Тестирование / Верификация
 
-- `npm run lint` проходит через ESLint CLI без warnings и errors.
-- Поиск по коду не возвращает импорты из `./Products` или `../Products` (кроме `products/` директории).
-- `npm run build` проходит.
+- `npm run lint` проходит через ESLint CLI без warnings и errors
+- `npm run build` проходит
+- `admin/package.json` использует `eslint . --ext .js,.ts,.tsx` вместо deprecated `next lint`
+- `Products.tsx` bridge удалён; route page импортирует `@/components/products/ProductsPage` напрямую
+- `globals.css` очищен от неиспользуемых shadcn-style CSS variables, оставлены только реально задействованные

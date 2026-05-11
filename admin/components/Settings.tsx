@@ -1,48 +1,89 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Save, Plus, Edit2, Trash2, DollarSign, RefreshCw } from 'lucide-react'
 import { systemSettingsApi, loyaltyApi, productsApi } from '@/lib/api'
+import { isUnauthorizedError } from '@/lib/auth'
+import Button from '@/components/ui/Button'
+import { useConfirmDialog } from '@/components/ui/ConfirmDialog'
+import Modal from '@/components/ui/Modal'
+import Spinner from '@/components/ui/Spinner'
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/Table'
+import { useToast } from '@/components/ui/ToastProvider'
+import { getErrorMessage } from '@/lib/errors'
+import type {
+  EditableLoyaltyLevel,
+  LoyaltyLevel,
+  PricingSettings,
+  ReferralSettings,
+} from '@/lib/types'
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<'pricing' | 'referrals' | 'loyalty'>('pricing')
+  const toast = useToast()
+  const confirmDialog = useConfirmDialog()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const rawTab = searchParams.get('tab')
+  const activeTab: 'pricing' | 'referrals' | 'loyalty' =
+    rawTab === 'pricing' || rawTab === 'referrals' || rawTab === 'loyalty'
+      ? rawTab
+      : 'pricing'
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [repricing, setRepricing] = useState(false)
   const [updatingRate, setUpdatingRate] = useState(false)
   const [autoUpdateRate, setAutoUpdateRate] = useState(false)
 
   // Настройки ценообразования
-  const [pricingSettings, setPricingSettings] = useState({
+  const [pricingSettings, setPricingSettings] = useState<PricingSettings>({
     exchangeRate: 95,
     defaultMarkupPercent: 30,
   })
   const [rateUpdatedAt, setRateUpdatedAt] = useState<string | null>(null)
 
   // Реферальная программа
-  const [referralSettings, setReferralSettings] = useState({
+  const [referralSettings, setReferralSettings] = useState<ReferralSettings>({
     bonusPercent: 5,
     minPayout: 500,
     enabled: true,
   })
 
   // Уровни лояльности
-  const [loyaltyLevels, setLoyaltyLevels] = useState<any[]>([])
-  const [editingLevel, setEditingLevel] = useState<any>(null)
+  const [loyaltyLevels, setLoyaltyLevels] = useState<LoyaltyLevel[]>([])
+  const [editingLevel, setEditingLevel] = useState<EditableLoyaltyLevel | null>(null)
+  const requestIdRef = useRef(0)
+  const activeTabRef = useRef(activeTab)
 
   useEffect(() => {
-    loadData()
+    activeTabRef.current = activeTab
   }, [activeTab])
 
-  const loadData = async () => {
+  useEffect(() => {
+    if (searchParams.get('tab') === activeTab) return
+    router.replace(`${pathname}?tab=${activeTab}`)
+  }, [activeTab, pathname, router, searchParams])
+
+  useEffect(() => {
+    void loadData(activeTab)
+  }, [activeTab])
+
+  const loadData = async (targetTab: 'pricing' | 'referrals' | 'loyalty') => {
+    const nextRequestId = requestIdRef.current + 1
+    requestIdRef.current = nextRequestId
+
     try {
       setLoading(true)
-      
-      if (activeTab === 'pricing') {
+      setError(null)
+
+      if (targetTab === 'pricing') {
         const [pricingResponse, rateInfoResponse] = await Promise.all([
           systemSettingsApi.getPricingSettings(),
           systemSettingsApi.getExchangeRateInfo(),
         ])
+        if (nextRequestId !== requestIdRef.current || targetTab !== activeTabRef.current) return
         if (pricingResponse.data) {
           setPricingSettings(pricingResponse.data)
         }
@@ -50,31 +91,43 @@ export default function Settings() {
           setRateUpdatedAt(rateInfoResponse.data.updatedAt)
         }
         setAutoUpdateRate(Boolean(rateInfoResponse.data?.autoUpdate))
-      } else if (activeTab === 'referrals') {
+      } else if (targetTab === 'referrals') {
         const response = await systemSettingsApi.getReferralSettings()
+        if (nextRequestId !== requestIdRef.current || targetTab !== activeTabRef.current) return
         if (response.data) {
           setReferralSettings(response.data)
         }
       } else {
         const response = await loyaltyApi.getLevels()
+        if (nextRequestId !== requestIdRef.current || targetTab !== activeTabRef.current) return
         if (response.data) {
           setLoyaltyLevels(response.data)
         }
       }
     } catch (error) {
+      if (isUnauthorizedError(error)) return
       console.error('Ошибка загрузки настроек:', error)
+      if (targetTab === activeTabRef.current) {
+        setError('Не удалось загрузить данные текущей вкладки')
+      }
     } finally {
-      setLoading(false)
+      if (targetTab === activeTabRef.current) {
+        setLoading(false)
+      }
     }
+  }
+
+  const setActiveTabInUrl = (tab: 'pricing' | 'referrals' | 'loyalty') => {
+    router.replace(`${pathname}?tab=${tab}`)
   }
 
   const handleSavePricingSettings = async () => {
     try {
       await systemSettingsApi.updatePricingSettings(pricingSettings)
-      alert('✅ Настройки ценообразования сохранены!')
+      toast.success('Настройки ценообразования сохранены')
     } catch (error) {
       console.error('Ошибка сохранения:', error)
-      alert('❌ Ошибка сохранения настроек')
+      toast.error('Ошибка сохранения настроек')
     }
   }
 
@@ -82,10 +135,10 @@ export default function Settings() {
     try {
       setSyncing(true)
       const response = await productsApi.sync()
-      alert(`✅ ${response.data.message}`)
-    } catch (error: any) {
+      toast.success(response.data.message || 'Синхронизация завершена')
+    } catch (error: unknown) {
       console.error('Ошибка синхронизации:', error)
-      alert('❌ Ошибка синхронизации: ' + (error.response?.data?.message || error.message))
+      toast.error(getErrorMessage(error, 'Ошибка синхронизации'))
     } finally {
       setSyncing(false)
     }
@@ -95,10 +148,10 @@ export default function Settings() {
     try {
       setRepricing(true)
       const response = await productsApi.repriceAll()
-      alert(`✅ ${response.data.message}`)
-    } catch (error: any) {
+      toast.success(response.data.message || 'Пересчет цен завершен')
+    } catch (error: unknown) {
       console.error('Ошибка пересчета цен:', error)
-      alert('❌ Ошибка пересчета: ' + (error.response?.data?.message || error.message))
+      toast.error(getErrorMessage(error, 'Ошибка пересчета цен'))
     } finally {
       setRepricing(false)
     }
@@ -111,13 +164,13 @@ export default function Settings() {
       if (response.data.success) {
         setPricingSettings(prev => ({ ...prev, exchangeRate: response.data.rate }))
         setRateUpdatedAt(new Date().toISOString())
-        alert(`✅ Курс обновлен: ${response.data.rate}₽ за $1 (ЦБ РФ)`)
+        toast.success(`Курс обновлен: ${response.data.rate}₽ за $1 (ЦБ РФ)`)
       } else {
-        alert('❌ Не удалось получить курс с ЦБ РФ')
+        toast.error('Не удалось получить курс с ЦБ РФ')
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Ошибка обновления курса:', error)
-      alert('❌ Ошибка: ' + (error.response?.data?.message || error.message))
+      toast.error(getErrorMessage(error, 'Ошибка обновления курса'))
     } finally {
       setUpdatingRate(false)
     }
@@ -127,62 +180,84 @@ export default function Settings() {
     try {
       setAutoUpdateRate(enabled)
       const response = await systemSettingsApi.setExchangeRateAutoUpdate(enabled)
-      alert(`✅ ${response.data.message}`)
-    } catch (error: any) {
+      toast.success(response.data.message || 'Настройка автообновления сохранена')
+    } catch (error: unknown) {
       console.error('Ошибка переключения автообновления курса:', error)
       setAutoUpdateRate(!enabled)
-      alert('❌ Ошибка: ' + (error.response?.data?.message || error.message))
+      toast.error(getErrorMessage(error, 'Ошибка переключения автообновления'))
     }
   }
 
   const handleSaveReferralSettings = async () => {
     try {
       await systemSettingsApi.updateReferralSettings(referralSettings)
-      alert('✅ Настройки реферальной программы сохранены!')
+      toast.success('Настройки реферальной программы сохранены')
     } catch (error) {
       console.error('Ошибка сохранения:', error)
-      alert('❌ Ошибка сохранения настроек')
+      toast.error('Ошибка сохранения настроек')
     }
   }
 
   const handleSaveLoyaltyLevel = async () => {
+    if (!editingLevel) return
+
+    const payload = {
+      name: editingLevel.name.trim(),
+      minSpent: Number(editingLevel.minSpent),
+      cashbackPercent: Number(editingLevel.cashbackPercent),
+      discount: Number(editingLevel.discount),
+    }
+
     try {
       if (editingLevel.id) {
-        // Обновление
-        await loyaltyApi.updateLevel(editingLevel.id, editingLevel)
-        alert('✅ Уровень лояльности обновлен!')
+        await loyaltyApi.updateLevel(editingLevel.id, payload)
+        toast.success('Уровень лояльности обновлен')
       } else {
-        // Создание
-        await loyaltyApi.createLevel(editingLevel)
-        alert('✅ Уровень лояльности создан!')
+        await loyaltyApi.createLevel(payload)
+        toast.success('Уровень лояльности создан')
       }
       
       setEditingLevel(null)
-      loadData()
-    } catch (error) {
-      console.error('Ошибка сохранения:', error)
-      alert('❌ Ошибка сохранения уровня')
+      loadData(activeTab)
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Ошибка сохранения уровня'))
     }
   }
 
   const handleDeleteLevel = async (id: string) => {
-    if (!confirm('Удалить этот уровень?')) return
+    const confirmed = await confirmDialog({
+      title: 'Удаление уровня',
+      description: 'Удалить этот уровень?',
+      confirmLabel: 'Удалить',
+      variant: 'destructive',
+    })
+    if (!confirmed) return
     
     try {
       await loyaltyApi.deleteLevel(id)
-      alert('✅ Уровень удален!')
-      loadData()
+      toast.success('Уровень удален')
+      loadData(activeTab)
     } catch (error) {
       console.error('Ошибка удаления:', error)
-      alert('❌ Ошибка удаления уровня')
+      toast.error('Ошибка удаления уровня')
     }
   }
 
   if (loading) {
     return (
       <div className="glass-card p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <Spinner centered />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="glass-card glass-card--static p-8 text-center">
+        <h2 className="text-2xl font-bold text-slate-900">Не удалось загрузить настройки</h2>
+        <p className="mt-2 text-slate-600">{error}</p>
+        <div className="mt-6 flex justify-center">
+          <Button onClick={() => loadData(activeTab)}>Повторить</Button>
         </div>
       </div>
     )
@@ -193,8 +268,9 @@ export default function Settings() {
       {/* Tabs */}
       <div className="glass-card p-2">
         <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setActiveTab('pricing')}
+          <Button
+            onClick={() => setActiveTabInUrl('pricing')}
+            variant="ghost"
             className={`
               flex items-center gap-2 px-6 py-3 rounded-xl font-medium
               transition-all duration-200
@@ -206,9 +282,10 @@ export default function Settings() {
             `}
           >
             💰 Ценообразование
-          </button>
-          <button
-            onClick={() => setActiveTab('referrals')}
+          </Button>
+          <Button
+            onClick={() => setActiveTabInUrl('referrals')}
+            variant="ghost"
             className={`
               flex items-center gap-2 px-6 py-3 rounded-xl font-medium
               transition-all duration-200
@@ -220,9 +297,10 @@ export default function Settings() {
             `}
           >
             🎁 Реферальная программа
-          </button>
-          <button
-            onClick={() => setActiveTab('loyalty')}
+          </Button>
+          <Button
+            onClick={() => setActiveTabInUrl('loyalty')}
+            variant="ghost"
             className={`
               flex items-center gap-2 px-6 py-3 rounded-xl font-medium
               transition-all duration-200
@@ -234,7 +312,7 @@ export default function Settings() {
             `}
           >
             🏆 Система лояльности
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -263,14 +341,14 @@ export default function Settings() {
                   />
                 </div>
                 <span className="text-lg font-bold text-slate-700">₽ за $1</span>
-                <button
+                <Button
                   onClick={handleUpdateRateFromCBR}
                   disabled={updatingRate}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 shadow-lg hover:shadow-xl"
                 >
                   <RefreshCw className={`w-4 h-4 ${updatingRate ? 'animate-spin' : ''}`} />
                   {updatingRate ? 'Загрузка...' : 'Обновить с ЦБ РФ'}
-                </button>
+                </Button>
               </div>
               <p className="text-sm text-slate-500 mt-2">
                 Используется для пересчета цен от поставщика (в $) в рубли
@@ -312,9 +390,10 @@ export default function Settings() {
               </div>
               <div className="flex gap-2 mt-3 flex-wrap">
                 {[10, 20, 30, 50, 75, 100].map((val) => (
-                  <button
+                  <Button
                     key={val}
                     onClick={() => setPricingSettings({ ...pricingSettings, defaultMarkupPercent: val })}
+                    variant="secondary"
                     className={`px-4 py-2 rounded-lg font-medium transition-all ${
                       pricingSettings.defaultMarkupPercent === val 
                         ? 'bg-green-500 text-white' 
@@ -322,7 +401,7 @@ export default function Settings() {
                     }`}
                   >
                     +{val}%
-                  </button>
+                  </Button>
                 ))}
               </div>
               <p className="text-sm text-slate-500 mt-2">
@@ -342,34 +421,34 @@ export default function Settings() {
 
             {/* Кнопки */}
             <div className="flex gap-3 pt-4 flex-wrap">
-              <button
+              <Button
                 onClick={handleSavePricingSettings}
-                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+                className="bg-gradient-to-r from-green-500 to-emerald-500 shadow-lg hover:shadow-xl"
               >
                 <Save className="w-5 h-5" />
                 Сохранить настройки
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleRepriceProducts}
                 disabled={repricing}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 shadow-lg hover:shadow-xl"
               >
                 <RefreshCw className={`w-5 h-5 ${repricing ? 'animate-spin' : ''}`} />
                 {repricing ? 'Пересчет...' : 'Применить к текущим товарам'}
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleSyncProducts}
                 disabled={syncing}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                className="bg-gradient-to-r from-blue-500 to-purple-500 shadow-lg hover:shadow-xl"
               >
                 <RefreshCw className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} />
                 {syncing ? 'Синхронизация...' : 'Синхронизировать тарифы'}
-              </button>
+              </Button>
             </div>
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
               <p className="text-sm text-yellow-800">
-                <strong>⚠️ Важно:</strong> После изменения курса или наценки нажмите "Применить к текущим товарам", чтобы пересчитать уже существующие цены. Кнопка синхронизации только подтягивает пакеты от провайдера.
+                <strong>⚠️ Важно:</strong> После изменения курса или наценки нажмите &quot;Применить к текущим товарам&quot;, чтобы пересчитать уже существующие цены. Кнопка синхронизации только подтягивает пакеты от провайдера.
               </p>
             </div>
           </div>
@@ -441,13 +520,13 @@ export default function Settings() {
 
             {/* Кнопка сохранить */}
             <div className="pt-4">
-              <button
+              <Button
                 onClick={handleSaveReferralSettings}
-                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+                className="bg-gradient-to-r from-blue-500 to-purple-500 shadow-lg hover:shadow-xl"
               >
                 <Save className="w-5 h-5" />
                 Сохранить настройки
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -458,71 +537,64 @@ export default function Settings() {
         <div className="space-y-6">
           {/* Кнопка добавить */}
           <div className="glass-card p-6">
-            <button
+            <Button
               onClick={() => setEditingLevel({ name: '', minSpent: 0, cashbackPercent: 0, discount: 0 })}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+              className="bg-gradient-to-r from-green-500 to-emerald-500 shadow-lg hover:shadow-xl"
             >
               <Plus className="w-5 h-5" />
               Добавить уровень
-            </button>
+            </Button>
           </div>
 
           {/* Таблица уровней */}
-          <div className="glass-card p-6">
+          <div className="glass-card glass-card--static p-6">
             <h2 className="text-2xl font-bold mb-6">Уровни лояльности</h2>
             
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700">Название</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700">Минимальная сумма</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700">Кэшбэк (%)</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700">Скидка (%)</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700">Действия</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHead>
+                  <TableRow className="border-b border-slate-200">
+                    <TableHeaderCell>Название</TableHeaderCell>
+                    <TableHeaderCell>Минимальная сумма</TableHeaderCell>
+                    <TableHeaderCell>Кэшбэк (%)</TableHeaderCell>
+                    <TableHeaderCell>Скидка (%)</TableHeaderCell>
+                    <TableHeaderCell>Действия</TableHeaderCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
                   {loyaltyLevels.map((level) => (
-                    <tr
+                    <TableRow
                       key={level.id}
                       className="border-b border-slate-100 hover:bg-white/50 transition-colors"
                     >
-                      <td className="py-4 px-4 font-medium">{level.name}</td>
-                      <td className="py-4 px-4">₽{Number(level.minSpent).toLocaleString()}</td>
-                      <td className="py-4 px-4">{Number(level.cashbackPercent)}%</td>
-                      <td className="py-4 px-4">{Number(level.discount)}%</td>
-                      <td className="py-4 px-4">
+                      <TableCell className="font-medium">{level.name}</TableCell>
+                      <TableCell>₽{Number(level.minSpent).toLocaleString()}</TableCell>
+                      <TableCell>{Number(level.cashbackPercent)}%</TableCell>
+                      <TableCell>{Number(level.discount)}%</TableCell>
+                      <TableCell>
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => setEditingLevel(level)}
-                            className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
-                          >
+                          <Button variant="ghost" size="sm" iconOnly aria-label="Редактировать уровень" onClick={() => setEditingLevel(level)} className="hover:bg-blue-100">
                             <Edit2 className="w-4 h-4 text-blue-600" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteLevel(level.id)}
-                            className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                          >
+                          </Button>
+                          <Button variant="ghost" size="sm" iconOnly aria-label="Удалить уровень" onClick={() => handleDeleteLevel(level.id)} className="hover:bg-red-100">
                             <Trash2 className="w-4 h-4 text-red-600" />
-                          </button>
+                          </Button>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
 
           {/* Форма редактирования */}
           {editingLevel && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-              <div className="glass-card p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <h3 className="text-2xl font-bold mb-6">
-                  {editingLevel.id ? 'Редактировать уровень' : 'Создать уровень'}
-                </h3>
-
+            <Modal
+              title={editingLevel.id ? 'Редактировать уровень' : 'Создать уровень'}
+              onClose={() => setEditingLevel(null)}
+              contentClassName="max-w-2xl"
+            >
                 <div className="space-y-4">
                   {/* Название */}
                   <div>
@@ -596,23 +668,16 @@ export default function Settings() {
 
                   {/* Кнопки */}
                   <div className="flex gap-3 pt-4">
-                    <button
-                      onClick={handleSaveLoyaltyLevel}
-                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
-                    >
+                    <Button onClick={handleSaveLoyaltyLevel} className="flex-1">
                       <Save className="w-5 h-5" />
                       Сохранить
-                    </button>
-                    <button
-                      onClick={() => setEditingLevel(null)}
-                      className="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 transition-all"
-                    >
+                    </Button>
+                    <Button onClick={() => setEditingLevel(null)} variant="secondary">
                       Отмена
-                    </button>
+                    </Button>
                   </div>
                 </div>
-              </div>
-            </div>
+            </Modal>
           )}
         </div>
       )}

@@ -1,9 +1,14 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import Providers from './providers'
 
 export const metadata: Metadata = {
-  title: 'Mojo mobile Admin Panel',
+  title: 'Mojo Mobile Admin',
   description: 'Панель управления сервисом Mojo mobile',
+  robots: {
+    index: false,
+    follow: false,
+  },
 }
 
 export default function RootLayout({
@@ -13,7 +18,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru">
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   )
 }

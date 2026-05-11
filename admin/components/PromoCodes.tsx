@@ -2,20 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { promoCodesApi } from '@/lib/api'
+import { isUnauthorizedError } from '@/lib/auth'
+import { getErrorMessage } from '@/lib/errors'
+import type { PromoCode } from '@/lib/types'
+import Button from '@/components/ui/Button'
+import { useConfirmDialog } from '@/components/ui/ConfirmDialog'
+import Spinner from '@/components/ui/Spinner'
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/Table'
+import { useToast } from '@/components/ui/ToastProvider'
 import { Plus, Trash2, ToggleLeft, ToggleRight, Copy, Check } from 'lucide-react'
 
-interface PromoCode {
-  id: string
-  code: string
-  discountPercent: number
-  maxUses: number | null
-  usedCount: number
-  isActive: boolean
-  expiresAt: string | null
-  createdAt: string
-}
-
 export default function PromoCodes() {
+  const toast = useToast()
+  const confirmDialog = useConfirmDialog()
   const [codes, setCodes] = useState<PromoCode[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -26,6 +25,7 @@ export default function PromoCodes() {
   const [newMaxUses, setNewMaxUses] = useState('')
   const [newExpires, setNewExpires] = useState('')
   const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     load()
@@ -33,10 +33,13 @@ export default function PromoCodes() {
 
   const load = async () => {
     try {
+      setError(null)
       const { data } = await promoCodesApi.getAll()
       setCodes(data)
     } catch (e) {
+      if (isUnauthorizedError(e)) return
       console.error(e)
+      setError('Не удалось загрузить промокоды')
     } finally {
       setLoading(false)
     }
@@ -58,8 +61,9 @@ export default function PromoCodes() {
       setNewExpires('')
       setShowForm(false)
       await load()
-    } catch (e: any) {
-      alert(e?.response?.data?.message || 'Ошибка создания')
+      toast.success('Промокод создан')
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, 'Ошибка создания'))
     } finally {
       setCreating(false)
     }
@@ -71,31 +75,55 @@ export default function PromoCodes() {
       setCodes((prev) =>
         prev.map((c) => (c.id === id ? { ...c, isActive: !current } : c)),
       )
+      toast.success(!current ? 'Промокод активирован' : 'Промокод отключен')
     } catch (e) {
       console.error(e)
+      toast.error('Не удалось изменить статус промокода')
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Удалить промокод?')) return
+    const confirmed = await confirmDialog({
+      title: 'Удаление промокода',
+      description: 'Удалить промокод?',
+      confirmLabel: 'Удалить',
+      variant: 'destructive',
+    })
+    if (!confirmed) return
+
     try {
       await promoCodesApi.delete(id)
       setCodes((prev) => prev.filter((c) => c.id !== id))
+      toast.success('Промокод удален')
     } catch (e) {
       console.error(e)
+      toast.error('Не удалось удалить промокод')
     }
   }
 
   const handleCopy = (code: string, id: string) => {
     navigator.clipboard.writeText(code)
     setCopiedId(id)
+    toast.info(`Код ${code} скопирован`)
     setTimeout(() => setCopiedId(null), 1500)
   }
 
   if (loading) {
     return (
       <div className="glass-card p-8 text-center text-slate-600">
-        Загрузка…
+        <Spinner centered />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="glass-card glass-card--static p-8 text-center">
+        <h2 className="text-2xl font-bold text-slate-900">Не удалось загрузить промокоды</h2>
+        <p className="mt-2 text-slate-600">{error}</p>
+        <div className="mt-6 flex justify-center">
+          <Button onClick={load}>Повторить</Button>
+        </div>
       </div>
     )
   }
@@ -111,13 +139,10 @@ export default function PromoCodes() {
             {codes.filter((c) => c.isActive).length}
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium text-sm hover:opacity-95"
-        >
+        <Button onClick={() => setShowForm(!showForm)}>
           <Plus size={18} />
           Создать
-        </button>
+        </Button>
       </div>
 
       {/* Create form */}
@@ -175,19 +200,12 @@ export default function PromoCodes() {
             </div>
           </div>
           <div className="flex gap-3 pt-2">
-            <button
-              onClick={handleCreate}
-              disabled={creating || !newCode.trim()}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium text-sm disabled:opacity-50"
-            >
+            <Button onClick={handleCreate} disabled={creating || !newCode.trim()}>
               {creating ? 'Создание…' : 'Создать'}
-            </button>
-            <button
-              onClick={() => setShowForm(false)}
-              className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm hover:bg-slate-50"
-            >
+            </Button>
+            <Button onClick={() => setShowForm(false)} variant="secondary">
               Отмена
-            </button>
+            </Button>
           </div>
           {/* Quick presets */}
           <div className="flex gap-2 flex-wrap">
@@ -218,67 +236,58 @@ export default function PromoCodes() {
           Нет промокодов. Нажмите «Создать» чтобы добавить.
         </div>
       ) : (
-        <div className="glass-card overflow-hidden">
+        <div className="glass-card glass-card--static overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50/50">
-                  <th className="text-left px-6 py-3 font-semibold text-slate-600">
-                    Код
-                  </th>
-                  <th className="text-left px-6 py-3 font-semibold text-slate-600">
-                    Скидка
-                  </th>
-                  <th className="text-left px-6 py-3 font-semibold text-slate-600">
-                    Использовано
-                  </th>
-                  <th className="text-left px-6 py-3 font-semibold text-slate-600">
-                    Годен до
-                  </th>
-                  <th className="text-left px-6 py-3 font-semibold text-slate-600">
-                    Статус
-                  </th>
-                  <th className="text-right px-6 py-3 font-semibold text-slate-600">
-                    Действия
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
+            <Table>
+              <TableHead>
+                <TableRow className="bg-slate-50/50">
+                  <TableHeaderCell className="px-6">Код</TableHeaderCell>
+                  <TableHeaderCell className="px-6">Скидка</TableHeaderCell>
+                  <TableHeaderCell className="px-6">Использовано</TableHeaderCell>
+                  <TableHeaderCell className="px-6">Годен до</TableHeaderCell>
+                  <TableHeaderCell className="px-6">Статус</TableHeaderCell>
+                  <TableHeaderCell className="px-6 text-right">Действия</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody className="divide-y divide-slate-100">
                 {codes.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50/50">
-                    <td className="px-6 py-3">
+                  <TableRow key={c.id} className="hover:bg-slate-50/50">
+                    <TableCell className="px-6 py-3">
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-bold text-slate-800">
                           {c.code}
                         </span>
-                        <button
+                        <Button
                           onClick={() => handleCopy(c.code, c.id)}
-                          className="text-slate-400 hover:text-slate-600"
-                          title="Скопировать"
+                          variant="ghost"
+                          size="sm"
+                          iconOnly
+                          aria-label="Скопировать промокод"
+                          className="text-slate-400 hover:bg-transparent hover:text-slate-600"
                         >
                           {copiedId === c.id ? (
                             <Check size={14} className="text-green-500" />
                           ) : (
                             <Copy size={14} />
                           )}
-                        </button>
+                        </Button>
                       </div>
-                    </td>
-                    <td className="px-6 py-3">
+                    </TableCell>
+                    <TableCell className="px-6 py-3">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">
                         {c.discountPercent}%
                       </span>
-                    </td>
-                    <td className="px-6 py-3 text-slate-600">
+                    </TableCell>
+                    <TableCell className="px-6 py-3 text-slate-600">
                       {c.usedCount}
                       {c.maxUses !== null ? ` / ${c.maxUses}` : ' / ∞'}
-                    </td>
-                    <td className="px-6 py-3 text-slate-600">
+                    </TableCell>
+                    <TableCell className="px-6 py-3 text-slate-600">
                       {c.expiresAt
                         ? new Date(c.expiresAt).toLocaleDateString('ru-RU')
                         : '—'}
-                    </td>
-                    <td className="px-6 py-3">
+                    </TableCell>
+                    <TableCell className="px-6 py-3">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           c.isActive
@@ -288,33 +297,39 @@ export default function PromoCodes() {
                       >
                         {c.isActive ? 'Активен' : 'Выключен'}
                       </span>
-                    </td>
-                    <td className="px-6 py-3 text-right">
+                    </TableCell>
+                    <TableCell className="px-6 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
+                        <Button
                           onClick={() => handleToggle(c.id, c.isActive)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700"
-                          title={c.isActive ? 'Выключить' : 'Включить'}
+                          variant="ghost"
+                          size="sm"
+                          iconOnly
+                          aria-label={c.isActive ? 'Выключить промокод' : 'Включить промокод'}
+                          className="text-slate-500 hover:text-slate-700"
                         >
                           {c.isActive ? (
                             <ToggleRight size={20} className="text-green-600" />
                           ) : (
                             <ToggleLeft size={20} />
                           )}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           onClick={() => handleDelete(c.id)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-slate-500 hover:text-red-600"
-                          title="Удалить"
+                          variant="ghost"
+                          size="sm"
+                          iconOnly
+                          aria-label="Удалить промокод"
+                          className="text-slate-500 hover:bg-red-50 hover:text-red-600"
                         >
                           <Trash2 size={16} />
-                        </button>
+                        </Button>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       )}

@@ -30,7 +30,7 @@
 
 ## Статус
 
-`planned`
+`completed`
 
 ## Файлы
 

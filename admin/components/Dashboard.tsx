@@ -2,28 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import { Users, Package, CreditCard, TrendingUp } from 'lucide-react'
-import { analyticsApi, ordersApi, usersApi } from '@/lib/api'
-
-interface DashboardStats {
-  users: {
-    total: number
-    new: number
-  }
-  orders: {
-    total: number
-    completed: number
-    conversionRate: number
-  }
-  revenue: {
-    total: number
-    average: number
-  }
-}
+import { analyticsApi, ordersApi } from '@/lib/api'
+import Button from '@/components/ui/Button'
+import Spinner from '@/components/ui/Spinner'
+import { isUnauthorizedError } from '@/lib/auth'
+import type { AdminOrder, DashboardStats } from '@/lib/types'
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [recentOrders, setRecentOrders] = useState<any[]>([])
+  const [recentOrders, setRecentOrders] = useState<AdminOrder[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
@@ -32,59 +21,48 @@ export default function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true)
-      
-      // Загружаем статистику и последние заказы параллельно
+      setError(null)
       const [statsRes, ordersRes] = await Promise.all([
-        analyticsApi.getDashboard().catch(() => null),
-        ordersApi.getAll({ limit: 5 }).catch(() => ({ data: [] })),
+        analyticsApi.getDashboard(),
+        ordersApi.getAll({ limit: 5 }),
       ])
 
-      if (statsRes?.data) {
-        setStats(statsRes.data)
-      }
-
-      if (ordersRes?.data?.data) {
-        setRecentOrders(ordersRes.data.data)
-      }
+      setStats(statsRes.data)
+      setRecentOrders(ordersRes.data?.data || [])
     } catch (error) {
+      if (isUnauthorizedError(error)) return
       console.error('Ошибка загрузки данных:', error)
+      setError('Не удалось загрузить данные дашборда')
     } finally {
       setLoading(false)
     }
   }
 
-  // Моковые данные как fallback
-  const displayStats = stats || {
-    users: { total: 0, new: 0 },
-    orders: { total: 0, completed: 0, conversionRate: 0 },
-    revenue: { total: 0, average: 0 },
-  }
-
   const statsCards = [
     {
       title: 'Всего пользователей',
-      value: Number(displayStats.users.total || 0).toLocaleString(),
-      change: `+${displayStats.users.new || 0}`,
+      value: Number(stats?.users.total || 0).toLocaleString(),
+      change: `+${stats?.users.new || 0}`,
       icon: Users,
       color: 'from-blue-500 to-cyan-500',
     },
     {
       title: 'Заказы (всего)',
-      value: Number(displayStats.orders.total || 0).toLocaleString(),
-      change: `${displayStats.orders.completed || 0} выполнено`,
+      value: Number(stats?.orders.total || 0).toLocaleString(),
+      change: `${stats?.orders.completed || 0} выполнено`,
       icon: Package,
       color: 'from-purple-500 to-pink-500',
     },
     {
       title: 'Выручка (всего)',
-      value: `₽${Number(displayStats.revenue.total || 0).toLocaleString()}`,
-      change: `Средний чек: ₽${Number(displayStats.revenue.average || 0).toFixed(0)}`,
+      value: `₽${Number(stats?.revenue.total || 0).toLocaleString()}`,
+      change: `Средний чек: ₽${Number(stats?.revenue.average || 0).toFixed(0)}`,
       icon: CreditCard,
       color: 'from-green-500 to-emerald-500',
     },
     {
       title: 'Конверсия',
-      value: `${Number(displayStats.orders.conversionRate || 0).toFixed(1)}%`,
+      value: `${Number(stats?.orders.conversionRate || 0).toFixed(1)}%`,
       change: 'Завершенные заказы',
       icon: TrendingUp,
       color: 'from-orange-500 to-red-500',
@@ -93,8 +71,18 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <Spinner centered />
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="glass-card glass-card--static p-8 text-center">
+        <h2 className="text-2xl font-bold text-slate-900">Не удалось загрузить дашборд</h2>
+        <p className="mt-2 text-slate-600">{error}</p>
+        <div className="mt-6 flex justify-center">
+          <Button onClick={loadData}>Повторить</Button>
+        </div>
       </div>
     )
   }
@@ -131,12 +119,9 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">Последние заказы</h2>
           {recentOrders.length > 0 && (
-            <button
-              onClick={loadData}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
+            <Button onClick={loadData} variant="ghost" size="sm" className="px-0 text-blue-600 hover:bg-transparent hover:text-blue-700">
               Обновить
-            </button>
+            </Button>
           )}
         </div>
         

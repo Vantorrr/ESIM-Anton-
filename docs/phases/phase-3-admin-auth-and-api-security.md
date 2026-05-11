@@ -16,7 +16,7 @@
 - Bot/internal endpoint `POST /users/find-or-create` закрыт service-token механизмом, совместимым с bot runtime, а не admin JWT.
 - `POST /auth/register-admin` требует `SUPER_ADMIN` токен.
 - JWT модель усилена: admin payload содержит `type: 'admin'`, guard проверяет whitelist ролей.
-- Admin JWT TTL сокращён до 8 часов.
+- Admin JWT TTL сокращён до 24 часов.
 - Ручной парсинг JWT в `updateMyEmail` заменён на guard.
 - Прямой неавторизованный вызов любого admin endpoint возвращает `401`.
 

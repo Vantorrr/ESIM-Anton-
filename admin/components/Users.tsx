@@ -1,22 +1,32 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { usersApi } from '@/lib/api'
+import { isUnauthorizedError } from '@/lib/auth'
+import type { AdminUser } from '@/lib/types'
+import Button from '@/components/ui/Button'
+import Pagination from '@/components/ui/Pagination'
+import Spinner from '@/components/ui/Spinner'
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/Table'
 import { Users as UsersIcon } from 'lucide-react'
 
 export default function Users() {
-  const [users, setUsers] = useState<any[]>([])
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadUsers()
-  }, [page])
+  const rawPage = Number(searchParams.get('page') || '1')
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true)
+      setError(null)
       const response = await usersApi.getAll(page, 20)
       
       if (response.data) {
@@ -24,32 +34,59 @@ export default function Users() {
         setTotalPages(response.data.meta?.totalPages || 1)
       }
     } catch (error) {
+      if (isUnauthorizedError(error)) return
       console.error('Ошибка загрузки пользователей:', error)
+      setError('Не удалось загрузить пользователей')
     } finally {
       setLoading(false)
     }
+  }, [page])
+
+  useEffect(() => {
+    loadUsers()
+  }, [loadUsers])
+
+  useEffect(() => {
+    const normalized = new URLSearchParams(searchParams.toString())
+    normalized.set('page', String(page))
+    if (normalized.toString() !== searchParams.toString()) {
+      router.replace(`${pathname}?${normalized.toString()}`)
+    }
+  }, [page, pathname, router, searchParams])
+
+  const handlePageChange = (nextPage: number) => {
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.set('page', String(nextPage))
+    router.replace(`${pathname}?${nextParams.toString()}`)
   }
 
   if (loading) {
     return (
       <div className="glass-card p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <Spinner centered />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="glass-card glass-card--static p-8 text-center">
+        <h2 className="text-2xl font-bold text-slate-900">Не удалось загрузить пользователей</h2>
+        <p className="mt-2 text-slate-600">{error}</p>
+        <div className="mt-6 flex justify-center">
+          <Button onClick={loadUsers}>Повторить</Button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="glass-card p-6">
+    <div className="glass-card glass-card--static p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Пользователи</h2>
-        <button
-          onClick={loadUsers}
-          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-        >
+        <Button onClick={loadUsers} variant="ghost" size="sm" className="px-0 text-blue-600 hover:bg-transparent hover:text-blue-700">
           Обновить
-        </button>
+        </Button>
       </div>
 
       {users.length === 0 ? (
@@ -60,92 +97,71 @@ export default function Users() {
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">ID</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Имя</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Telegram</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Провайдер</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Источник</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Баланс</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Потрачено</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Уровень</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Дата</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHead>
+                <TableRow className="border-b border-slate-200">
+                  <TableHeaderCell>ID</TableHeaderCell>
+                  <TableHeaderCell>Имя</TableHeaderCell>
+                  <TableHeaderCell>Telegram</TableHeaderCell>
+                  <TableHeaderCell>Провайдер</TableHeaderCell>
+                  <TableHeaderCell>Источник</TableHeaderCell>
+                  <TableHeaderCell>Баланс</TableHeaderCell>
+                  <TableHeaderCell>Потрачено</TableHeaderCell>
+                  <TableHeaderCell>Уровень</TableHeaderCell>
+                  <TableHeaderCell>Дата</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {users.map((user) => (
-                  <tr
+                  <TableRow
                     key={user.id}
                     className="border-b border-slate-100 hover:bg-white/50 transition-colors"
                   >
-                    <td className="py-4 px-4 font-mono text-sm">
+                    <TableCell className="font-mono text-sm">
                       #{user.id.slice(0, 8)}
-                    </td>
-                    <td className="py-4 px-4 font-medium">
+                    </TableCell>
+                    <TableCell className="font-medium">
                       {user.firstName || user.username || 'Без имени'}
                       {user.lastName && ` ${user.lastName}`}
-                    </td>
-                    <td className="py-4 px-4 text-blue-600">
+                    </TableCell>
+                    <TableCell className="text-blue-600">
                       {user.username ? `@${user.username}` : user.telegramId}
-                    </td>
-                    <td className="py-4 px-4 text-sm text-slate-700">
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-700">
                       {user.authProvider || '—'}
-                    </td>
-                    <td className="py-4 px-4 text-sm">
+                    </TableCell>
+                    <TableCell className="text-sm">
                       <div className="text-slate-700">{user.utmSource || '—'}</div>
                       <div className="text-xs text-slate-500">
                         {user.utmMedium || '—'} / {user.utmCampaign || '—'}
                       </div>
-                    </td>
-                    <td className="py-4 px-4">
+                    </TableCell>
+                    <TableCell>
                       <div className="text-sm">
                         <div>₽{Number(user.balance || 0).toLocaleString()}</div>
                         <div className="text-green-600">
                           +₽{Number(user.bonusBalance || 0).toLocaleString()} бонусов
                         </div>
                       </div>
-                    </td>
-                    <td className="py-4 px-4 font-bold">
+                    </TableCell>
+                    <TableCell className="font-bold">
                       ₽{Number(user.totalSpent || 0).toLocaleString()}
-                    </td>
-                    <td className="py-4 px-4">
+                    </TableCell>
+                    <TableCell>
                       <span className="px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-700">
                         {user.loyaltyLevel?.name || 'Новичок'}
                       </span>
-                    </td>
-                    <td className="py-4 px-4 text-sm text-slate-600">
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-600">
                       {new Date(user.createdAt).toLocaleDateString('ru-RU')}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
-          {/* Пагинация */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 rounded-lg bg-white/50 hover:bg-white/70 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Назад
-              </button>
-              <span className="px-4 py-2 text-sm text-slate-600">
-                Страница {page} из {totalPages}
-              </span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="px-4 py-2 rounded-lg bg-white/50 hover:bg-white/70 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Вперед
-              </button>
-            </div>
-          )}
+          <Pagination page={page} totalPages={totalPages} onPageChange={handlePageChange} />
         </>
       )}
     </div>

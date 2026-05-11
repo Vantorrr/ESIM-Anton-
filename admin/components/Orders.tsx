@@ -1,7 +1,16 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ordersApi } from '@/lib/api'
+import { isUnauthorizedError } from '@/lib/auth'
+import type { AdminOrder, OrderStatus, OrdersQueryParams } from '@/lib/types'
+import Button from '@/components/ui/Button'
+import { useConfirmDialog } from '@/components/ui/ConfirmDialog'
+import Pagination from '@/components/ui/Pagination'
+import Spinner from '@/components/ui/Spinner'
+import { SortableHeader, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/Table'
+import { useToast } from '@/components/ui/ToastProvider'
 import { Package, Download } from 'lucide-react'
 
 // -- Helpers ----------------------------------------------------------
@@ -9,12 +18,12 @@ import { Package, Download } from 'lucide-react'
 const fmtPrice = (v: unknown): string =>
   `₽${Number(v || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}`
 
-const hasDiscount = (order: any): boolean =>
+const hasDiscount = (order: AdminOrder): boolean =>
   Number(order.promoDiscount || 0) > 0 ||
   Number(order.discount || 0) > 0 ||
   Number(order.bonusUsed || 0) > 0
 
-const CANCELLABLE = new Set(['PENDING', 'FAILED'])
+const CANCELLABLE = new Set<OrderStatus>(['PENDING', 'FAILED'])
 
 type SortField = 'createdAt' | 'totalAmount' | 'productPrice' | 'status'
 
@@ -45,7 +54,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 // -- CSV Export --------------------------------------------------------
 
-function exportOrdersCsv(orders: any[]) {
+function exportOrdersCsv(orders: AdminOrder[]) {
   const headers = [
     'ID', 'Пользователь', 'Продукт', 'Страна',
     'Цена', 'Промокод', 'Скидка промокод', 'Скидка лояльность',
@@ -54,7 +63,7 @@ function exportOrdersCsv(orders: any[]) {
 
   const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
 
-  const rows = orders.map((o: any) => [
+  const rows = orders.map((o) => [
     o.id,
     o.user?.firstName || o.user?.username || '',
     o.product?.name || '',
@@ -86,20 +95,59 @@ function exportOrdersCsv(orders: any[]) {
 // -- Component --------------------------------------------------------
 
 export default function Orders() {
-  const [orders, setOrders] = useState<any[]>([])
+  const toast = useToast()
+  const confirmDialog = useConfirmDialog()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [orders, setOrders] = useState<AdminOrder[]>([])
   const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
-  const [statusFilter, setStatusFilter] = useState('')
-  const [sortBy, setSortBy] = useState<SortField>('createdAt')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [exporting, setExporting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const rawPage = Number(searchParams.get('page') || '1')
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1
+  const rawStatus = searchParams.get('status')
+  const statusFilter = STATUS_OPTIONS.some((option) => option.value === rawStatus)
+    ? (rawStatus as OrderStatus | '')
+    : ''
+  const rawSortBy = searchParams.get('sortBy')
+  const sortBy: SortField =
+    rawSortBy === 'createdAt' ||
+    rawSortBy === 'totalAmount' ||
+    rawSortBy === 'productPrice' ||
+    rawSortBy === 'status'
+      ? rawSortBy
+      : 'createdAt'
+  const rawSortOrder = searchParams.get('sortOrder')
+  const sortOrder: 'asc' | 'desc' = rawSortOrder === 'asc' ? 'asc' : 'desc'
+
+  const replaceParams = useCallback((mutate: (params: URLSearchParams) => void) => {
+    const nextParams = new URLSearchParams(searchParams.toString())
+    mutate(nextParams)
+    if (!nextParams.get('page')) nextParams.set('page', '1')
+    router.replace(`${pathname}?${nextParams.toString()}`)
+  }, [pathname, router, searchParams])
+
+  useEffect(() => {
+    const normalized = new URLSearchParams()
+    normalized.set('page', String(page))
+    if (statusFilter) normalized.set('status', statusFilter)
+    if (sortBy !== 'createdAt') normalized.set('sortBy', sortBy)
+    if (sortOrder !== 'desc') normalized.set('sortOrder', sortOrder)
+
+    if (normalized.toString() !== searchParams.toString()) {
+      router.replace(`${pathname}?${normalized.toString()}`)
+    }
+  }, [page, pathname, router, searchParams, sortBy, sortOrder, statusFilter])
 
   const loadOrders = useCallback(async () => {
     try {
       setLoading(true)
-      const params: Record<string, unknown> = { page, limit: 20, sortBy, sortOrder }
+      setError(null)
+      const params: OrdersQueryParams = { page, limit: 20, sortBy, sortOrder }
       if (statusFilter) params.status = statusFilter
       const response = await ordersApi.getAll(params)
       if (response.data) {
@@ -108,72 +156,74 @@ export default function Orders() {
         setTotalCount(response.data.meta?.total || 0)
       }
     } catch (error) {
+      if (isUnauthorizedError(error)) return
       console.error('Ошибка загрузки заказов:', error)
+      setError('Не удалось загрузить список заказов')
     } finally {
       setLoading(false)
     }
-  }, [page, statusFilter, sortBy, sortOrder])
+  }, [page, sortBy, sortOrder, statusFilter])
 
   useEffect(() => { loadOrders() }, [loadOrders])
 
   // -- Handlers -------------------------------------------------------
 
-  const handleStatusChange = (value: string) => {
-    setStatusFilter(value)
-    setPage(1)
+  const handleStatusChange = (value: OrderStatus | '') => {
+    replaceParams((params) => {
+      if (value) params.set('status', value)
+      else params.delete('status')
+      params.set('page', '1')
+    })
   }
 
   const handleSort = (field: SortField) => {
-    if (sortBy === field) {
-      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortBy(field)
-      setSortOrder('desc')
-    }
-    setPage(1)
+    replaceParams((params) => {
+      if (sortBy === field) {
+        params.set('sortOrder', sortOrder === 'asc' ? 'desc' : 'asc')
+      } else {
+        params.set('sortBy', field)
+        params.delete('sortOrder')
+      }
+      params.set('page', '1')
+    })
   }
 
   const handleCancel = async (orderId: string) => {
-    if (!confirm('Отменить заказ? Это действие необратимо.')) return
+    const confirmed = await confirmDialog({
+      title: 'Отмена заказа',
+      description: 'Отменить заказ? Это действие необратимо.',
+      confirmLabel: 'Отменить заказ',
+      variant: 'destructive',
+    })
+    if (!confirmed) return
+
     try {
       await ordersApi.cancel(orderId)
+      toast.success('Заказ отменен')
       loadOrders()
-    } catch (error: any) {
-      alert(error.response?.data?.message || 'Ошибка отмены заказа')
+    } catch (error: unknown) {
+      console.error('Ошибка отмены заказа:', error)
+      const errorMessage =
+        typeof error === 'object' && error !== null && 'response' in error
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined
+      toast.error(errorMessage || 'Ошибка отмены заказа')
     }
   }
 
   const handleExport = async () => {
     try {
       setExporting(true)
-      const params: Record<string, unknown> = { page: 1, limit: 10000, sortBy, sortOrder }
+      const params: OrdersQueryParams = { page: 1, limit: 10000, sortBy, sortOrder }
       if (statusFilter) params.status = statusFilter
       const response = await ordersApi.getAll(params)
       exportOrdersCsv(response.data?.data || [])
     } catch (error) {
       console.error('Ошибка экспорта:', error)
-      alert('Не удалось экспортировать заказы')
+      toast.error('Не удалось экспортировать заказы')
     } finally {
       setExporting(false)
     }
-  }
-
-  // -- Sort header helper ---------------------------------------------
-
-  const SortTh = ({ field, children }: { field: SortField; children: string }) => {
-    const active = sortBy === field
-    return (
-      <th
-        onClick={() => handleSort(field)}
-        className="text-left py-3 px-4 font-semibold text-slate-700 cursor-pointer select-none hover:text-blue-600 transition-colors"
-      >
-        {children}
-        {active
-          ? <span className="ml-1 text-blue-600">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-          : <span className="ml-1 text-slate-300">↕</span>
-        }
-      </th>
-    )
   }
 
   // -- Render ---------------------------------------------------------
@@ -181,15 +231,25 @@ export default function Orders() {
   if (loading) {
     return (
       <div className="glass-card p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <Spinner centered />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="glass-card glass-card--static p-8 text-center">
+        <h2 className="text-2xl font-bold text-slate-900">Не удалось загрузить заказы</h2>
+        <p className="mt-2 text-slate-600">{error}</p>
+        <div className="mt-6 flex justify-center">
+          <Button onClick={loadOrders}>Повторить</Button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="glass-card p-6">
+    <div className="glass-card glass-card--static p-6">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 className="text-2xl font-bold">
@@ -200,7 +260,7 @@ export default function Orders() {
         <div className="flex items-center gap-3">
           <select
             value={statusFilter}
-            onChange={e => handleStatusChange(e.target.value)}
+            onChange={e => handleStatusChange(e.target.value as OrderStatus | '')}
             className="px-3 py-2 rounded-lg border border-slate-200 bg-white/80 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
             {STATUS_OPTIONS.map(o => (
@@ -208,21 +268,19 @@ export default function Orders() {
             ))}
           </select>
 
-          <button
+          <Button
             onClick={handleExport}
             disabled={exporting || orders.length === 0}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            variant="secondary"
+            className="bg-green-50 text-green-700 hover:bg-green-100"
           >
             <Download className="w-4 h-4" />
             {exporting ? 'Экспорт…' : 'Excel'}
-          </button>
+          </Button>
 
-          <button
-            onClick={loadOrders}
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-          >
+          <Button onClick={loadOrders} variant="ghost" size="sm" className="px-0 text-blue-600 hover:bg-transparent hover:text-blue-700">
             Обновить
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -234,19 +292,25 @@ export default function Orders() {
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">ID</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Пользователь</th>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Продукт</th>
-                  <SortTh field="productPrice">Цена</SortTh>
-                  <SortTh field="status">Статус</SortTh>
-                  <SortTh field="createdAt">Дата</SortTh>
-                  <th className="text-left py-3 px-4 font-semibold text-slate-700"></th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHead>
+                <TableRow className="border-b border-slate-200">
+                  <TableHeaderCell>ID</TableHeaderCell>
+                  <TableHeaderCell>Пользователь</TableHeaderCell>
+                  <TableHeaderCell>Продукт</TableHeaderCell>
+                  <SortableHeader active={sortBy === 'productPrice'} direction={sortOrder} onClick={() => handleSort('productPrice')}>
+                    Цена
+                  </SortableHeader>
+                  <SortableHeader active={sortBy === 'status'} direction={sortOrder} onClick={() => handleSort('status')}>
+                    Статус
+                  </SortableHeader>
+                  <SortableHeader active={sortBy === 'createdAt'} direction={sortOrder} onClick={() => handleSort('createdAt')}>
+                    Дата
+                  </SortableHeader>
+                  <TableHeaderCell />
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {orders.map((order) => {
                   const discounted = hasDiscount(order)
                   const promoAmt = Number(order.promoDiscount || 0)
@@ -254,20 +318,20 @@ export default function Orders() {
                   const bonusAmt = Number(order.bonusUsed || 0)
 
                   return (
-                    <tr
+                    <TableRow
                       key={order.id}
                       className="border-b border-slate-100 hover:bg-white/50 transition-colors"
                     >
-                      <td className="py-4 px-4 font-mono text-sm">
+                      <TableCell className="font-mono text-sm">
                         #{order.id.slice(0, 8)}
-                      </td>
-                      <td className="py-4 px-4 font-medium">
+                      </TableCell>
+                      <TableCell className="font-medium">
                         {order.user?.firstName || order.user?.username || 'Пользователь'}
-                      </td>
-                      <td className="py-4 px-4">
+                      </TableCell>
+                      <TableCell>
                         {order.product?.name || 'N/A'}
-                      </td>
-                      <td className="py-4 px-4">
+                      </TableCell>
+                      <TableCell>
                         {discounted ? (
                           <div className="text-sm space-y-0.5">
                             <div className="text-slate-400 line-through">
@@ -302,54 +366,32 @@ export default function Orders() {
                             {fmtPrice(order.totalAmount)}
                           </span>
                         )}
-                      </td>
-                      <td className="py-4 px-4">
+                      </TableCell>
+                      <TableCell>
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${STATUS_COLOR[order.status] || 'bg-gray-100 text-gray-700'}`}>
                           {STATUS_TEXT[order.status] || order.status}
                         </span>
-                      </td>
-                      <td className="py-4 px-4 text-sm text-slate-600">
+                      </TableCell>
+                      <TableCell className="text-sm text-slate-600">
                         {new Date(order.createdAt).toLocaleDateString('ru-RU')}
-                      </td>
-                      <td className="py-4 px-4">
+                      </TableCell>
+                      <TableCell>
                         {CANCELLABLE.has(order.status) && (
-                          <button
-                            onClick={() => handleCancel(order.id)}
-                            className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
-                          >
+                          <Button onClick={() => handleCancel(order.id)} variant="ghost" size="sm" className="px-0 text-xs text-red-500 hover:bg-transparent hover:text-red-700">
                             Отменить
-                          </button>
+                          </Button>
                         )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
-          {/* Пагинация */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 rounded-lg bg-white/50 hover:bg-white/70 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Назад
-              </button>
-              <span className="px-4 py-2 text-sm text-slate-600">
-                Страница {page} из {totalPages}
-              </span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="px-4 py-2 rounded-lg bg-white/50 hover:bg-white/70 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Вперед
-              </button>
-            </div>
-          )}
+          <Pagination page={page} totalPages={totalPages} onPageChange={(nextPage) => replaceParams((params) => {
+            params.set('page', String(nextPage))
+          })} />
         </>
       )}
     </div>

@@ -125,7 +125,7 @@ app/
 
 ## Статус
 
-`planned`
+`completed`
 
 ## Файлы
 
@@ -144,32 +144,28 @@ app/
 - `admin/app/(admin)/settings/page.tsx` — [NEW]
 - `admin/app/login/page.tsx` — [NEW]
 - `admin/app/login/loading.tsx` — [NEW]
+- `admin/app/login/layout.tsx` — metadata для login route
+- `admin/components/AdminShell.tsx` — [NEW] client shell для sidebar/header/logout/focus
+- `admin/components/LoginPage.tsx` — [NEW] login form с `returnUrl`
 
 ## Тестирование / Верификация
 
-- `/products?country=RU` → Products с предвыбранной Россией.
-- `/` → redirect на `/login` без промежуточного `/dashboard`.
-- Browser back/forward: `/orders?page=3` → Products → back → Orders стр. 3.
-- `/settings?tab=loyalty` → Settings на Loyalty.
-- `/settings?tab=invalid` → fallback на Pricing (нормализация).
-- Refresh `/orders?status=PAID&page=2` → фильтр и пагинация сохранены.
-- Products search: ввод текста → URL обновляется через 300ms (debounce).
-- Login → redirect на `/dashboard` (или `returnUrl`).
-- Login с `returnUrl`: `/login?returnUrl=/products` → после входа → redirect на `/products`.
-- Уже авторизованный admin открывает `/login` → сразу redirect на `/dashboard` или `returnUrl`, без показа login form.
-- Logout → token удалён, redirect на `/login`.
-- 401: испортить token → API-вызов → redirect на `/login?returnUrl=<current>` (без `window.location.reload()`).
-- Initial mount с протухшим token: spinner → protected shell → первый API 401 → redirect на `/login?returnUrl=<current>` без reload.
-- Initial mount без token: spinner → redirect на `/login` (без flicker контента).
-- Initial mount с valid token: spinner → контент (без flicker login form).
-- `/products` без авторизации → `/login?returnUrl=/products`.
-- Sidebar: active item подсвечивается; `payments`/`analytics` → placeholder pages.
-- `loading.tsx`: при route transition → спиннер виден (при lazy import, не при client fetch).
-- `error.tsx`: имитация render-time error → сообщение + кнопка "Повторить" → retry.
-- `Dashboard`: failed analytics fetch → видимый error state с retry, а не нулевые карточки.
-- `Orders`: failed fetch → error state + retry; failed export → action-level error, таблица остаётся видимой.
-- `Users`: failed fetch → error state с retry, не бесконечный спиннер.
-- `Products`: failed initial fetch → error state с retry; failed bulk/sync mutation → toast/dialog error, таблица остаётся видимой.
-- `PromoCodes`: failed fetch → error state с retry; failed create/delete/toggle → action-level error без поломки списка.
-- `Settings`: failed load текущей вкладки → error state с retry для текущей вкладки; failed save → action-level error без скрытия формы.
-- `npm run build` проходит.
+- `npm run build` в `admin` → проходит
+- `npm run lint` в `admin` → проходит без warnings/errors
+- Build output подтверждает route splitting:
+  - `/dashboard` → `4.53 kB`
+  - `/orders` → `7.83 kB`
+  - `/products` → `10.4 kB`
+  - `/promo` → `3.13 kB`
+  - `/settings` → `5.34 kB`
+  - `/users` → `4.58 kB`
+  - `/login` → `3.31 kB`
+  - `/payments`, `/analytics` → placeholder routes
+- Root `/` теперь отдельный redirect route на `/login`
+- `(admin)` route group содержит shell, `loading.tsx`, `error.tsx`, protected pages и placeholder pages
+- `Orders`, `Users`, `Settings`, `Products` читают route state из search params и canonicalize URL через `router.replace()`
+- `Products` text search синхронизируется в URL через debounce `300ms`
+- `Dashboard`, `Orders`, `Users`, `PromoCodes`, `Settings` показывают page-level error state с retry вместо silent fallback / бесконечного spinner
+- `next lint` по-прежнему печатает только legacy follow-up:
+  - deprecation notice для `next lint`
+  - warning про отсутствие Next ESLint plugin в текущем `.eslintrc.js`

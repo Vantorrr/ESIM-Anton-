@@ -185,7 +185,7 @@ export const productsApi = {
   // Получить все продукты
   async getAll(filters?: { country?: string; isActive?: boolean }): Promise<Product[]> {
     const { data } = await api.get('/products', { params: filters });
-    return data;
+    return Array.isArray(data) ? data : data?.data ?? [];
   },
 
   // Получить продукт по ID

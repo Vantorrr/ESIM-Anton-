@@ -39,16 +39,26 @@
 
 ### `admin`
 
+Next.js 15 Admin Panel (App Router, client-first rendering).
+
+**Архитектура (после Phase 11):**
+
+- **Routing:** App Router с route group `(admin)` для защищённых маршрутов, отдельный segment `/login`.
+- **Auth:** `AuthProvider` (Context API) → `AuthGuard` (redirect) → Axios interceptor (401 → `CustomEvent('app:logout')`).
+- **UI Primitives:** `Button`, `Modal`, `Toast/ToastProvider`, `ConfirmDialog`, `Table/SortableHeader`, `Spinner`, `Pagination` в `components/ui/`.
+- **Error/Loading boundaries:** `error.tsx` и `loading.tsx` на уровне `(admin)` route group и `/login`.
+- **URL State:** Фильтры и пагинация синхронизированы с `searchParams` через `router.replace()`.
+
 Админка с вкладками:
 
 - `dashboard`
-- `orders`
+- `orders` — сортировка, фильтрация, CSV export
 - `users`
-- `products`
+- `products` — декомпозирован: `ProductsPage`, `useProducts` hook, `ProductsFilters`, `ProductsTable`, `ProductEditModal` и др. (12 файлов в `components/products/`)
 - `promo`
-- `settings`
+- `settings` — вкладки pricing / referrals / loyalty (URL tab sync)
 
-Вкладки `payments` и `analytics` присутствуют в UI-navigation, но в текущем коде отрисовывают заглушки "в разработке".
+Вкладки `payments` и `analytics` присутствуют в UI-navigation, но в текущем коде отрисовывают заглушки «в разработке».
 
 ### `client`
 

@@ -82,7 +82,7 @@
 
 ## Статус
 
-`planned`
+`completed`
 
 ## Файлы
 
@@ -94,6 +94,7 @@
 - `admin/components/Settings.tsx` — перенос inline-типов
 - `admin/components/Products.tsx` — `useState<any>` → typed
 - `admin/components/Orders.tsx` — `useState<any>` → typed
+- `docs/phases/phase-11/step-01-api-inventory.md` — [NEW] endpoint inventory
 
 ## Тестирование / Верификация
 
@@ -104,3 +105,18 @@
 - Поиск по коду не возвращает `useState<any` в `admin/components/*.tsx`.
 - `npm install` проходит после удаления deps.
 - Dev server: все компоненты рендерятся без runtime-ошибок (smoke test).
+
+## Выполнение
+
+### Baseline
+
+- Исходный baseline перед правками: `npm run build` проходил, но `next lint` и build-step linting показывали 5 warnings (`Dashboard.tsx` unused `usersApi`; `Products.tsx` unused `Check`, `X`, `showBulkActions`, `setShowBulkActions`).
+- После Step 01: `npm run build` проходит без type errors, `npm run lint` проходит без warnings/errors.
+- Техническое наблюдение baseline: `next lint` в Next.js 15 печатает deprecation notice, а текущий `.eslintrc.js` по-прежнему не использует Next ESLint plugin. Это не блокер для Step 01, но будет follow-up для Step 06.
+- `@tanstack/react-query` и `@tanstack/react-table` подтверждены как dead deps поиском по `admin/` и удалены из `admin/package.json`; `npm install --workspace admin` проходит.
+
+### Inventory
+
+- Полный inventory всех export-групп и методов `admin/lib/api.ts` вынесен в [step-01-api-inventory.md](./step-01-api-inventory.md).
+- Inventory подтверждён по backend source of truth и фиксирует для каждого endpoint request shape, response shape, wrapper policy, текущий admin usage и выбранную стратегию выравнивания.
+- Ключевое расхождение шага: `productsApi.getAll()` в UI исторически поддерживал несколько wrapper-вариантов (`data`, `data.data`, `data.products`), но backend контракт подтверждён как прямой массив. Step 01 закрепил прямой typed contract и убрал legacy fallback из page logic.

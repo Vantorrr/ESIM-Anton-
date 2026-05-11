@@ -13,10 +13,30 @@ export class ProductsController {
   async findAll(
     @Query('country') country?: string,
     @Query('isActive') isActive?: string,
+    @Query('search') search?: string,
+    @Query('tariffType') tariffType?: 'standard' | 'unlimited',
+    @Query('paginated') paginated?: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 50,
   ) {
     // isActive приходит как строка "true"/"false", конвертируем в boolean
     const isActiveFilter = isActive === 'true' ? true : isActive === 'false' ? false : undefined;
-    return this.productsService.findAll({ country, isActive: isActiveFilter });
+    const filters = {
+      country,
+      isActive: isActiveFilter,
+      search,
+      tariffType,
+    };
+
+    if (paginated === 'true') {
+      return this.productsService.findAllPaginated({
+        ...filters,
+        page: +page,
+        limit: +limit,
+      });
+    }
+
+    return this.productsService.findAll(filters);
   }
 
   @Get('countries')

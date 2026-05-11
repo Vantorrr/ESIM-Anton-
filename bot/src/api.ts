@@ -34,7 +34,7 @@ export const api = {
   products: {
     getAll: async () => {
       const response = await client.get('/products');
-      return response.data;
+      return Array.isArray(response.data) ? response.data : response.data?.data ?? [];
     },
     getCountries: async () => {
       const response = await client.get('/products/countries');
@@ -42,7 +42,7 @@ export const api = {
     },
     getByCountry: async (country: string) => {
       const response = await client.get(`/products?country=${country}`);
-      return response.data;
+      return Array.isArray(response.data) ? response.data : response.data?.data ?? [];
     },
   },
 

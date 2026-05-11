@@ -36,11 +36,11 @@
 
 ## Статус
 
-`planned`
+`completed`
 
 ## Файлы
 
-- `admin/components/products/` — [NEW] 11 файлов
+- `admin/components/products/` — [NEW] декомпозированные page/components/hooks/helpers
 - `admin/components/Products.tsx` — re-export
 
 ## Тестирование / Верификация
@@ -51,3 +51,19 @@
 - Массовые действия: выбрать 5 продуктов → toggle active → подтверждение → статус изменён.
 - Массовый бейдж: выбрать → задать бейдж → применить → отображается в строках.
 - Pricing: изменение курса → цены пересчитываются.
+
+## Выполнение
+
+- Создан новый срез `admin/components/products/` с раздельной ответственностью:
+  - `ProductsPage.tsx` — orchestration layer;
+  - `ProductsToolbar.tsx`, `ProductsFilters.tsx`, `ProductsBulkActions.tsx` — верхние control sections;
+  - `ProductsTable.tsx` + `ProductsTableRow.tsx` — таблица и row rendering;
+  - `ProductEditModal.tsx`, `ProductViewModal.tsx`, `BulkBadgeModal.tsx`, `BulkMarkupModal.tsx` — modal surface;
+  - `useProducts.ts` + `useProductFilters.ts` — state/data orchestration и derived filtering;
+  - `products.helpers.ts` — pricing/error helper functions.
+- Старый [admin/components/Products.tsx](</c:/jobs/ESIM-Anton-/admin/components/Products.tsx>) заменён на compatibility re-export.
+- После декомпозиции:
+  - `ProductsPage.tsx` = 198 строк;
+  - `useProducts.ts` = 182 строки;
+  - остальные новые компоненты и hooks < 200 строк.
+- `npm run build` проходит, `npm run lint` проходит без warnings/errors.

@@ -148,17 +148,77 @@ export class ProductsService implements OnModuleInit {
     this.logger.log(`📦 В базе ${count} продуктов. Автосинхронизация отключена.`);
   }
 
-  async findAll(filters?: { country?: string; isActive?: boolean }) {
-    const where: Prisma.EsimProductWhereInput = {
-      // Если isActive не указан явно - возвращаем ВСЕ продукты (для админки)
+  private buildProductsWhere(filters?: {
+    country?: string;
+    isActive?: boolean;
+    search?: string;
+    tariffType?: 'standard' | 'unlimited';
+  }): Prisma.EsimProductWhereInput {
+    const search = filters?.search?.trim();
+
+    return {
       ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
       ...(filters?.country && { country: filters.country }),
+      ...(filters?.tariffType === 'standard' && { isUnlimited: false }),
+      ...(filters?.tariffType === 'unlimited' && { isUnlimited: true }),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { country: { contains: search, mode: 'insensitive' } },
+              { dataAmount: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
     };
+  }
+
+  async findAll(filters?: {
+    country?: string;
+    isActive?: boolean;
+    search?: string;
+    tariffType?: 'standard' | 'unlimited';
+  }) {
+    const where = this.buildProductsWhere(filters);
 
     return this.prisma.esimProduct.findMany({
       where,
       orderBy: [{ country: 'asc' }, { ourPrice: 'asc' }],
     });
+  }
+
+  async findAllPaginated(filters?: {
+    country?: string;
+    isActive?: boolean;
+    search?: string;
+    tariffType?: 'standard' | 'unlimited';
+    page?: number;
+    limit?: number;
+  }) {
+    const page = Math.max(1, filters?.page ?? 1);
+    const limit = Math.min(Math.max(1, filters?.limit ?? 50), 200);
+    const skip = (page - 1) * limit;
+    const where = this.buildProductsWhere(filters);
+
+    const [data, total] = await Promise.all([
+      this.prisma.esimProduct.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [{ country: 'asc' }, { ourPrice: 'asc' }],
+      }),
+      this.prisma.esimProduct.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
   }
 
   async getCountries() {

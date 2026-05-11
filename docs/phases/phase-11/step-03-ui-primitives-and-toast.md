@@ -42,25 +42,26 @@
 
 ## Статус
 
-`planned`
+`completed`
 
 ## Файлы
 
-- `admin/components/ui/` — [NEW] 8 файлов
-- `admin/app/globals.css` — убрать wildcard transition, добавить glass-card--static
-- `admin/components/Products.tsx` (или `products/`) — замена alert/confirm (18)
-- `admin/components/Settings.tsx` — замена alert/confirm (19)
-- `admin/components/Orders.tsx` — замена alert/confirm (3)
-- `admin/components/PromoCodes.tsx` — замена alert/confirm (2)
+- `admin/components/ui/` — shared primitives: `Button`, `Modal`, `Table`, `Spinner`, `Pagination`, `Toast`, `ToastProvider`, `ConfirmDialog`
+- `admin/app/providers.tsx` — client boundary для `ToastProvider` и `ConfirmDialogProvider`
+- `admin/app/layout.tsx` — подключение providers в root layout
+- `admin/app/globals.css` — `.glass-card--static`, без wildcard transition
+- `admin/components/products/*` — замена alert/confirm, перевод product modals/table/actions на shared UI
+- `admin/components/Settings.tsx` — замена alert/confirm, перевод loyalty modal/table/buttons на shared UI
+- `admin/components/Orders.tsx` — замена alert/confirm, перевод loading/table/pagination/buttons на shared UI
+- `admin/components/PromoCodes.tsx` — замена alert/confirm, перевод loading/table/buttons на shared UI
+- `admin/components/Users.tsx` — консолидация pagination/table/spinner
+- `admin/components/Dashboard.tsx` — консолидация spinner/button
 
 ## Тестирование / Верификация
 
-- Products: массовый toggle → toast "Обновлено N продуктов" вместо alert.
-- Products: массовый toggle active → ConfirmDialog → Tab/Enter для навигации → отмена/подтверждение.
-- Orders: отмена заказа → ConfirmDialog "Отменить заказ?" вместо `confirm()`.
-- Settings: сохранить pricing → toast "Настройки сохранены" вместо alert.
-- PromoCodes: удаление → ConfirmDialog "Удалить промокод?" вместо `confirm()`.
-- Modal: `Escape` закрывает, фокус возвращается к trigger element.
-- Toast: появляется, исчезает через 5s, screenreader анонсирует (проверить `aria-live`).
-- Убранные CSS transitions не сломали hover-эффекты sidebar и кнопок.
-- `npm run build` проходит.
+- `rg -n "alert\\(|confirm\\(" admin -g "*.ts" -g "*.tsx"` → нет совпадений
+- `npm run lint` в `admin` → проходит без warnings/errors
+- `npm run build` в `admin` → проходит
+- `next lint` по-прежнему печатает только legacy follow-up:
+  - deprecation notice для `next lint`
+  - warning про отсутствие Next ESLint plugin в текущем `.eslintrc.js`

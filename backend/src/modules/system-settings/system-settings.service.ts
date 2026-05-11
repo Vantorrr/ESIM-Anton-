@@ -170,30 +170,86 @@ export class SystemSettingsService implements OnModuleInit {
   /**
    * Получить актуальный курс USD/RUB с ЦБ РФ
    */
+  private getErrorMessage(error: unknown): string {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const statusText = error.response?.statusText;
+      if (status) return `${status}${statusText ? ` ${statusText}` : ''}: ${error.message}`;
+      return error.message;
+    }
+
+    if (error instanceof Error) return error.message;
+
+    return 'Неизвестная ошибка';
+  }
+
+  private parseUsdRateFromDailyJson(payload: unknown): { rate: number; date: string } {
+    const usdRate = typeof payload === 'object' && payload !== null
+      ? (payload as { Valute?: { USD?: { Value?: number } }; Date?: string }).Valute?.USD?.Value
+      : undefined;
+    const date = typeof payload === 'object' && payload !== null
+      ? (payload as { Date?: string }).Date
+      : undefined;
+
+    if (typeof usdRate !== 'number' || !Number.isFinite(usdRate)) {
+      throw new Error('В ответе daily_json.js отсутствует курс USD');
+    }
+
+    if (!date) {
+      throw new Error('В ответе daily_json.js отсутствует дата курса');
+    }
+
+    return {
+      rate: Math.round(usdRate * 100) / 100,
+      date,
+    };
+  }
+
+  private parseUsdRateFromXml(payload: string): { rate: number; date: string } {
+    const usdBlockMatch = payload.match(/<CharCode>\s*USD\s*<\/CharCode>[\s\S]*?<Value>([\d,]+)<\/Value>/i);
+    const dateMatch = payload.match(/<ValCurs[^>]*Date="([^"]+)"/i);
+
+    if (!usdBlockMatch?.[1]) {
+      throw new Error('В ответе XML_daily.asp отсутствует курс USD');
+    }
+
+    const normalizedRate = Number.parseFloat(usdBlockMatch[1].replace(',', '.'));
+    if (!Number.isFinite(normalizedRate)) {
+      throw new Error('Не удалось распарсить курс USD из XML_daily.asp');
+    }
+
+    return {
+      rate: Math.round(normalizedRate * 100) / 100,
+      date: dateMatch?.[1] || new Date().toISOString(),
+    };
+  }
+
   async fetchExchangeRateFromCBR(): Promise<{ rate: number; date: string }> {
+    this.logger.log('💱 Запрос курса USD/RUB с ЦБ РФ...');
+
     try {
-      this.logger.log('💱 Запрос курса USD/RUB с ЦБ РФ...');
-      
-      // Официальный API ЦБ РФ (бесплатный, без ключа)
       const response = await axios.get('https://www.cbr-xml-daily.ru/daily_json.js', {
         timeout: 10000,
       });
-      
-      const usdRate = response.data?.Valute?.USD?.Value;
-      const date = response.data?.Date;
-      
-      if (!usdRate) {
-        throw new Error('Не удалось получить курс USD');
-      }
-      
-      const rate = Math.round(usdRate * 100) / 100; // Округление до 2 знаков
-      
-      this.logger.log(`✅ Курс USD/RUB: ${rate}₽ (на ${date})`);
-      
-      return { rate, date };
-    } catch (error) {
-      this.logger.error('❌ Ошибка получения курса с ЦБ РФ:', error.message);
-      throw error;
+      const parsed = this.parseUsdRateFromDailyJson(response.data);
+      this.logger.log(`✅ Курс USD/RUB: ${parsed.rate}₽ (на ${parsed.date}, источник: cbr-xml-daily.ru)`);
+      return parsed;
+    } catch (primaryError) {
+      this.logger.warn(`⚠️ Не удалось получить курс из cbr-xml-daily.ru: ${this.getErrorMessage(primaryError)}`);
+    }
+
+    try {
+      const fallbackResponse = await axios.get('https://www.cbr.ru/scripts/XML_daily.asp', {
+        timeout: 10000,
+        responseType: 'text',
+      });
+      const parsed = this.parseUsdRateFromXml(fallbackResponse.data);
+      this.logger.log(`✅ Курс USD/RUB: ${parsed.rate}₽ (на ${parsed.date}, источник: cbr.ru)`);
+      return parsed;
+    } catch (fallbackError) {
+      const message = this.getErrorMessage(fallbackError);
+      this.logger.error(`❌ Ошибка получения курса с ЦБ РФ: ${message}`);
+      throw new Error(message);
     }
   }
 
@@ -222,7 +278,7 @@ export class SystemSettingsService implements OnModuleInit {
       
       return { success: true, rate, date };
     } catch (error) {
-      this.logger.error('❌ Ошибка обновления курса:', error.message);
+      this.logger.error(`❌ Ошибка обновления курса: ${this.getErrorMessage(error)}`);
       return { success: false, rate: 0, date: '' };
     }
   }
