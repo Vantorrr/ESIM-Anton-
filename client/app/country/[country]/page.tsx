@@ -71,12 +71,9 @@ function CountryPageInner() {
   const searchParams = useSearchParams()
   const country = decodeURIComponent(params.country as string)
   const initialTab = searchParams.get('tab') === 'unlimited' ? 'unlimited' : 'standard'
-  const initialSelected = searchParams.get('selected')
-  
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'standard' | 'unlimited'>(initialTab)
-  const [selectedProduct, setSelectedProduct] = useState<string | null>(initialSelected)
 
   // Фильтрация по типу тарифа (используем поле isUnlimited из API)
   const products = allProducts.filter(p => 
@@ -101,41 +98,22 @@ function CountryPageInner() {
 
   const isDuplicate = (p: Product) =>
     duplicateGroupKeys.has(`${p.dataAmount}|${p.validityDays}|${p.isUnlimited}`)
-  const selectedProd = products.find(p => p.id === selectedProduct) || null
-  const selectedCoverageItems = selectedProd ? getCoverageItems(selectedProd).map(getCountryName) : []
-  const selectedCoverageCount = selectedProd ? getCoverageCount(selectedProd) : 1
+  const firstProd = products[0] || null
+  const selectedCoverageItems = firstProd ? getCoverageItems(firstProd).map(getCountryName) : []
+  const selectedCoverageCount = firstProd ? getCoverageCount(firstProd) : 1
   const showRegionCoverage = Boolean(
-    selectedProd &&
-    (isMultiProduct(selectedProd) || isGlobalProduct(selectedProd)) &&
+    firstProd &&
+    (isMultiProduct(firstProd) || isGlobalProduct(firstProd)) &&
     selectedCoverageItems.length > 1
   )
 
   useEffect(() => {
     const tabFromQuery = searchParams.get('tab')
-    const selectedFromQuery = searchParams.get('selected')
 
     if (tabFromQuery === 'standard' || tabFromQuery === 'unlimited') {
       setActiveTab(tabFromQuery)
     }
-
-    if (selectedFromQuery) {
-      setSelectedProduct(selectedFromQuery)
-    }
   }, [searchParams])
-
-  // Выбираем первый продукт при смене таба
-  useEffect(() => {
-    if (products.length === 0) {
-      setSelectedProduct(null)
-      return
-    }
-
-    if (selectedProduct && products.some(product => product.id === selectedProduct)) {
-      return
-    }
-
-    setSelectedProduct(products[0].id)
-  }, [products, selectedProduct])
 
   const loadProducts = useCallback(async () => {
     try {
@@ -196,18 +174,18 @@ function CountryPageInner() {
       </div>
 
       <div className="px-4 py-4">
-        {selectedProd && (isMultiProduct(selectedProd) || isGlobalProduct(selectedProd)) && (
+        {firstProd && (isMultiProduct(firstProd) || isGlobalProduct(firstProd)) && (
           <div className="card-neutral p-4 mb-4 animate-slide-up">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
-              {getCoverageScopeLabel(selectedProd)}
+              {getCoverageScopeLabel(firstProd)}
             </p>
             <p className="text-base font-semibold text-gray-900 dark:text-white">
-              Покрывает {getCoverageSummary(selectedProd)}
+              Покрывает {getCoverageSummary(firstProd)}
             </p>
           </div>
         )}
 
-        {showRegionCoverage && selectedProd && (
+        {showRegionCoverage && firstProd && (
           <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.04s' }}>
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -215,7 +193,7 @@ function CountryPageInner() {
                   Страны в пакете
                 </p>
                 <p className="text-base font-semibold text-gray-900">
-                  {getCoverageSummary(selectedProd)}
+                  {getCoverageSummary(firstProd)}
                 </p>
               </div>
               <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-[#f77430]">
@@ -284,14 +262,12 @@ function CountryPageInner() {
             {products.map((product, index) => (
               <div
                 key={product.id}
-                onClick={() => setSelectedProduct(product.id)}
+                onClick={() => router.push(`/product/${product.id}?returnTo=${encodeURIComponent(
+                  `/country/${encodeURIComponent(country)}?tab=${activeTab}`
+                )}`)}
                 className={`
-                  flex items-center justify-between px-4 py-3 cursor-pointer transition-all
+                  flex items-center justify-between px-4 py-3 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-gray-800
                   ${index !== products.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''}
-                  ${selectedProduct === product.id 
-                    ? 'bg-orange-50 dark:bg-orange-900/20 border-l-4 border-l-[#f77430]'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-l-4 border-l-transparent'
-                  }
                 `}
               >
                 <div className="flex-1">
@@ -301,7 +277,7 @@ function CountryPageInner() {
                     </span>
                     <span className="text-gray-500 text-sm">
                       {product.isUnlimited 
-                        ? `в день, на ${product.validityDays} дн.`
+                        ? `в день`
                         : `на ${product.validityDays} дн.`
                       }
                     </span>
@@ -372,170 +348,16 @@ function CountryPageInner() {
                   <span className="font-bold text-gray-900 dark:text-white">
                     {formatPrice(product.ourPrice)} ₽
                   </span>
-                  <div className={`
-                    w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
-                    ${selectedProduct === product.id 
-                      ? 'border-[#f77430] bg-[#f77430]'
-                      : 'border-gray-300 dark:border-gray-600'
-                    }
-                  `}>
-                    {selectedProduct === product.id && (
-                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </div>
+                  <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Tariff Details */}
-        {selectedProd && (
-          <div className="mt-6">
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Что входит в тариф
-            </h3>
-            <div className="card-neutral divide-y divide-gray-100 dark:divide-gray-800">
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                  <span className="text-lg">📦</span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase">Интернет</p>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {selectedProd.isUnlimited
-                      ? `${formatDataAmount(selectedProd.dataAmount)} в день`
-                      : `${formatDataAmount(selectedProd.dataAmount)} на весь срок`}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                  <span className="text-lg">📅</span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase">Срок действия</p>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {selectedProd.validityDays} дней
-                  </p>
-                  {selectedProd.description && (
-                    <p className="text-xs text-gray-500 mt-1">{selectedProd.description}</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                  <span className="text-lg">🌍</span>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-gray-400 uppercase">Где работает</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{getCoverageSummary(selectedProd)}</p>
-                  {selectedCoverageItems.length > 1 && !showRegionCoverage && (
-                    <details className="mt-2 group">
-                      <summary className="list-none cursor-pointer text-xs font-medium text-[#f77430]">
-                        Показать страны ({selectedCoverageCount})
-                      </summary>
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {selectedCoverageItems.map(item => (
-                          <span
-                            key={item}
-                            className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-1 text-[11px] font-medium text-gray-700 dark:text-gray-300"
-                          >
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </details>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                  <span className="text-lg">📶</span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase">Скорость сети</p>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {selectedProd.isUnlimited && selectedProd.speed
-                      ? `3G/4G/5G, после лимита ${selectedProd.speed}`
-                      : '3G/4G/5G'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <span className="text-lg">📡</span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase">Тип подключения</p>
-                  <p className="font-medium text-gray-900 dark:text-white">Только данные</p>
-                  <p className="text-xs text-gray-500 mt-1">Звонки и SMS в тариф не входят.</p>
-                </div>
-              </div>
-              {((selectedProd.tags && selectedProd.tags.length > 0) || selectedProd.notes) && (
-                <div className="flex items-start gap-3 px-4 py-3">
-                  <div className="w-10 h-10 rounded-xl bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center shrink-0">
-                    <span className="text-lg">ℹ️</span>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-gray-400 uppercase">Примечание</p>
-                    {selectedProd.tags && selectedProd.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {selectedProd.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="text-[11px] font-semibold px-2 py-0.5 rounded border bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {selectedProd.notes && (
-                      <p className="text-sm text-gray-700 mt-1 whitespace-pre-line">{selectedProd.notes}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
-        {/* Important Info */}
-        <div className="mt-6">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-            Важно про eSIM
-          </h3>
-          <div className="rounded-2xl bg-amber-50 p-4 border border-amber-100">
-            <p className="text-sm text-amber-800">
-              ⚠️ Только мобильный интернет. Звонки и SMS не поддерживаются.
-            </p>
-          </div>
-        </div>
-
-        {/* Buy Button - fixed above bottom nav */}
-        {selectedProduct && (
-          <>
-            <div className="h-28" />
-            <div
-              className="fixed left-0 right-0 z-[60] px-4"
-              style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
-            >
-              <div className="max-w-lg mx-auto">
-                <Link
-                  href={`/product/${selectedProduct}?returnTo=${encodeURIComponent(
-                    `/country/${encodeURIComponent(country)}?tab=${activeTab}&selected=${selectedProduct}`
-                  )}`}
-                  className="block w-full py-4 rounded-2xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold text-lg transition-colors shadow-lg shadow-orange-500/30 text-center"
-                >
-                  Далее
-                </Link>
-              </div>
-            </div>
-          </>
-        )}
       </div>
 
       <BottomNav />
