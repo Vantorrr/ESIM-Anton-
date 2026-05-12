@@ -48,6 +48,33 @@ function resolveTheme(t: Theme, tgDark?: boolean): ResolvedTheme {
   return getSystemTheme()
 }
 
+const THEME_CLOUD_KEY = 'app_theme'
+
+/** Save theme to Telegram CloudStorage (persistent across sessions) */
+function saveToCloudStorage(value: Theme) {
+  try {
+    window.Telegram?.WebApp?.CloudStorage?.setItem(THEME_CLOUD_KEY, value)
+  } catch { /* CloudStorage may not be available on older clients */ }
+}
+
+/** Read theme from Telegram CloudStorage (async, callback-based) */
+function readFromCloudStorage(cb: (value: Theme | null) => void) {
+  try {
+    const cs = window.Telegram?.WebApp?.CloudStorage
+    if (!cs) { cb(null); return }
+    cs.getItem(THEME_CLOUD_KEY, (err, value) => {
+      if (err || !value) { cb(null); return }
+      if (value === 'light' || value === 'dark' || value === 'system') {
+        cb(value)
+      } else {
+        cb(null)
+      }
+    })
+  } catch {
+    cb(null)
+  }
+}
+
 export default function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('system')
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light')
@@ -64,20 +91,43 @@ export default function ThemeProvider({ children }: { children: ReactNode }) {
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme)
     localStorage.setItem('theme', newTheme)
+    // Дублируем в CloudStorage для персистентности в TMA
+    saveToCloudStorage(newTheme)
     applyResolved(newTheme, getTelegramDark())
   }, [applyResolved])
 
   // Initialize on mount
   useEffect(() => {
-    const saved = localStorage.getItem('theme') as Theme | null
-    const initial = saved || 'system'
-    setThemeState(initial)
-
+    const localSaved = localStorage.getItem('theme') as Theme | null
     const tgAvailable = Boolean(window.Telegram?.WebApp?.initData)
     setIsTelegram(tgAvailable)
 
-    applyResolved(initial, tgAvailable ? getTelegramDark() : undefined)
-    setMounted(true)
+    if (tgAvailable) {
+      // В TMA: читаем из CloudStorage (надёжный источник), localStorage — fallback
+      const localInitial = localSaved || 'system'
+      setThemeState(localInitial)
+      applyResolved(localInitial, getTelegramDark())
+      setMounted(true)
+
+      // Async: CloudStorage может вернуть актуальное значение
+      readFromCloudStorage((cloudTheme) => {
+        if (cloudTheme && cloudTheme !== localInitial) {
+          // CloudStorage содержит тему, которую localStorage потерял
+          setThemeState(cloudTheme)
+          localStorage.setItem('theme', cloudTheme)
+          applyResolved(cloudTheme, getTelegramDark())
+        } else if (cloudTheme === null && localSaved) {
+          // CloudStorage пуст (первый раз), синхронизируем туда из localStorage
+          saveToCloudStorage(localSaved)
+        }
+      })
+    } else {
+      // Обычный браузер / PWA: localStorage достаточно
+      const initial = localSaved || 'system'
+      setThemeState(initial)
+      applyResolved(initial)
+      setMounted(true)
+    }
   }, [applyResolved])
 
   // Listen for Telegram theme changes (dispatched by TelegramSdkScript)

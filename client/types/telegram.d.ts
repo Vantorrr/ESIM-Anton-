@@ -104,6 +104,13 @@ declare global {
           user_id?: number;
         }) => void): void;
         invokeCustomMethod(method: string, params: object, callback?: (error: string | null, result: any) => void): void;
+        CloudStorage: {
+          setItem(key: string, value: string, callback?: (error: string | null, success?: boolean) => void): void;
+          getItem(key: string, callback: (error: string | null, value?: string) => void): void;
+          getItems(keys: string[], callback: (error: string | null, values?: Record<string, string>) => void): void;
+          removeItem(key: string, callback?: (error: string | null, success?: boolean) => void): void;
+          getKeys(callback: (error: string | null, keys?: string[]) => void): void;
+        };
       };
     };
   }
