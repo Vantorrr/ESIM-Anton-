@@ -81,3 +81,11 @@
   - ESLint setup, cleanup dead CSS/deps, обновление wiki.
   - Зависит от Phase 3 (auth guards), Phase 6 (orders table). 7 шагов.
   - Документ: [phase-11-admin-panel-refactoring.md](./phase-11-admin-panel-refactoring.md)
+
+- [ ] **Phase 12: Client PWA & Telegram Mini App Refactoring**
+  - Декомпозиция god-pages (6 страниц >15 KB), унификация auth-flow, устранение 29 `any`, замена 10 `alert()` на Toast UI.
+  - Замена `window.location` на SPA-навигацию, добавление `error.tsx`/`loading.tsx` boundaries.
+  - Вынос юридических текстов в `.md` файлы (Server Components), подключение Tailwind design tokens.
+  - Убраны `ignoreBuildErrors`/`ignoreDuringBuilds` (билд чист).
+  - Зависит от Phase 10 (client runtime), Phase 11 (референс паттернов). 6 шагов.
+  - Документ: [phase-12-client-refactoring.md](./phase-12-client-refactoring.md)
