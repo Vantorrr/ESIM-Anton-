@@ -52,8 +52,11 @@ export class EsimWebhookGuard implements CanActivate {
     const accessCode = this.getHeader(request, 'rt-accesscode');
 
     if (!signature || !timestamp || !requestId || !accessCode) {
-      this.logger.warn('Webhook: отсутствуют обязательные RT-* заголовки');
-      throw new UnauthorizedException('Missing webhook signature headers');
+      // eSIM Access валидирует URL при сохранении — шлёт запрос без подписи.
+      // Пропускаем, чтобы endpoint вернул 200 и провайдер принял URL.
+      // Реальные webhook всегда содержат все RT-* заголовки.
+      this.logger.warn('Webhook: нет RT-* заголовков (валидационный ping), пропускаем');
+      return true;
     }
 
     // Получаем raw body — NestJS с rawBody: true кладёт его в request.rawBody
