@@ -89,3 +89,10 @@
   - Убраны `ignoreBuildErrors`/`ignoreDuringBuilds` (билд чист).
   - Зависит от Phase 10 (client runtime), Phase 11 (референс паттернов). 6 шагов.
   - Документ: [phase-12-client-refactoring.md](./phase-12-client-refactoring.md)
+
+- [x] **Phase 13: eSIM Provider Webhook & Real-time Notifications**
+  - Переход от pull-модели (задержка API провайдера 1-3 часа) к push-модель (webhooks).
+  - Защита публичного webhook endpoint через HMAC-SHA256 и защиту от timing-атак.
+  - Умные уведомления по % использованного трафика, дедупликация спама.
+  - Гибридная модель с fallbacks через cron.
+  - Документ: [phase-13-esim-webhook-integration.md](./phase-13-esim-webhook-integration.md)
