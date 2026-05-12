@@ -1,27 +1,53 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Param, Body, Query, UseGuards, HttpCode } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { JwtAdminGuard } from '@/common/auth/jwt-user.guard';
 import { EsimProviderService } from './esim-provider.service';
+import { EsimWebhookService, EsimWebhookPayload } from './esim-webhook.service';
+import { EsimWebhookGuard } from './esim-webhook.guard';
 
 @ApiTags('esim-provider')
-@ApiBearerAuth()
-@UseGuards(JwtAdminGuard)
 @Controller('esim-provider')
 export class EsimProviderController {
-  constructor(private readonly esimProviderService: EsimProviderService) {}
+  constructor(
+    private readonly esimProviderService: EsimProviderService,
+    private readonly esimWebhookService: EsimWebhookService,
+  ) {}
 
+  // ─────────────────────────────────────────────────────────────────────
+  // Webhook от eSIM Access (публичный, без JWT)
+  // ─────────────────────────────────────────────────────────────────────
+
+  @Post('webhook')
+  @HttpCode(200)
+  @UseGuards(EsimWebhookGuard)
+  @ApiExcludeEndpoint()
+  async handleWebhook(@Body() payload: EsimWebhookPayload) {
+    await this.esimWebhookService.handleWebhook(payload);
+    return { success: true };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Admin-only endpoints (JWT protected)
+  // ─────────────────────────────────────────────────────────────────────
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminGuard)
   @Get('packages')
   @ApiOperation({ summary: 'Получить список доступных пакетов от провайдера' })
   async getPackages(@Query('country') country?: string) {
     return this.esimProviderService.getPackages(country);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminGuard)
   @Post('purchase')
   @ApiOperation({ summary: 'Купить eSIM у провайдера' })
   async purchaseEsim(@Body() dto: { packageId: string; email?: string }) {
     return this.esimProviderService.purchaseEsim(dto.packageId, dto.email);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminGuard)
   @Get('orders/:orderId/status')
   @ApiOperation({ summary: 'Проверить статус заказа у провайдера' })
   async checkOrderStatus(@Param('orderId') orderId: string) {
@@ -32,12 +58,16 @@ export class EsimProviderController {
     }
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminGuard)
   @Post('sync')
   @ApiOperation({ summary: 'Синхронизировать продукты с провайдером' })
   async syncProducts() {
     return this.esimProviderService.syncProducts();
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminGuard)
   @Get('health')
   @ApiOperation({ summary: 'Проверить доступность провайдеров' })
   async healthCheck() {

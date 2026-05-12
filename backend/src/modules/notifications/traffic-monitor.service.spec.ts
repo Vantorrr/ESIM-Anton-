@@ -12,7 +12,9 @@ function makeOrder(overrides: Record<string, unknown> = {}) {
     status: OrderStatus.PAID,
     parentOrderId: null,
     lowTrafficNotifiedAt: null,
+    expiryNotifiedAt: null,
     lastUsageAt: null,
+    expiresAt: null,
     product: { country: 'Таиланд' },
     user: { id: 'user_1', telegramId: BigInt(123456) },
     ...overrides,
@@ -39,7 +41,6 @@ function makeService(enabledOverride?: string) {
     get: jest.fn((key: string) => {
       if (key === 'TRAFFIC_MONITOR_ENABLED') return enabledOverride ?? 'true';
       if (key === 'TRAFFIC_LOW_PERCENT') return '10';
-      if (key === 'TRAFFIC_LOW_MB') return '100';
       if (key === 'TRAFFIC_NOTIFY_COOLDOWN_HOURS') return '24';
       if (key === 'TRAFFIC_BATCH_SIZE') return '50';
       if (key === 'TRAFFIC_THROTTLE_MS') return '0'; // no delay in tests
@@ -58,7 +59,7 @@ function makeService(enabledOverride?: string) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Tests                                                             */
+/*  monitorTrafficLevels                                              */
 /* ------------------------------------------------------------------ */
 
 describe('TrafficMonitorService.monitorTrafficLevels', () => {
@@ -119,26 +120,27 @@ describe('TrafficMonitorService.monitorTrafficLevels', () => {
     });
   });
 
-  it('отправляет уведомление при остатке ниже порога МБ', async () => {
+  it('НЕ даёт ложного срабатывания на 100 МБ пакете (полный остаток)', async () => {
     const { service, prisma, ordersService, telegramNotification } =
       makeService();
     prisma.order.findMany.mockResolvedValue([makeOrder()]);
 
-    const totalBytes = 500_000_000; // 500 MB
-    const remainingBytes = 80 * 1024 * 1024; // 80 MB → 16% (выше 10%) но ниже 100 MB
+    // 100 МБ пакет, 100 МБ осталось — 100%, НЕ должен срабатывать
+    const totalBytes = 100 * 1024 * 1024;
+    const remainingBytes = 100 * 1024 * 1024;
     ordersService.getOrderUsage.mockResolvedValue({
       available: true,
       totalBytes,
-      usedBytes: totalBytes - remainingBytes,
+      usedBytes: 0,
       remainingBytes,
     });
 
     await service.monitorTrafficLevels();
 
-    expect(telegramNotification.sendTextNotification).toHaveBeenCalledTimes(1);
+    expect(telegramNotification.sendTextNotification).not.toHaveBeenCalled();
   });
 
-  it('НЕ уведомляет, если остаток выше обоих порогов', async () => {
+  it('НЕ уведомляет, если остаток выше порога', async () => {
     const { service, prisma, ordersService, telegramNotification } =
       makeService();
     prisma.order.findMany.mockResolvedValue([makeOrder()]);
@@ -168,7 +170,7 @@ describe('TrafficMonitorService.monitorTrafficLevels', () => {
       available: true,
       totalBytes: 1_000_000_000,
       usedBytes: 990_000_000,
-      remainingBytes: 10_000_000, // 10 MB → явно ниже обоих порогов
+      remainingBytes: 10_000_000, // 10 MB → 1%
     });
 
     await service.monitorTrafficLevels();
@@ -264,5 +266,50 @@ describe('TrafficMonitorService.monitorTrafficLevels', () => {
       where: { id: { in: ['o_ok'] } },
       data: { lowTrafficNotifiedAt: expect.any(Date) },
     });
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  monitorExpiringEsims                                              */
+/* ------------------------------------------------------------------ */
+
+describe('TrafficMonitorService.monitorExpiringEsims', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('не выполняется, если TRAFFIC_MONITOR_ENABLED=false', async () => {
+    const { service, prisma } = makeService('false');
+
+    await service.monitorExpiringEsims();
+
+    expect(prisma.order.findMany).not.toHaveBeenCalled();
+  });
+
+  it('отправляет уведомление за 24ч до истечения', async () => {
+    const { service, prisma, telegramNotification } = makeService();
+    const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000); // через 12ч
+    const order = makeOrder({ expiresAt, expiryNotifiedAt: null });
+    prisma.order.findMany.mockResolvedValue([order]);
+
+    await service.monitorExpiringEsims();
+
+    expect(telegramNotification.sendTextNotification).toHaveBeenCalledTimes(1);
+    const text = telegramNotification.sendTextNotification.mock.calls[0][1];
+    expect(text).toContain('eSIM скоро истекает');
+    expect(text).toContain('Таиланд');
+
+    expect(prisma.order.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['order_1'] } },
+      data: { expiryNotifiedAt: expect.any(Date) },
+    });
+  });
+
+  it('не шлёт повторно (expiryNotifiedAt уже задан)', async () => {
+    const { service, prisma, telegramNotification } = makeService();
+    // Пустой результат — Prisma where фильтрует expiryNotifiedAt: null
+    prisma.order.findMany.mockResolvedValue([]);
+
+    await service.monitorExpiringEsims();
+
+    expect(telegramNotification.sendTextNotification).not.toHaveBeenCalled();
   });
 });

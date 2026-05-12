@@ -7,30 +7,35 @@ import { TelegramNotificationService } from '../telegram/telegram-notification.s
 import { OrderStatus } from '@prisma/client';
 
 /**
- * Мониторинг расхода трафика на активных eSIM.
+ * Мониторинг расхода трафика и срока действия активных eSIM.
  *
- * Запускается раз в час (cron). Алгоритм:
+ * Два cron-задания (каждый час):
+ *
+ * ### monitorTrafficLevels
  *   1. Берём активные eSIM (PAID/COMPLETED, есть ICCID), сортируем по
  *      lastUsageAt ASC NULLS FIRST — те, кого давно не опрашивали, идут первыми.
  *   2. Для каждой получаем usage через OrdersService.getOrderUsage (с TTL 1 час
  *      → фактически большинство заказов будут перезапрошены у провайдера).
  *   3. Между запросами — задержка throttleMs, чтобы не словить rate limit eSIM Access.
- *   4. Если остаток ниже порога (LOW_REMAINING_PERCENT или LOW_REMAINING_MB) и
- *      cooldown прошёл — отправляем Telegram-уведомление, фиксируем дату.
+ *   4. Если остаток ниже порога (LOW_REMAINING_PERCENT) и cooldown прошёл —
+ *      отправляем Telegram-уведомление, фиксируем дату.
  *   5. Уведомления группируются по telegramId — если у юзера сразу несколько eSIM
  *      «при смерти», шлём ОДНО сообщение со списком, а не спамим N раз.
  *
- * Все пороги конфигурируются ENV-переменными (см. конструктор), значения по умолчанию
- * рассчитаны под средний кейс: 10% или 100MB остатка, 24ч cooldown, 50 eSIM за прогон.
+ * ### monitorExpiringEsims
+ *   Проверяет expiresAt у активных eSIM. Если до истечения ≤ 24 часа
+ *   и уведомление ещё не отправлялось — шлёт предупреждение.
  *
- * Если ENV TRAFFIC_MONITOR_ENABLED=false — крон не выполняется (для прод-отладки).
+ * Раннее предупреждение при 80%/100% использования приходит через webhook
+ * DATA_USAGE от eSIM Access (обрабатывается в EsimProviderService.handleWebhook).
+ *
+ * Если ENV TRAFFIC_MONITOR_ENABLED=false — кроны не выполняются (для прод-отладки).
  */
 @Injectable()
 export class TrafficMonitorService {
   private readonly logger = new Logger(TrafficMonitorService.name);
 
   private readonly LOW_REMAINING_PERCENT: number;
-  private readonly LOW_REMAINING_MB: number;
   private readonly NOTIFY_COOLDOWN_HOURS: number;
   private readonly BATCH_SIZE: number;
   private readonly THROTTLE_MS: number;
@@ -45,7 +50,6 @@ export class TrafficMonitorService {
     this.LOW_REMAINING_PERCENT = Number(
       this.config.get('TRAFFIC_LOW_PERCENT') ?? 10,
     );
-    this.LOW_REMAINING_MB = Number(this.config.get('TRAFFIC_LOW_MB') ?? 100);
     this.NOTIFY_COOLDOWN_HOURS = Number(
       this.config.get('TRAFFIC_NOTIFY_COOLDOWN_HOURS') ?? 24,
     );
@@ -54,10 +58,14 @@ export class TrafficMonitorService {
     this.ENABLED = this.config.get('TRAFFIC_MONITOR_ENABLED') !== 'false';
 
     this.logger.log(
-      `📊 TrafficMonitor: ENABLED=${this.ENABLED}, low=${this.LOW_REMAINING_PERCENT}% / ${this.LOW_REMAINING_MB}MB, ` +
+      `📊 TrafficMonitor: ENABLED=${this.ENABLED}, low=${this.LOW_REMAINING_PERCENT}%, ` +
         `cooldown=${this.NOTIFY_COOLDOWN_HOURS}h, batch=${this.BATCH_SIZE}, throttle=${this.THROTTLE_MS}ms`,
     );
   }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Мониторинг остатка трафика (safety net; основной путь — webhook)
+  // ─────────────────────────────────────────────────────────────────────
 
   @Cron(CronExpression.EVERY_HOUR)
   async monitorTrafficLevels() {
@@ -121,9 +129,10 @@ export class TrafficMonitorService {
 
         const remainingMB = usage.remainingBytes / (1024 * 1024);
         const remainingPercent = (usage.remainingBytes / usage.totalBytes) * 100;
-        const isLow =
-          remainingPercent <= this.LOW_REMAINING_PERCENT ||
-          remainingMB <= this.LOW_REMAINING_MB;
+
+        // Только процентный порог. Абсолютный (MB) убран — ранние предупреждения
+        // приходят через webhook DATA_USAGE от eSIM Access (80%/100% использования).
+        const isLow = remainingPercent <= this.LOW_REMAINING_PERCENT;
 
         if (!isLow) continue;
 
@@ -182,6 +191,91 @@ export class TrafficMonitorService {
     );
   }
 
+  // ─────────────────────────────────────────────────────────────────────
+  // Мониторинг истечения срока действия eSIM
+  // ─────────────────────────────────────────────────────────────────────
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async monitorExpiringEsims() {
+    if (!this.ENABLED) return;
+
+    this.logger.log('⏰ Запуск мониторинга истечения сроков eSIM...');
+
+    const now = new Date();
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        status: { in: [OrderStatus.PAID, OrderStatus.COMPLETED] },
+        iccid: { not: null },
+        parentOrderId: null,
+        expiresAt: {
+          not: null,
+          gt: now,     // ещё не истекла
+          lte: in24h,  // но истечёт в пределах 24ч
+        },
+        expiryNotifiedAt: null, // ещё не уведомляли
+      },
+      include: {
+        product: true,
+        user: { select: { id: true, telegramId: true } },
+      },
+    });
+
+    if (orders.length === 0) {
+      this.logger.debug('⏰ Нет eSIM, истекающих в ближайшие 24ч');
+      return;
+    }
+
+    // Группируем по telegramId
+    const byTelegramId = new Map<
+      string,
+      { items: Array<{ orderId: string; country: string; expiresAt: Date }>; orderIds: string[] }
+    >();
+
+    for (const order of orders) {
+      if (!order.user?.telegramId || !order.expiresAt) continue;
+
+      const tgId = order.user.telegramId.toString();
+      if (!byTelegramId.has(tgId)) {
+        byTelegramId.set(tgId, { items: [], orderIds: [] });
+      }
+      const bucket = byTelegramId.get(tgId)!;
+      bucket.items.push({
+        orderId: order.id,
+        country: order.product.country,
+        expiresAt: order.expiresAt,
+      });
+      bucket.orderIds.push(order.id);
+    }
+
+    let notified = 0;
+    for (const [telegramId, { items, orderIds }] of byTelegramId) {
+      try {
+        const text = this.buildExpiryMessage(items);
+        await this.telegramNotification.sendTextNotification(telegramId, text, {
+          openMyEsim: true,
+        });
+
+        await this.prisma.order.updateMany({
+          where: { id: { in: orderIds } },
+          data: { expiryNotifiedAt: new Date() },
+        });
+        notified++;
+      } catch (error: any) {
+        this.logger.warn(`Уведомление об истечении для ${telegramId} не отправлено: ${error.message}`);
+      }
+    }
+
+    this.logger.log(
+      `⏰ Мониторинг истечений завершён: ${orders.length} eSIM, уведомлено пользователей ${notified}`,
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Построение текстов уведомлений
+  // ─────────────────────────────────────────────────────────────────────
+
   private buildLowTrafficMessage(
     lows: Array<{
       country: string;
@@ -212,6 +306,35 @@ export class TrafficMonitorService {
       `\n\nМожно пополнить любую из них прямо в приложении.`
     );
   }
+
+  private buildExpiryMessage(
+    items: Array<{ country: string; expiresAt: Date }>,
+  ): string {
+    if (items.length === 1) {
+      const item = items[0];
+      const hoursLeft = Math.max(0, Math.floor((item.expiresAt.getTime() - Date.now()) / 3600000));
+      return (
+        `⏰ <b>eSIM скоро истекает</b>\n\n` +
+        `🌍 ${item.country}\n` +
+        `⏳ Осталось: <b>${hoursLeft} ч.</b>\n\n` +
+        `Можно продлить прямо в приложении.`
+      );
+    }
+    const lines = items.map((item) => {
+      const hoursLeft = Math.max(0, Math.floor((item.expiresAt.getTime() - Date.now()) / 3600000));
+      return `• 🌍 <b>${item.country}</b>: осталось ${hoursLeft} ч.`;
+    });
+    return (
+      `⏰ <b>eSIM скоро истекают</b>\n\n` +
+      `У ${items.length} ваших eSIM истекает срок действия:\n\n` +
+      lines.join('\n') +
+      `\n\nМожно продлить любую из них прямо в приложении.`
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Утилиты
+  // ─────────────────────────────────────────────────────────────────────
 
   private formatVolume(mb: number): string {
     if (mb >= 1024) return `${(mb / 1024).toFixed(2)} ГБ`;

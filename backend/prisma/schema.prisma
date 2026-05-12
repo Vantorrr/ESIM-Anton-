@@ -146,6 +146,8 @@ model Order {
   lastUsageAt           DateTime?
   // Когда было отправлено последнее уведомление о низком остатке — чтобы не спамить
   lowTrafficNotifiedAt  DateTime?
+  // Когда было отправлено уведомление об истечении срока — чтобы не спамить
+  expiryNotifiedAt      DateTime?
   // Кэш статуса eSIM, нормализованный по EsimStatus enum (см. esim-status.ts)
   // Возможные значения: NOT_INSTALLED | ACTIVE | EXPIRED | USED_UP | CANCELLED | UNKNOWN
   esimStatus            String?
