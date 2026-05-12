@@ -17,9 +17,9 @@ export class TelegramNotificationService {
     this.botToken = this.configService.get('TELEGRAM_BOT_TOKEN') || '';
     this.botUsername = this.configService.get('TELEGRAM_BOT_USERNAME') || 'mojo_mobile_bot';
     this.apiUrl = `https://api.telegram.org/bot${this.botToken}`;
-    this.miniAppUrl = this.configService.get('MINI_APP_URL') || 'https://mojomobile.ru/my-esim';
-    this.siteUrl = this.configService.get('SITE_URL') || 'https://mojomobile.ru';
-    
+    this.miniAppUrl = this.configService.get('MINI_APP_URL') || 'https://app.mojomobile.ru/my-esim';
+    this.siteUrl = this.configService.get('SITE_URL') || 'https://app.mojomobile.ru';
+
     if (this.botToken) {
       this.logger.log('✅ Telegram Notification Service initialized');
     } else {
@@ -99,15 +99,15 @@ export class TelegramNotificationService {
 
     const replyMarkup = options?.openMyEsim
       ? {
-          inline_keyboard: [
-            [
-              {
-                text: '📱 Открыть Мои eSIM',
-                web_app: { url: this.miniAppUrl },
-              },
-            ],
+        inline_keyboard: [
+          [
+            {
+              text: '📱 Открыть Мои eSIM',
+              web_app: { url: this.miniAppUrl },
+            },
           ],
-        }
+        ],
+      }
       : undefined;
 
     try {

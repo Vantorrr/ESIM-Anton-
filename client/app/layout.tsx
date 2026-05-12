@@ -10,7 +10,7 @@ import TelegramSdkScript from '@/components/TelegramSdkScript'
 import ThemeProvider from '@/components/ThemeProvider'
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://mojomobile.ru'),
+  metadataBase: new URL('https://app.mojomobile.ru'),
   title: 'Mojo mobile - Мобильный интернет по всему миру',
   description: 'Покупайте eSIM для путешествий в более чем 100 странах мира через Mojo mobile',
   alternates: {
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
-    url: 'https://mojomobile.ru',
+    url: 'https://app.mojomobile.ru',
     title: 'Mojo mobile - Мобильный интернет по всему миру',
     description: 'Покупайте eSIM для путешествий в более чем 100 странах мира через Mojo mobile',
     siteName: 'Mojo mobile',

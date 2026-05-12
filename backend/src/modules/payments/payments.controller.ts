@@ -23,7 +23,7 @@ const PaymentsAccessGuard = OrGuard(JwtAdminGuard, JwtUserGuard);
 @ApiTags('payments')
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(private readonly paymentsService: PaymentsService) { }
 
   @Post('create')
   @UseGuards(JwtUserGuard)
@@ -77,7 +77,7 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Webhook от Robokassa (ResultURL)' })
   async handleWebhook(@Body() body: any, @Query() query: any, @Res() res: any) {
     const payload = { ...query, ...body };
-    
+
     try {
       const result = await this.paymentsService.handleWebhook(payload);
       res.send(result);
@@ -94,7 +94,7 @@ export class PaymentsController {
   async handleSuccess(@Query() query: any, @Res() res: any) {
     const { InvId } = query;
     // Редирект в Telegram Mini App с параметром для открытия страницы my-esim
-    const telegramUrl = 'https://mojomobile.ru/my-esim';
+    const telegramUrl = 'https://app.mojomobile.ru/my-esim';
 
     res.send(`
       <!DOCTYPE html>

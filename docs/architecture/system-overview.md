@@ -40,7 +40,7 @@
 ### User Client
 
 - Next.js 14 + React 18
-- ориентирован на `mojomobile.ru`
+- ориентирован на `app.mojomobile.ru`
 - содержит страницы каталога, профиля, баланса, заказов, помощи, top-up, login callback
 - интегрирован с Telegram WebApp SDK и CloudPayments widget
 

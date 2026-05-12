@@ -470,11 +470,10 @@ function ProductPageInner() {
               <button
                 key={d}
                 onClick={() => setSelectedDays(d)}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  selectedDays === d
+                className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${selectedDays === d
                     ? 'bg-[#f77430] text-white'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
-                }`}
+                  }`}
               >
                 {d} дн.
               </button>
@@ -499,9 +498,8 @@ function ProductPageInner() {
                 setPromoError('')
               }}
               placeholder="Введите промокод"
-              className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#f77430]/25 ${
-                promoApplied ? 'border-green-400 bg-green-50 dark:bg-green-900/20' : promoError ? 'border-red-300 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
-              }`}
+              className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#f77430]/25 ${promoApplied ? 'border-green-400 bg-green-50 dark:bg-green-900/20' : promoError ? 'border-red-300 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                }`}
             />
           </div>
           <button
@@ -566,9 +564,8 @@ function ProductPageInner() {
             value={email}
             onChange={(e) => { setEmail(e.target.value); setEmailSaved(false) }}
             placeholder="your@email.com (необязательно)"
-            className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#f77430]/25 transition-colors ${
-              emailSaved ? 'border-green-400 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
-            }`}
+            className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#f77430]/25 transition-colors ${emailSaved ? 'border-green-400 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+              }`}
           />
         </div>
         {emailSaved && (
@@ -588,11 +585,10 @@ function ProductPageInner() {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('balance')}
-                  className={`flex flex-col items-start text-left px-3 py-3 rounded-xl border transition-all ${
-                    paymentMethod === 'balance'
+                  className={`flex flex-col items-start text-left px-3 py-3 rounded-xl border transition-all ${paymentMethod === 'balance'
                       ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20'
                       : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2">
                     <Wallet size={18} className={paymentMethod === 'balance' ? 'text-[#f77430]' : 'text-gray-500'} />
@@ -611,11 +607,10 @@ function ProductPageInner() {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('card')}
-                  className={`flex flex-col items-start text-left px-3 py-3 rounded-xl border transition-all ${
-                    paymentMethod === 'card'
+                  className={`flex flex-col items-start text-left px-3 py-3 rounded-xl border transition-all ${paymentMethod === 'card'
                       ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20'
                       : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2">
                     <CreditCard size={18} className={paymentMethod === 'card' ? 'text-[#f77430]' : 'text-gray-500'} />
@@ -633,11 +628,10 @@ function ProductPageInner() {
 
       {/* Checkboxes before purchase */}
       <div className="mb-4 animate-slide-up flex flex-col gap-2" style={{ animationDelay: '0.22s' }}>
-        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
-          agreedEsim 
-            ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20' 
+        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${agreedEsim
+            ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20'
             : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50'
-        }`}>
+          }`}>
           <div className="shrink-0 flex items-center justify-center">
             <input
               type="checkbox"
@@ -650,11 +644,10 @@ function ProductPageInner() {
             Я подтверждаю, что моё устройство совместимо с технологией eSIM
           </span>
         </label>
-        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
-          agreedOnlyInternet 
-            ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20' 
+        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${agreedOnlyInternet
+            ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20'
             : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50'
-        }`}>
+          }`}>
           <div className="shrink-0 flex items-center justify-center">
             <input
               type="checkbox"
@@ -667,11 +660,10 @@ function ProductPageInner() {
             Я понимаю, что eSIM работает только в стране назначения и на ней недоступны СМС и звонки
           </span>
         </label>
-        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
-          agreedTerms 
-            ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20' 
+        <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${agreedTerms
+            ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20'
             : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50'
-        }`}>
+          }`}>
           <div className="shrink-0 flex items-center justify-center">
             <input
               type="checkbox"
@@ -681,7 +673,7 @@ function ProductPageInner() {
             />
           </div>
           <span className="text-sm text-gray-700 dark:text-gray-300 leading-snug">
-            Я принимаю <a href="https://mojomobile.ru/oferta.pdf" target="_blank" className="text-blue-500 hover:underline" onClick={(e) => e.stopPropagation()}>условия оферты</a>
+            Я принимаю <a href="https://app.mojomobile.ru/oferta.pdf" target="_blank" className="text-blue-500 hover:underline" onClick={(e) => e.stopPropagation()}>условия оферты</a>
           </span>
         </label>
       </div>

@@ -79,12 +79,12 @@ export class EmailService {
       <p style="color:#636567;font-size:13px;text-align:center;margin:0 0 24px">
         Отсканируйте QR-код в настройках телефона → Мобильные данные → Добавить тариф
       </p>
-      <a href="https://mojomobile.ru/my-esim" style="display:block;background:linear-gradient(135deg,#f77430,#f29b41);color:#fff;text-align:center;padding:16px;border-radius:14px;text-decoration:none;font-weight:700;font-size:16px">
+      <a href="https://app.mojomobile.ru/my-esim" style="display:block;background:linear-gradient(135deg,#f77430,#f29b41);color:#fff;text-align:center;padding:16px;border-radius:14px;text-decoration:none;font-weight:700;font-size:16px">
         Открыть в Mojo mobile
       </a>
     </div>
     <div style="padding:16px 32px;border-top:1px solid #eceef2;text-align:center">
-      <p style="margin:0;color:#8f9599;font-size:12px">Mojo mobile · eSIM для путешествий · mojomobile.ru</p>
+      <p style="margin:0;color:#8f9599;font-size:12px">Mojo mobile · eSIM для путешествий · app.mojomobile.ru</p>
     </div>
   </div>
 </body>

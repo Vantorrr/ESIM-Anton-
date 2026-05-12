@@ -1,4 +1,4 @@
-const SERVER_SAFE_ORIGIN = 'https://mojomobile.ru'
+const SERVER_SAFE_ORIGIN = 'https://app.mojomobile.ru'
 
 function getBaseOrigin() {
   if (typeof window !== 'undefined' && window.location?.origin) {

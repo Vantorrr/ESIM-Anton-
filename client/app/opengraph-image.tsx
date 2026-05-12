@@ -65,7 +65,7 @@ export default function OpenGraphImage() {
             }}
           >
             <div>eSIM • Быстрое подключение • 100+ стран</div>
-            <div style={{ opacity: 0.92 }}>mojomobile.ru</div>
+            <div style={{ opacity: 0.92 }}>app.mojomobile.ru</div>
           </div>
         </div>
       </div>
