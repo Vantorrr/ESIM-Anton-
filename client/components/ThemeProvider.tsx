@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
 
 type Theme = 'light' | 'dark' | 'system'
 type ResolvedTheme = 'light' | 'dark'
@@ -50,7 +50,7 @@ function resolveTheme(t: Theme, tgDark?: boolean): ResolvedTheme {
 
 const THEME_CLOUD_KEY = 'app_theme'
 
-/** Save theme to Telegram CloudStorage (persistent across sessions) */
+/** Save theme to Telegram CloudStorage (fire-and-forget) */
 function saveToCloudStorage(value: Theme) {
   try {
     window.Telegram?.WebApp?.CloudStorage?.setItem(THEME_CLOUD_KEY, value)
@@ -80,6 +80,8 @@ export default function ThemeProvider({ children }: { children: ReactNode }) {
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light')
   const [isTelegram, setIsTelegram] = useState(false)
   const [mounted, setMounted] = useState(false)
+  // Предотвращаем повторное чтение CloudStorage
+  const cloudCheckedRef = useRef(false)
 
   const applyResolved = useCallback((t: Theme, tgDark?: boolean) => {
     const resolved = resolveTheme(t, tgDark)
@@ -91,43 +93,62 @@ export default function ThemeProvider({ children }: { children: ReactNode }) {
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme)
     localStorage.setItem('theme', newTheme)
-    // Дублируем в CloudStorage для персистентности в TMA
     saveToCloudStorage(newTheme)
     applyResolved(newTheme, getTelegramDark())
   }, [applyResolved])
 
-  // Initialize on mount
+  // Initialize on mount — используем localStorage как мгновенный источник
   useEffect(() => {
-    const localSaved = localStorage.getItem('theme') as Theme | null
+    const saved = localStorage.getItem('theme') as Theme | null
+    const initial = saved || 'system'
+    setThemeState(initial)
+
     const tgAvailable = Boolean(window.Telegram?.WebApp?.initData)
     setIsTelegram(tgAvailable)
 
-    if (tgAvailable) {
-      // В TMA: читаем из CloudStorage (надёжный источник), localStorage — fallback
-      const localInitial = localSaved || 'system'
-      setThemeState(localInitial)
-      applyResolved(localInitial, getTelegramDark())
-      setMounted(true)
+    applyResolved(initial, tgAvailable ? getTelegramDark() : undefined)
+    setMounted(true)
 
-      // Async: CloudStorage может вернуть актуальное значение
+    // Если SDK уже загружен к моменту маунта — сразу пробуем CloudStorage
+    if (tgAvailable && !cloudCheckedRef.current) {
+      cloudCheckedRef.current = true
       readFromCloudStorage((cloudTheme) => {
-        if (cloudTheme && cloudTheme !== localInitial) {
-          // CloudStorage содержит тему, которую localStorage потерял
+        if (cloudTheme) {
           setThemeState(cloudTheme)
           localStorage.setItem('theme', cloudTheme)
           applyResolved(cloudTheme, getTelegramDark())
-        } else if (cloudTheme === null && localSaved) {
-          // CloudStorage пуст (первый раз), синхронизируем туда из localStorage
-          saveToCloudStorage(localSaved)
+        } else if (saved) {
+          // CloudStorage пуст — синхронизируем из localStorage
+          saveToCloudStorage(saved)
         }
       })
-    } else {
-      // Обычный браузер / PWA: localStorage достаточно
-      const initial = localSaved || 'system'
-      setThemeState(initial)
-      applyResolved(initial)
-      setMounted(true)
     }
+  }, [applyResolved])
+
+  // Когда Telegram SDK загружается ПОСЛЕ маунта React —
+  // читаем тему из CloudStorage и восстанавливаем
+  useEffect(() => {
+    function handleSdkReady() {
+      setIsTelegram(true)
+
+      if (cloudCheckedRef.current) return
+      cloudCheckedRef.current = true
+
+      readFromCloudStorage((cloudTheme) => {
+        if (cloudTheme) {
+          setThemeState(cloudTheme)
+          localStorage.setItem('theme', cloudTheme)
+          applyResolved(cloudTheme, getTelegramDark())
+        } else {
+          // CloudStorage пуст — синхронизируем текущую тему
+          const current = localStorage.getItem('theme')
+          if (current) saveToCloudStorage(current as Theme)
+        }
+      })
+    }
+
+    window.addEventListener('mojo:telegram-sdk-ready', handleSdkReady)
+    return () => window.removeEventListener('mojo:telegram-sdk-ready', handleSdkReady)
   }, [applyResolved])
 
   // Listen for Telegram theme changes (dispatched by TelegramSdkScript)
