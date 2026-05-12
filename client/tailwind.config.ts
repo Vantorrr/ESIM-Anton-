@@ -8,7 +8,12 @@ const config: Config = {
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      animation: {
+        'overlay-pop': 'overlayPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        'overlay-pulse': 'overlayPulse 1.2s ease-in-out infinite',
+      },
+    },
   },
   plugins: [],
 }

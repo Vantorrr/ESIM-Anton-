@@ -7,6 +7,7 @@ import { MapPin, Smartphone, Ban } from 'lucide-react'
 import { productsApi, Product, userApi, ordersApi, promoApi } from '@/lib/api'
 import { isTelegramWebApp } from '@/lib/auth'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
+import { PurchaseOverlay, type PurchaseStage } from '@/components/PurchaseOverlay'
 import { getCoverageSummary } from '@/lib/productCoverage'
 import { useAuth } from '@/components/AuthProvider'
 import { sanitizeRedirect } from '@/lib/security'
@@ -28,6 +29,8 @@ function ProductPageInner() {
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState(false)
+  const [purchaseStage, setPurchaseStage] = useState<PurchaseStage | null>(null)
+  const [purchaseError, setPurchaseError] = useState('')
   const [promoCode, setPromoCode] = useState('')
   const [promoApplied, setPromoApplied] = useState(false)
   const [promoDiscount, setPromoDiscount] = useState(0)
@@ -140,6 +143,8 @@ function ProductPageInner() {
     const method = methodOverride ?? paymentMethod
 
     setPurchasing(true)
+    setPurchaseStage('creating')
+    setPurchaseError('')
 
     try {
       const { getToken } = await import('@/lib/auth')
@@ -191,18 +196,22 @@ function ProductPageInner() {
         if (promoApplied && promoCode.trim()) createPayload.promoCode = promoCode.trim()
         if (userEmail) createPayload.email = userEmail
 
+        setPurchaseStage('paying')
         await ordersApi.create(createPayload)
+
+        setPurchaseStage('done')
+        await new Promise(r => setTimeout(r, 1200))
 
         if (tg) {
           tg.showAlert('eSIM выдана! Открываю «Мои eSIM»…', () => router.push('/my-esim'))
         } else {
-          alert('eSIM выдана! Открываем «Мои eSIM»…')
           router.push('/my-esim')
         }
         return
       }
 
       // === Ветка «Картой» — старый flow с CloudPayments ===
+      setPurchaseStage('creating')
       let order;
       try {
         const myOrders = await ordersApi.getMy(user.id);
@@ -225,16 +234,23 @@ function ProductPageInner() {
       const orderTotal = Number(order.totalAmount ?? totalPrice)
 
       if (orderTotal <= 0) {
+        setPurchaseStage('provisioning')
         const { api: apiClient } = await import('@/lib/api')
         await apiClient.post(`/orders/${order.id}/fulfill-free`)
+
+        setPurchaseStage('done')
+        await new Promise(r => setTimeout(r, 1200))
+
         if (tg) {
           tg.showAlert('eSIM активирована! Промокод применён.', () => router.push('/my-esim'))
         } else {
-          alert('eSIM активирована! Промокод применён.')
           router.push('/my-esim')
         }
         return
       }
+
+      // Скрываем оверлей — CloudPayments покажет свой виджет
+      setPurchaseStage(null)
 
       const result = await payCloudPayments({
         publicId: process.env.NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID || '',
@@ -261,16 +277,22 @@ function ProductPageInner() {
     } catch (error: any) {
       console.error('Ошибка создания заказа:', error);
       const errorMsg = error?.response?.data?.message || error.message || 'Ошибка при создании заказа';
-
-      if (isTelegramWebApp()) {
-        (window as any).Telegram.WebApp.showAlert(errorMsg);
-      } else {
-        alert(errorMsg);
-      }
+      setPurchaseStage('error')
+      setPurchaseError(errorMsg)
     } finally {
       setPurchasing(false);
     }
   }
+
+  // Блокируем закрытие вкладки, пока идёт покупка
+  useEffect(() => {
+    if (!purchaseStage || purchaseStage === 'error' || purchaseStage === 'done') return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [purchaseStage])
 
   // Авто-докупка после возврата с /balance: дождёмся загрузки product+balance,
   // удостоверимся что баланса теперь хватает, и один раз дёрнем покупку.
@@ -713,6 +735,13 @@ function ProductPageInner() {
           })()}
         </div>
       </div>
+
+      {/* Purchase progress overlay */}
+      <PurchaseOverlay
+        stage={purchaseStage}
+        errorMessage={purchaseError}
+        onClose={() => { setPurchaseStage(null); setPurchaseError(''); }}
+      />
     </div>
   )
 }
