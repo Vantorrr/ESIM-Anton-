@@ -12,11 +12,13 @@ import { OrderStatus } from '@prisma/client';
  * - ESIM_STATUS:     смена статуса eSIM (IN_USE, INSTALLATION, и т.д.)
  */
 export interface EsimWebhookPayload {
-  notifyType: 'DATA_USAGE' | 'VALIDITY_USAGE' | 'ESIM_STATUS';
+  notifyType: 'DATA_USAGE' | 'VALIDITY_USAGE' | 'ESIM_STATUS' | 'ORDER_STATUS' | 'CHECK_HEALTH' | string;
+  notifyId?: string;
+  eventGenerateTime?: string;
   content: {
     orderNo?: string;
     transactionId?: string;
-    iccid: string;
+    iccid?: string;
     /** DATA_USAGE fields */
     totalVolume?: number;   // KB
     orderUsage?: number;    // KB
@@ -28,6 +30,8 @@ export interface EsimWebhookPayload {
     /** ESIM_STATUS fields */
     esimStatus?: string;
     smdpStatus?: string;
+    /** ORDER_STATUS fields */
+    orderStatus?: string;
   };
 }
 
@@ -47,13 +51,20 @@ export class EsimWebhookService {
   async handleWebhook(payload: EsimWebhookPayload): Promise<void> {
     const { notifyType, content } = payload;
 
+    // CHECK_HEALTH — провайдер валидирует URL при сохранении
+    if (notifyType === 'CHECK_HEALTH') {
+      this.logger.log('📨 Webhook CHECK_HEALTH — валидационный ping от провайдера');
+      return;
+    }
+
     if (!content?.iccid) {
       this.logger.warn('Webhook без ICCID, пропускаем', JSON.stringify(payload));
       return;
     }
 
     this.logger.log(
-      `📨 Webhook: type=${notifyType}, iccid=${content.iccid}`,
+      `📨 Webhook: type=${notifyType}, iccid=${content.iccid}` +
+        (payload.notifyId ? `, notifyId=${payload.notifyId}` : ''),
     );
 
     switch (notifyType) {
@@ -65,6 +76,10 @@ export class EsimWebhookService {
         break;
       case 'ESIM_STATUS':
         await this.handleEsimStatus(content);
+        break;
+      case 'ORDER_STATUS':
+        // GOT_RESOURCE и другие статусы заказа — логируем
+        this.logger.log(`📨 ORDER_STATUS: orderNo=${content.orderNo}, status=${content.orderStatus}`);
         break;
       default:
         this.logger.warn(`Неизвестный тип webhook: ${notifyType}`);
