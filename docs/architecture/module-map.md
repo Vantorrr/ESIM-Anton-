@@ -30,11 +30,11 @@
 - `referrals` — регистрация рефералов и статистика
 - `loyalty` — client-facing `/loyalty/me`, admin CRUD уровней лояльности и пересчёт уровня пользователя после purchase completion
 - `analytics` — dashboard, top-products, sales-chart
-- `esim-provider` — eSIM Access integration, health, purchase, order info
+- `esim-provider` — eSIM Access integration, health, purchase, order info, webhook handling
 - `system-settings` — referral settings, pricing, exchange rate, auto update
 - `telegram` — Telegram notifications
 - `notifications` — email, web push
-- `traffic-monitor` — hourly low-traffic monitoring cron
+- `traffic-monitor` — hourly fallback traffic/validity monitoring cron
 - `promo-codes` — CRUD и validation промокодов
 
 ### `admin`

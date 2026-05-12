@@ -74,6 +74,7 @@ Production topology по проверенным документам и коду
 По коду `EsimProviderService`:
 
 - основной рабочий путь — `EsimAccessProvider`
+- Webhook-контроллер `EsimWebhookService` принимает Push-уведомления от eSIM Access (трафик 80/100%, статус, истечение)
 - legacy-код под eSIM Go/fallback всё ещё существует
 - `syncProducts()` в provider service пока не обновляет БД реально, а только возвращает счётчик пакетов
 
@@ -82,7 +83,7 @@ Production topology по проверенным документам и коду
 Подтвержденные фоновые задачи:
 
 - ежедневное автообновление курса USD/RUB (`SystemSettingsService`)
-- hourly traffic monitor для низкого остатка (`TrafficMonitorService`)
+- hourly traffic monitor (fallback-механизм) для проверки остатка трафика (<10%) и срока действия (<24ч) eSIM (`TrafficMonitorService`)
 
 ## Operational gaps
 
