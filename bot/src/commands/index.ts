@@ -5,8 +5,8 @@ import { config } from '../config';
 import { api } from '../api';
 
 // URL Mini App
-const MINI_APP_URL = process.env.MINI_APP_URL || 'https://esim-anton-production.up.railway.app';
-const ADMIN_PANEL_URL = process.env.ADMIN_PANEL_URL || 'https://admin-production-b10a.up.railway.app';
+const MINI_APP_URL = process.env.MINI_APP_URL || 'https://client-production-bc6d.up.railway.app';
+const ADMIN_PANEL_URL = process.env.ADMIN_PANEL_URL || 'https://admin-production-7c43.up.railway.app';
 
 // Список Telegram ID админов
 const ADMIN_IDS = [316662303, 8141463258, 323857366];
@@ -48,7 +48,7 @@ export function setupCommands(bot: Bot<MyContext>) {
         if (payload && typeof payload === 'string' && payload.startsWith('ref_')) {
           const referralCode = payload.replace('ref_', '');
           console.log(`🔗 Обработка реферальной ссылки: ${referralCode} для пользователя ${userId}`);
-          
+
           try {
             await api.referrals.register(user.id, BigInt(userId), referralCode);
             console.log('✅ Реферал успешно зарегистрирован');
@@ -60,7 +60,7 @@ export function setupCommands(bot: Bot<MyContext>) {
         console.error('Error in start command user processing:', error);
       }
     }
-    
+
     const keyboard = new InlineKeyboard()
       .webApp('🌍 Открыть каталог', MINI_APP_URL)
       .row()
@@ -69,7 +69,7 @@ export function setupCommands(bot: Bot<MyContext>) {
       .row()
       .webApp('🎁 Рефералы', `${MINI_APP_URL}/referrals`)
       .text('❓ Помощь', 'help');
-    
+
     // Добавляем кнопку админпанели для админов
     if (isAdmin(userId)) {
       keyboard.row().webApp('⚙️ Админпанель', ADMIN_PANEL_URL);
@@ -150,7 +150,7 @@ export function setupCommands(bot: Bot<MyContext>) {
   // Обработка кнопки "Помощь"
   bot.callbackQuery('help', async (ctx) => {
     await ctx.answerCallbackQuery();
-    
+
     await ctx.editMessageText(
       `❓ **Помощь**\n\n` +
       `**Как купить eSIM?**\n` +
@@ -184,11 +184,11 @@ export function setupCommands(bot: Bot<MyContext>) {
       `/catalog - Каталог Mojo mobile\n` +
       `/profile - Мой профиль\n` +
       `/orders - Мои заказы`;
-    
+
     if (isAdmin(ctx.from?.id)) {
       helpText += `\n/admin - Админпанель`;
     }
-    
+
     await ctx.reply(helpText, { parse_mode: 'Markdown' });
   });
 
