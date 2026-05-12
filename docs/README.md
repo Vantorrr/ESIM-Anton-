@@ -24,13 +24,7 @@
 - [architecture/module-map.md](./architecture/module-map.md)
 - [info/proect.md](./info/proect.md)
   Историческое продуктово-инфраструктурное описание, из которого видно, что `main` в GitHub запускает Railway autodeploy.
-- [info/bug-resolution.md](./info/bug-resolution.md)
-  Текущий статус клиентских багов из `docs/info/bagi.md`.
 
-### Нужно понять, можно ли доверять старым markdown-файлам
-
-- [architecture/legacy-doc-audit.md](./architecture/legacy-doc-audit.md)
-- [architecture/codebase-audit.md](./architecture/codebase-audit.md)
 
 ### Нужно запускать или сопровождать проект
 
@@ -50,10 +44,6 @@
 ### Нужен архив старых документов
 
 - [archive/README.md](./archive/README.md)
-
-### Нужно понять текущую фазу работ
-
-- [phases/phase-0-wiki-bootstrap-and-audit.md](./phases/phase-0-wiki-bootstrap-and-audit.md)
 
 ## Source of truth
 
