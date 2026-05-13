@@ -127,7 +127,7 @@ export class EsimAccessProvider {
     try {
       this.logger.log('💰 Запрос баланса...');
 
-      const response = await this.client.post('/account/query', {}, {
+      const response = await this.client.post('/balance/query', {}, {
         headers: this.getAuthHeaders(),
       });
 
@@ -336,7 +336,7 @@ export class EsimAccessProvider {
     try {
       this.logger.log(`📜 Запрос истории заказов (page: ${pageNum}, size: ${pageSize})...`);
 
-      const response = await this.client.post('/esim/list', {
+      const response = await this.client.post('/esim/query', {
         pager: { pageNum, pageSize },
       }, {
         headers: this.getAuthHeaders(),
@@ -403,45 +403,6 @@ export class EsimAccessProvider {
    */
   async getEsimInfo(iccid: string): Promise<any> {
     this.logger.log(`🔍 Запрос информации об eSIM ${this.maskValue(iccid, 2, 4)}...`);
-
-    try {
-      const listResponse = await this.client.post('/esim/list', {
-        iccid,
-        pager: { pageNum: 1, pageSize: 20 },
-      }, {
-        headers: this.getAuthHeaders(),
-      });
-
-      if (listResponse.data?.success) {
-        const obj = listResponse.data.obj;
-        const esimCount = Array.isArray(obj?.esimList) ? obj.esimList.length 
-                        : Array.isArray(obj?.profileList) ? obj.profileList.length
-                        : obj?.iccid ? 1 : 0;
-
-        this.logger.log(
-          `✅ Информация об eSIM получена через /esim/list (iccid=${this.maskValue(iccid, 2, 4)}, count=${esimCount})`,
-        );
-        this.logRawDebug(`getEsimInfo /esim/list raw response for ${this.maskValue(iccid, 2, 4)}`, listResponse.data);
-
-        if (esimCount > 0) {
-          return obj;
-        }
-
-        this.logger.warn(
-          `⚠️ /esim/list вернул пустой результат для ICCID ${this.maskValue(iccid, 2, 4)}, пробуем fallback /esim/query`,
-        );
-      } else {
-        this.logger.warn(
-          `⚠️ /esim/list вернул success=false для ICCID ${this.maskValue(iccid, 2, 4)}: ${JSON.stringify(this.summarizeProviderResponse(listResponse.data))}`,
-        );
-      }
-    } catch (error: any) {
-      if (error?.response?.status === 404) {
-        this.logger.debug(`ℹ️ /esim/list недоступен для ICCID ${this.maskValue(iccid, 2, 4)}, используем /esim/query`);
-      } else {
-        this.logger.warn(`⚠️ /esim/list не сработал для ICCID ${this.maskValue(iccid, 2, 4)}: ${error.message}`);
-      }
-    }
 
     try {
       const queryResponse = await this.client.post('/esim/query', {
