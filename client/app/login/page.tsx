@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Phone, ArrowRight, ChevronLeft, Loader2, Shield, AlertCircle } from '@/components/icons'
+import { Mail, ArrowRight, ChevronLeft, Loader2, Shield, AlertCircle } from '@/components/icons'
 import { api } from '@/lib/api'
 import { setToken, setStoredUser, isTelegramWebApp, getToken } from '@/lib/auth'
 import { sanitizeRedirect } from '@/lib/security'
 import { Suspense } from 'react'
 
-type Step = 'choose' | 'phone' | 'code'
+type Step = 'choose' | 'email' | 'code'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 const BOT_USERNAME = process.env.NEXT_PUBLIC_BOT_USERNAME || 'mojo_mobile_bot'
@@ -22,7 +22,7 @@ function LoginInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [step, setStep] = useState<Step>('choose')
-  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -89,12 +89,12 @@ function LoginInner() {
   }
 
   const handleSendCode = async () => {
-    if (!phone || phone.replace(/\D/g, '').length < 10) {
-      setError('Введите корректный номер телефона'); return
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Введите корректный email'); return
     }
     setError(''); setLoading(true)
     try {
-      await api.post('/auth/phone/send-code', { phone })
+      await api.post('/auth/email/send-code', { email })
       setStep('code')
     } catch (e: any) {
       setError(e.response?.data?.message || 'Не удалось отправить код')
@@ -105,7 +105,7 @@ function LoginInner() {
     if (code.length !== 6) { setError('Введите 6-значный код'); return }
     setError(''); setLoading(true)
     try {
-      const { data } = await api.post('/auth/phone/verify', { phone, code })
+      const { data } = await api.post('/auth/email/verify', { email, code })
       setToken(data.access_token)
       const { data: user } = await api.get('/auth/me', {
         headers: { Authorization: `Bearer ${data.access_token}` }
@@ -123,16 +123,7 @@ function LoginInner() {
     window.location.href = `${BACKEND_URL}/auth/oauth/${provider}/redirect?state=${state}`
   }
 
-  const formatPhone = (value: string) => {
-    const digits = value.replace(/\D/g, '')
-    if (!digits.length) return ''
-    let f = '+7'
-    if (digits.length > 1) f += ' (' + digits.slice(1, 4)
-    if (digits.length > 4) f += ') ' + digits.slice(4, 7)
-    if (digits.length > 7) f += '-' + digits.slice(7, 9)
-    if (digits.length > 9) f += '-' + digits.slice(9, 11)
-    return f
-  }
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: 'var(--bg-gradient)' }}>
@@ -158,15 +149,15 @@ function LoginInner() {
               </div>
             )}
 
-            {/* Телефон */}
-            <button onClick={() => { setError(''); setStep('phone') }}
+            {/* Email */}
+            <button onClick={() => { setError(''); setStep('email') }}
               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 transition-all text-left">
-              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
-                <Phone size={20} className="text-green-600" />
+              <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                <Mail size={20} className="text-blue-600" />
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-primary text-sm">По номеру телефона</p>
-                <p className="text-xs text-secondary">Код придёт в SMS</p>
+                <p className="font-semibold text-primary text-sm">По email</p>
+                <p className="text-xs text-secondary">Код придёт на почту</p>
               </div>
               <ArrowRight size={16} className="text-muted" />
             </button>
@@ -208,27 +199,27 @@ function LoginInner() {
           </div>
         )}
 
-        {/* Шаг 2: ввод телефона */}
-        {step === 'phone' && (
+        {/* Шаг 2: ввод email */}
+        {step === 'email' && (
           <div className="glass-card">
             <button onClick={() => { setError(''); setStep('choose') }}
               className="flex items-center gap-1 text-accent text-sm mb-5">
               <ChevronLeft size={18} /> Назад
             </button>
-            <h2 className="text-lg font-semibold text-primary mb-1">Введите номер</h2>
-            <p className="text-secondary text-sm mb-5">Отправим SMS с кодом подтверждения</p>
+            <h2 className="text-lg font-semibold text-primary mb-1">Введите email</h2>
+            <p className="text-secondary text-sm mb-5">Отправим код подтверждения на почту</p>
 
-            <input type="tel"
-              value={formatPhone(phone)}
-              onChange={(e) => { const d = e.target.value.replace(/\D/g, ''); setPhone(d.slice(0, 11)) }}
-              placeholder="+7 (999) 000-00-00"
-              className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-white/5 text-primary placeholder-gray-400 focus:outline-none focus:border-[#f29b41] text-lg font-medium mb-3"
+            <input type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value.trim())}
+              placeholder="your@email.com"
+              className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-white/5 text-primary placeholder-gray-400 focus:outline-none focus:border-[#f29b41] text-base font-medium mb-3"
             />
 
             {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
 
             <button onClick={handleSendCode}
-              disabled={loading || phone.replace(/\D/g, '').length < 10}
+              disabled={loading || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)}
               className="w-full py-3.5 rounded-2xl bg-[#f77430] text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50 hover:bg-[#f2622a] transition-colors">
               {loading ? <Loader2 size={18} className="animate-spin" /> : 'Получить код →'}
             </button>
@@ -238,18 +229,18 @@ function LoginInner() {
         {/* Шаг 3: ввод кода */}
         {step === 'code' && (
           <div className="glass-card">
-            <button onClick={() => { setError(''); setStep('phone') }}
+            <button onClick={() => { setError(''); setStep('email') }}
               className="flex items-center gap-1 text-accent text-sm mb-5">
               <ChevronLeft size={18} /> Назад
             </button>
 
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center shrink-0">
-                <Shield size={22} className="text-green-600" />
+              <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                <Shield size={22} className="text-blue-600" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-primary">Введите код из SMS</h2>
-                <p className="text-secondary text-xs">Отправили на {formatPhone(phone)}</p>
+                <h2 className="text-lg font-semibold text-primary">Введите код из email</h2>
+                <p className="text-secondary text-xs">Отправили на {email}</p>
               </div>
             </div>
 

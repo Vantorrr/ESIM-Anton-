@@ -56,14 +56,15 @@ model PushSubscription {
   @@map("push_subscriptions")
 }
 
-model SmsCode {
+model EmailCode {
   id        String   @id @default(cuid())
-  phone     String   @unique
+  email     String   @unique
   code      String
+  attempts  Int      @default(0)
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  @@map("sms_codes")
+  @@map("email_codes")
 }
 
 model LoyaltyLevel {

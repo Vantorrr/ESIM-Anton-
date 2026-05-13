@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { SharedAuthModule } from './common/auth/auth.shared-module';
 
@@ -31,6 +33,9 @@ import { PromoCodesModule } from './modules/promo-codes/promo-codes.module';
     // Планировщик задач (cron jobs)
     ScheduleModule.forRoot(),
 
+    // Rate limiting (глобально: 100 запросов/60 сек на IP)
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+
     // База данных
     PrismaModule,
 
@@ -52,6 +57,9 @@ import { PromoCodesModule } from './modules/promo-codes/promo-codes.module';
     NotificationsModule,
     TrafficMonitorModule,
     PromoCodesModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

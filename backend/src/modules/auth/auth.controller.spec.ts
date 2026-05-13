@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { JwtUserGuard } from '@/common/auth/jwt-user.guard';
 import { AuthController } from './auth.controller';
@@ -11,10 +11,10 @@ describe('AuthController', () => {
     verifyToken: jest.fn(),
     getMe: jest.fn(),
     loginWithOAuth: jest.fn(),
+    loginWithEmail: jest.fn(),
   };
-  const smsService = {
+  const emailCodeService = {
     sendCode: jest.fn(),
-    normalizePhone: jest.fn(),
     verifyCode: jest.fn(),
   };
   const oauthService = {
@@ -33,12 +33,14 @@ describe('AuthController', () => {
 
   const controller = new AuthController(
     authService as any,
-    smsService as any,
+    emailCodeService as any,
     oauthService as any,
     configService as any,
   );
 
   beforeEach(() => jest.clearAllMocks());
+
+  // ─── Admin ────────────────────────────────────────────────────
 
   it('registerAdmin отклоняет non-SUPER_ADMIN', async () => {
     await expect(
@@ -65,6 +67,8 @@ describe('AuthController', () => {
     expect(result).toEqual({ id: 'admin_2' });
   });
 
+  // ─── getMe ────────────────────────────────────────────────────
+
   it('getMe использует JwtUserGuard и читает user.id из auth context', async () => {
     const guards = Reflect.getMetadata(GUARDS_METADATA, AuthController.prototype.getMe);
     authService.getMe.mockResolvedValue({ id: 'user_1' });
@@ -74,5 +78,68 @@ describe('AuthController', () => {
     expect(guards).toEqual([JwtUserGuard]);
     expect(authService.getMe).toHaveBeenCalledWith('user_1');
     expect(result).toEqual({ id: 'user_1' });
+  });
+
+  // ─── Email Auth ───────────────────────────────────────────────
+
+  describe('sendEmailCode', () => {
+    it('отклоняет запрос без email', async () => {
+      await expect(
+        controller.sendEmailCode({ email: '' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(emailCodeService.sendCode).not.toHaveBeenCalled();
+    });
+
+    it('вызывает emailCodeService.sendCode и возвращает success', async () => {
+      emailCodeService.sendCode.mockResolvedValue(undefined);
+
+      const result = await controller.sendEmailCode({ email: 'test@example.com' });
+
+      expect(emailCodeService.sendCode).toHaveBeenCalledWith('test@example.com');
+      expect(result).toEqual({ success: true, message: 'Код отправлен на email' });
+    });
+  });
+
+  describe('verifyEmail', () => {
+    it('отклоняет запрос без email', async () => {
+      await expect(
+        controller.verifyEmail({ email: '', code: '123456' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('отклоняет запрос без code', async () => {
+      await expect(
+        controller.verifyEmail({ email: 'test@example.com', code: '' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('отклоняет неверный код', async () => {
+      emailCodeService.verifyCode.mockResolvedValue(false);
+
+      await expect(
+        controller.verifyEmail({ email: 'test@example.com', code: '000000' }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(emailCodeService.verifyCode).toHaveBeenCalledWith('test@example.com', '000000');
+      expect(authService.loginWithEmail).not.toHaveBeenCalled();
+    });
+
+    it('при верном коде вызывает loginWithEmail и возвращает токен', async () => {
+      emailCodeService.verifyCode.mockResolvedValue(true);
+      authService.loginWithEmail.mockResolvedValue({
+        access_token: 'jwt_token_123',
+        userId: 'user_1',
+      });
+
+      const result = await controller.verifyEmail({
+        email: '  Test@Example.com  ',
+        code: '123456',
+      });
+
+      // email нормализуется в controller: trim + lowercase
+      expect(emailCodeService.verifyCode).toHaveBeenCalledWith('test@example.com', '123456');
+      expect(authService.loginWithEmail).toHaveBeenCalledWith('test@example.com');
+      expect(result).toEqual({ access_token: 'jwt_token_123', userId: 'user_1' });
+    });
   });
 });

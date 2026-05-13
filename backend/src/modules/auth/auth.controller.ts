@@ -14,10 +14,11 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
 import { AuthUser, CurrentUser, JwtAdminGuard, JwtUserGuard } from '@/common/auth/jwt-user.guard';
 import { AuthService } from './auth.service';
-import { SmsService } from './sms.service';
+import { EmailCodeService } from './email-code.service';
 import { OAuthService } from './oauth.service';
 
 @ApiTags('auth')
@@ -27,7 +28,7 @@ export class AuthController {
 
   constructor(
     private readonly authService: AuthService,
-    private readonly smsService: SmsService,
+    private readonly emailCodeService: EmailCodeService,
     private readonly oauthService: OAuthService,
     private readonly configService: ConfigService,
   ) {}
@@ -61,24 +62,26 @@ export class AuthController {
     return this.authService.createAdmin(dto);
   }
 
-  // ─── SMS Auth ────────────────────────────────────────────────
+  // ─── Email Auth ───────────────────────────────────────────────
 
-  @Post('phone/send-code')
-  @ApiOperation({ summary: 'Отправить SMS код' })
-  async sendCode(@Body() dto: { phone: string }) {
-    if (!dto.phone) throw new BadRequestException('phone required');
-    await this.smsService.sendCode(dto.phone);
-    return { success: true, message: 'Код отправлен' };
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Post('email/send-code')
+  @ApiOperation({ summary: 'Отправить код на email' })
+  async sendEmailCode(@Body() dto: { email: string }) {
+    if (!dto.email) throw new BadRequestException('email required');
+    await this.emailCodeService.sendCode(dto.email);
+    return { success: true, message: 'Код отправлен на email' };
   }
 
-  @Post('phone/verify')
-  @ApiOperation({ summary: 'Верифицировать SMS код и получить JWT' })
-  async verifyPhone(@Body() dto: { phone: string; code: string }) {
-    if (!dto.phone || !dto.code) throw new BadRequestException('phone and code required');
-    const phone = this.smsService.normalizePhone(dto.phone);
-    const valid = await this.smsService.verifyCode(phone, dto.code);
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('email/verify')
+  @ApiOperation({ summary: 'Верифицировать email код и получить JWT' })
+  async verifyEmail(@Body() dto: { email: string; code: string }) {
+    if (!dto.email || !dto.code) throw new BadRequestException('email and code required');
+    const email = dto.email.trim().toLowerCase();
+    const valid = await this.emailCodeService.verifyCode(email, dto.code);
     if (!valid) throw new BadRequestException('Неверный или просроченный код');
-    return this.authService.loginWithPhone(phone);
+    return this.authService.loginWithEmail(email);
   }
 
   // ─── Google OAuth ─────────────────────────────────────────────

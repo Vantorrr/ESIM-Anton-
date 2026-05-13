@@ -100,21 +100,21 @@ export class AuthService {
   }
 
   /**
-   * Найти или создать пользователя по номеру телефона (после SMS верификации)
+   * Найти или создать пользователя по email (после email-кода верификации)
    */
-  async loginWithPhone(phone: string) {
-    let user = await this.prisma.user.findUnique({ where: { phone } });
+  async loginWithEmail(email: string) {
+    let user = await this.prisma.user.findUnique({ where: { email } });
 
     if (!user) {
       user = await this.prisma.user.create({
         data: {
-          phone,
-          authProvider: 'phone',
-          providerId: phone,
+          email,
+          authProvider: 'email',
+          providerId: email,
           firstName: 'Пользователь',
         },
       });
-      this.logger.log(`✅ New user created via phone: ${phone}`);
+      this.logger.log(`✅ New user created via email: ${email}`);
     }
 
     return this.generateUserToken(user);
