@@ -175,6 +175,24 @@ function ActivationBlock({
     }
   }
 
+  const handleOpenLink = (e: React.MouseEvent<HTMLAnchorElement>, url: string, isAndroid: boolean) => {
+    e.preventDefault()
+    if (isAndroid) {
+      void copyLpa() // Асинхронное копирование в фоне (без блокировки)
+    }
+    
+    if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.openLink) {
+      // API Telegram для принудительного открытия ссылки ВО ВНЕШНЕМ обработчике (настройки ОС)
+      try {
+        (window as any).Telegram.WebApp.openLink(url, { try_instant_view: false })
+      } catch (err) {
+        window.location.href = url
+      }
+    } else {
+      window.location.href = url
+    }
+  }
+
   return (
     <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-2">
       <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Установка eSIM</p>
@@ -191,7 +209,7 @@ function ActivationBlock({
         {links.androidUniversalLink && (
           <a
             href={links.androidUniversalLink}
-            onClick={copyLpa}
+            onClick={(e) => handleOpenLink(e, links.androidUniversalLink!, true)}
             className="flex items-center justify-center gap-2 px-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors"
           >
             <AndroidIcon size={18} />
