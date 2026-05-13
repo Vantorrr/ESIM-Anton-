@@ -167,3 +167,8 @@ export const systemSettingsApi = {
   setExchangeRateAutoUpdate: (enabled: boolean) =>
     api.post<AutoUpdateExchangeRateResponse>('/system-settings/exchange-rate/auto-update', { enabled }),
 }
+
+export const trafficMonitorApi = {
+  triggerTraffic: () => api.post<{ success: boolean; message: string }>('/traffic-monitor/trigger-traffic'),
+  triggerExpiry: () => api.post<{ success: boolean; message: string }>('/traffic-monitor/trigger-expiry'),
+}

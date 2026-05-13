@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TrafficMonitorService } from './traffic-monitor.service';
+import { TrafficMonitorController } from './traffic-monitor.controller';
 import { OrdersModule } from '../orders/orders.module';
 import { TelegramModule } from '../telegram/telegram.module';
 
@@ -14,6 +15,7 @@ import { TelegramModule } from '../telegram/telegram.module';
  */
 @Module({
   imports: [OrdersModule, TelegramModule],
+  controllers: [TrafficMonitorController],
   providers: [TrafficMonitorService],
 })
 export class TrafficMonitorModule {}

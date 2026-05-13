@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Save, Plus, Edit2, Trash2, DollarSign, RefreshCw } from 'lucide-react'
-import { systemSettingsApi, loyaltyApi, productsApi } from '@/lib/api'
+import { Save, Plus, Edit2, Trash2, DollarSign, RefreshCw, Activity } from 'lucide-react'
+import { systemSettingsApi, loyaltyApi, productsApi, trafficMonitorApi } from '@/lib/api'
 import { isUnauthorizedError } from '@/lib/auth'
 import Button from '@/components/ui/Button'
 import { useConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -26,8 +26,8 @@ export default function Settings() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const rawTab = searchParams.get('tab')
-  const activeTab: 'pricing' | 'referrals' | 'loyalty' =
-    rawTab === 'pricing' || rawTab === 'referrals' || rawTab === 'loyalty'
+  const activeTab: 'pricing' | 'referrals' | 'loyalty' | 'monitoring' =
+    rawTab === 'pricing' || rawTab === 'referrals' || rawTab === 'loyalty' || rawTab === 'monitoring'
       ? rawTab
       : 'pricing'
   const [loading, setLoading] = useState(true)
@@ -36,6 +36,10 @@ export default function Settings() {
   const [repricing, setRepricing] = useState(false)
   const [updatingRate, setUpdatingRate] = useState(false)
   const [autoUpdateRate, setAutoUpdateRate] = useState(false)
+  
+  // Мониторинг
+  const [triggeringTraffic, setTriggeringTraffic] = useState(false)
+  const [triggeringExpiry, setTriggeringExpiry] = useState(false)
 
   // Настройки ценообразования
   const [pricingSettings, setPricingSettings] = useState<PricingSettings>({
@@ -70,7 +74,7 @@ export default function Settings() {
     void loadData(activeTab)
   }, [activeTab])
 
-  const loadData = async (targetTab: 'pricing' | 'referrals' | 'loyalty') => {
+  const loadData = async (targetTab: 'pricing' | 'referrals' | 'loyalty' | 'monitoring') => {
     const nextRequestId = requestIdRef.current + 1
     requestIdRef.current = nextRequestId
 
@@ -97,12 +101,14 @@ export default function Settings() {
         if (response.data) {
           setReferralSettings(response.data)
         }
-      } else {
+      } else if (targetTab === 'loyalty') {
         const response = await loyaltyApi.getLevels()
         if (nextRequestId !== requestIdRef.current || targetTab !== activeTabRef.current) return
         if (response.data) {
           setLoyaltyLevels(response.data)
         }
+      } else if (targetTab === 'monitoring') {
+        // Нет данных для загрузки, просто сброс загрузки
       }
     } catch (error) {
       if (isUnauthorizedError(error)) return
@@ -117,7 +123,7 @@ export default function Settings() {
     }
   }
 
-  const setActiveTabInUrl = (tab: 'pricing' | 'referrals' | 'loyalty') => {
+  const setActiveTabInUrl = (tab: 'pricing' | 'referrals' | 'loyalty' | 'monitoring') => {
     router.replace(`${pathname}?tab=${tab}`)
   }
 
@@ -243,6 +249,32 @@ export default function Settings() {
     }
   }
 
+  const handleTriggerTraffic = async () => {
+    try {
+      setTriggeringTraffic(true)
+      const res = await trafficMonitorApi.triggerTraffic()
+      toast.success(res.data.message)
+    } catch (error) {
+      console.error('Ошибка запуска:', error)
+      toast.error(getErrorMessage(error, 'Ошибка запуска задачи'))
+    } finally {
+      setTriggeringTraffic(false)
+    }
+  }
+
+  const handleTriggerExpiry = async () => {
+    try {
+      setTriggeringExpiry(true)
+      const res = await trafficMonitorApi.triggerExpiry()
+      toast.success(res.data.message)
+    } catch (error) {
+      console.error('Ошибка запуска:', error)
+      toast.error(getErrorMessage(error, 'Ошибка запуска задачи'))
+    } finally {
+      setTriggeringExpiry(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="glass-card p-8">
@@ -312,6 +344,22 @@ export default function Settings() {
             `}
           >
             🏆 Система лояльности
+          </Button>
+          <Button
+            onClick={() => setActiveTabInUrl('monitoring')}
+            variant="ghost"
+            className={`
+              flex items-center gap-2 px-6 py-3 rounded-xl font-medium
+              transition-all duration-200
+              ${
+                activeTab === 'monitoring'
+                  ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg'
+                  : 'hover:bg-white/50 text-slate-700'
+              }
+            `}
+          >
+            <Activity className="w-5 h-5" />
+            Мониторинг
           </Button>
         </div>
       </div>
@@ -679,6 +727,46 @@ export default function Settings() {
                 </div>
             </Modal>
           )}
+        </div>
+      )}
+
+      {/* Мониторинг и Задачи */}
+      {activeTab === 'monitoring' && (
+        <div className="glass-card p-8">
+          <h2 className="text-2xl font-bold mb-6">Фоновые задачи и Мониторинг</h2>
+          <div className="space-y-6 max-w-2xl">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-slate-800 mb-2">Проверка остатков трафика</h3>
+              <p className="text-sm text-slate-600 mb-4">
+                Запускает опрос провайдера по активным eSIM для обновления остатка трафика. 
+                В норме эта задача выполняется автоматически по крону каждый час.
+              </p>
+              <Button
+                onClick={handleTriggerTraffic}
+                disabled={triggeringTraffic}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <RefreshCw className={`w-4 h-4 ${triggeringTraffic ? 'animate-spin' : ''}`} />
+                {triggeringTraffic ? 'Запуск...' : 'Принудительная проверка трафика'}
+              </Button>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-slate-800 mb-2">Мониторинг истечения сроков</h3>
+              <p className="text-sm text-slate-600 mb-4">
+                Запускает проверку eSIM, срок действия которых скоро истекает (через 3, 2 или 1 день).
+                Пользователям будут разосланы уведомления в Telegram. В норме выполняется по крону каждый час.
+              </p>
+              <Button
+                onClick={handleTriggerExpiry}
+                disabled={triggeringExpiry}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                <RefreshCw className={`w-4 h-4 ${triggeringExpiry ? 'animate-spin' : ''}`} />
+                {triggeringExpiry ? 'Запуск...' : 'Принудительная проверка сроков'}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
