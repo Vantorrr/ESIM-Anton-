@@ -113,16 +113,17 @@ export class EsimWebhookService {
     // Отправляем уведомление
     if (!order.user?.telegramId) return;
 
-    // Cooldown: не спамим чаще чем раз в 24ч
-    if (order.lowTrafficNotifiedAt) {
+    const totalMB = (content.totalVolume ?? 0) / 1024;
+    const remainMB = (content.remain ?? 0) / 1024;
+    const usedPercent = totalMB > 0 ? ((totalMB - remainMB) / totalMB) * 100 : 0;
+    const isExhausted = remainMB <= 0;
+
+    // Cooldown: не спамим чаще чем раз в 24ч (игнорируем кулдаун, если трафик полностью исчерпан)
+    if (order.lowTrafficNotifiedAt && !isExhausted) {
       const hoursSince =
         (Date.now() - order.lowTrafficNotifiedAt.getTime()) / (1000 * 60 * 60);
       if (hoursSince < 24) return;
     }
-
-    const totalMB = (content.totalVolume ?? 0) / 1024;
-    const remainMB = (content.remain ?? 0) / 1024;
-    const usedPercent = totalMB > 0 ? ((totalMB - remainMB) / totalMB) * 100 : 0;
 
     const totalDisplay = this.formatVolume(totalMB);
     const remainDisplay = this.formatVolume(remainMB);
