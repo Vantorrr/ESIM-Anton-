@@ -147,15 +147,11 @@ export class TrafficMonitorService {
         if (!isLow) continue;
 
         if (order.lowTrafficNotifiedAt) {
-          const hoursSince =
-            (Date.now() - order.lowTrafficNotifiedAt.getTime()) / (1000 * 60 * 60);
-          if (hoursSince < this.NOTIFY_COOLDOWN_HOURS) {
-            this.logger.log(
-              `⏸️ ${order.id.slice(-6)}: low=${remainingPercent.toFixed(1)}%, но cooldown (${hoursSince.toFixed(1)}h/${this.NOTIFY_COOLDOWN_HOURS}h)`,
-            );
-            lowDetected++;
-            continue;
-          }
+          this.logger.log(
+            `⏸️ ${order.id.slice(-6)}: low=${remainingPercent.toFixed(1)}%, уже уведомляли ранее (без спама)`,
+          );
+          lowDetected++;
+          continue;
         }
 
         if (!order.user?.telegramId) {

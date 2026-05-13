@@ -118,11 +118,9 @@ export class EsimWebhookService {
     const usedPercent = totalMB > 0 ? ((totalMB - remainMB) / totalMB) * 100 : 0;
     const isExhausted = remainMB <= 0;
 
-    // Cooldown: не спамим чаще чем раз в 24ч (игнорируем кулдаун, если трафик полностью исчерпан)
+    // Если уже уведомляли о низком трафике — повторно шлём ТОЛЬКО если трафик полностью исчерпан
     if (order.lowTrafficNotifiedAt && !isExhausted) {
-      const hoursSince =
-        (Date.now() - order.lowTrafficNotifiedAt.getTime()) / (1000 * 60 * 60);
-      if (hoursSince < 24) return;
+      return;
     }
 
     const totalDisplay = this.formatVolume(totalMB);
