@@ -414,10 +414,12 @@ export class EsimAccessProvider {
 
       if (listResponse.data?.success) {
         const obj = listResponse.data.obj;
-        const esimCount = Array.isArray(obj?.esimList) ? obj.esimList.length : 0;
+        const esimCount = Array.isArray(obj?.esimList) ? obj.esimList.length 
+                        : Array.isArray(obj?.profileList) ? obj.profileList.length
+                        : obj?.iccid ? 1 : 0;
 
         this.logger.log(
-          `✅ Информация об eSIM получена через /esim/list (iccid=${this.maskValue(iccid, 2, 4)}, esimList=${esimCount})`,
+          `✅ Информация об eSIM получена через /esim/list (iccid=${this.maskValue(iccid, 2, 4)}, count=${esimCount})`,
         );
         this.logRawDebug(`getEsimInfo /esim/list raw response for ${this.maskValue(iccid, 2, 4)}`, listResponse.data);
 
@@ -426,7 +428,7 @@ export class EsimAccessProvider {
         }
 
         this.logger.warn(
-          `⚠️ /esim/list вернул пустой esimList для ICCID ${this.maskValue(iccid, 2, 4)}, пробуем fallback /esim/query`,
+          `⚠️ /esim/list вернул пустой результат для ICCID ${this.maskValue(iccid, 2, 4)}, пробуем fallback /esim/query`,
         );
       } else {
         this.logger.warn(
@@ -457,15 +459,17 @@ export class EsimAccessProvider {
       }
 
       const obj = queryResponse.data.obj;
-      const esimCount = Array.isArray(obj?.esimList) ? obj.esimList.length : 0;
+      const esimCount = Array.isArray(obj?.esimList) ? obj.esimList.length 
+                      : Array.isArray(obj?.profileList) ? obj.profileList.length
+                      : obj?.iccid ? 1 : 0;
       this.logger.log(
-        `✅ Информация об eSIM получена через /esim/query (iccid=${this.maskValue(iccid, 2, 4)}, esimList=${esimCount})`,
+        `✅ Информация об eSIM получена через /esim/query (iccid=${this.maskValue(iccid, 2, 4)}, count=${esimCount})`,
       );
       this.logRawDebug(`getEsimInfo /esim/query raw response for ${this.maskValue(iccid, 2, 4)}`, queryResponse.data);
 
       if (esimCount === 0) {
         this.logger.warn(
-          `⚠️ esimList пуст для ICCID ${this.maskValue(iccid, 2, 4)}. Возможно, провайдер ещё не отдаёт расход или ICCID не найден.`,
+          `⚠️ Результат пуст для ICCID ${this.maskValue(iccid, 2, 4)}. Возможно, провайдер ещё не отдаёт расход или ICCID не найден.`,
         );
       }
 
