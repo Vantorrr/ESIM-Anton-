@@ -124,11 +124,21 @@ export class TrafficMonitorService {
           usage.totalBytes === 0 ||
           usage.remainingBytes === null
         ) {
+          this.logger.log(
+            `⏭️ Пропуск ${order.id.slice(-6)}: available=${usage.available}, ` +
+              `totalBytes=${usage.totalBytes}, usedBytes=${usage.usedBytes}, ` +
+              `remainingBytes=${usage.remainingBytes}, reason=${(usage as any).reason ?? 'N/A'}`,
+          );
           continue;
         }
 
         const remainingMB = usage.remainingBytes / (1024 * 1024);
+        const totalMB_dbg = usage.totalBytes / (1024 * 1024);
         const remainingPercent = (usage.remainingBytes / usage.totalBytes) * 100;
+        this.logger.log(
+          `📊 ${order.id.slice(-6)}: ${remainingMB.toFixed(1)}/${totalMB_dbg.toFixed(1)} MB ` +
+            `(${remainingPercent.toFixed(1)}%), порог=${this.LOW_REMAINING_PERCENT}%`,
+        );
 
         // Только процентный порог. Абсолютный (MB) убран — ранние предупреждения
         // приходят через webhook DATA_USAGE от eSIM Access (80%/100% использования).
