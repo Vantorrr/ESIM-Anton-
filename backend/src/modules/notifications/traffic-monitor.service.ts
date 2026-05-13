@@ -124,7 +124,7 @@ export class TrafficMonitorService {
           usage.totalBytes === 0 ||
           usage.remainingBytes === null
         ) {
-          this.logger.log(
+          this.logger.debug(
             `⏭️ Пропуск ${order.id.slice(-6)}: available=${usage.available}, ` +
               `totalBytes=${usage.totalBytes}, usedBytes=${usage.usedBytes}, ` +
               `remainingBytes=${usage.remainingBytes}, reason=${(usage as any).reason ?? 'N/A'}`,
@@ -135,7 +135,7 @@ export class TrafficMonitorService {
         const remainingMB = usage.remainingBytes / (1024 * 1024);
         const totalMB_dbg = usage.totalBytes / (1024 * 1024);
         const remainingPercent = (usage.remainingBytes / usage.totalBytes) * 100;
-        this.logger.log(
+        this.logger.debug(
           `📊 ${order.id.slice(-6)}: ${remainingMB.toFixed(1)}/${totalMB_dbg.toFixed(1)} MB ` +
             `(${remainingPercent.toFixed(1)}%), порог=${this.LOW_REMAINING_PERCENT}%`,
         );
@@ -201,6 +201,7 @@ export class TrafficMonitorService {
           where: { id: { in: orderIds } },
           data: { lowTrafficNotifiedAt: new Date() },
         });
+        this.logger.log(`📨 Уведомление о низком трафике отправлено пользователю ${telegramId} (заказов: ${orderIds.length})`);
         notified++;
       } catch (error: any) {
         this.logger.warn(`Уведомление пользователю ${telegramId} не отправлено: ${error.message}`);
