@@ -57,6 +57,15 @@ export class EsimWebhookService {
       return;
     }
 
+    // Уведомляем админа о каждом входящем вебхуке (fire-and-forget)
+    this.telegramNotification.notifyAdmin(`📨 Webhook: ${notifyType}`, {
+      iccid: content?.iccid,
+      orderNo: content?.orderNo,
+      ...this.extractWebhookDetails(notifyType, content),
+      notifyId: payload.notifyId,
+      time: payload.eventGenerateTime,
+    }).catch(() => {});
+
     if (!content?.iccid) {
       this.logger.warn('Webhook без ICCID, пропускаем', JSON.stringify(payload));
       return;
@@ -256,5 +265,34 @@ export class EsimWebhookService {
   private formatVolume(mb: number): string {
     if (mb >= 1024) return `${(mb / 1024).toFixed(2)} ГБ`;
     return `${Math.round(mb)} МБ`;
+  }
+
+  /**
+   * Выбирает ключевые детали из webhook content в зависимости от типа события.
+   */
+  private extractWebhookDetails(
+    type: string,
+    content: EsimWebhookPayload['content'],
+  ): Record<string, unknown> {
+    if (!content) return {};
+    switch (type) {
+      case 'DATA_USAGE': {
+        const totalMB = (content.totalVolume ?? 0) / 1024;
+        const remainMB = (content.remain ?? 0) / 1024;
+        return {
+          total: this.formatVolume(totalMB),
+          remain: this.formatVolume(remainMB),
+          usedPercent: totalMB > 0 ? `${Math.round(((totalMB - remainMB) / totalMB) * 100)}%` : '—',
+        };
+      }
+      case 'VALIDITY_USAGE':
+        return { expiredTime: content.expiredTime };
+      case 'ESIM_STATUS':
+        return { esimStatus: content.esimStatus, smdpStatus: content.smdpStatus };
+      case 'ORDER_STATUS':
+        return { orderStatus: content.orderStatus };
+      default:
+        return {};
+    }
   }
 }

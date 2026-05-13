@@ -8,6 +8,7 @@ export class TelegramNotificationService {
   private readonly logger = new Logger(TelegramNotificationService.name);
   private readonly botToken: string;
   private readonly apiUrl: string;
+  private readonly adminChatId: string;
 
   private readonly botUsername: string;
   private readonly miniAppUrl: string;
@@ -16,6 +17,7 @@ export class TelegramNotificationService {
   constructor(private configService: ConfigService) {
     this.botToken = this.configService.get('TELEGRAM_BOT_TOKEN') || '';
     this.botUsername = this.configService.get('TELEGRAM_BOT_USERNAME') || 'mojo_mobile_bot';
+    this.adminChatId = this.configService.get('TELEGRAM_ADMIN_CHAT_ID') || '';
     this.apiUrl = `https://api.telegram.org/bot${this.botToken}`;
     this.miniAppUrl = this.configService.get('MINI_APP_URL') || 'https://app.mojomobile.ru/my-esim';
     this.siteUrl = this.configService.get('SITE_URL') || 'https://app.mojomobile.ru';
@@ -25,6 +27,50 @@ export class TelegramNotificationService {
     } else {
       this.logger.warn('⚠️ TELEGRAM_BOT_TOKEN not set - notifications disabled');
     }
+  }
+
+  /**
+   * Универсальное уведомление администратору.
+   * Отправляет сообщение в чат TELEGRAM_ADMIN_CHAT_ID.
+   *
+   * @param subject — заголовок (например, "📨 Webhook DATA_USAGE")
+   * @param details — произвольный объект ключ-значение для тела сообщения
+   */
+  async notifyAdmin(
+    subject: string,
+    details?: Record<string, unknown>,
+  ): Promise<void> {
+    if (!this.botToken || !this.adminChatId) return;
+
+    const lines = [`<b>${subject}</b>`];
+
+    if (details) {
+      lines.push('');
+      for (const [key, value] of Object.entries(details)) {
+        if (value === undefined || value === null) continue;
+        const display = typeof value === 'object'
+          ? JSON.stringify(value, null, 2)
+          : String(value);
+        lines.push(`<b>${key}:</b> <code>${this.escapeHtml(display)}</code>`);
+      }
+    }
+
+    try {
+      await axios.post(`${this.apiUrl}/sendMessage`, {
+        chat_id: this.adminChatId,
+        text: lines.join('\n'),
+        parse_mode: 'HTML',
+      });
+    } catch (error: any) {
+      this.logger.warn(`notifyAdmin failed: ${error.message}`);
+    }
+  }
+
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
   }
 
   /**
