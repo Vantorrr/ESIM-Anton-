@@ -149,10 +149,22 @@ export class TrafficMonitorService {
         if (order.lowTrafficNotifiedAt) {
           const hoursSince =
             (Date.now() - order.lowTrafficNotifiedAt.getTime()) / (1000 * 60 * 60);
-          if (hoursSince < this.NOTIFY_COOLDOWN_HOURS) continue;
+          if (hoursSince < this.NOTIFY_COOLDOWN_HOURS) {
+            this.logger.log(
+              `⏸️ ${order.id.slice(-6)}: low=${remainingPercent.toFixed(1)}%, но cooldown (${hoursSince.toFixed(1)}h/${this.NOTIFY_COOLDOWN_HOURS}h)`,
+            );
+            lowDetected++;
+            continue;
+          }
         }
 
-        if (!order.user?.telegramId) continue;
+        if (!order.user?.telegramId) {
+          this.logger.log(
+            `⏸️ ${order.id.slice(-6)}: low=${remainingPercent.toFixed(1)}%, но нет telegramId`,
+          );
+          lowDetected++;
+          continue;
+        }
 
         const totalMB = usage.totalBytes / (1024 * 1024);
         const totalDisplay = this.formatVolume(totalMB);
