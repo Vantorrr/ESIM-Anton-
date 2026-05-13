@@ -115,7 +115,9 @@ export class TrafficMonitorService {
           await this.sleep(this.THROTTLE_MS);
         }
 
-        const usage = await this.ordersService.getOrderUsage(order.id, 3600, false);
+        // Запрашиваем свежие данные у провайдера, игнорируя кэш (force=true).
+        // Монитор запускается раз в час, поэтому нет смысла смотреть в старый кэш.
+        const usage = await this.ordersService.getOrderUsage(order.id, 0, true);
         checked++;
 
         if (
