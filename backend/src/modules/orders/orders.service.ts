@@ -34,6 +34,7 @@ const DEFAULT_USAGE_CACHE_SEC = 300;
  */
 const STALE_CACHE_LIMIT_SEC = 24 * 60 * 60;
 const BONUS_HOLD_TTL_MS = 30 * 60 * 1000;
+const PAYMENT_SESSION_EXPIRED_MESSAGE = 'Payment session expired';
 
 type BonusSpendAvailability = {
   totalEligible: number;
@@ -57,6 +58,32 @@ type ResolvedLoyaltyLevel = {
   cashbackPercent: number;
   discount: number;
 } | null;
+
+type OrderPricingSnapshot = {
+  user: {
+    id: string;
+    balance: Prisma.Decimal | number;
+    bonusBalance: Prisma.Decimal | number;
+    totalSpent: Prisma.Decimal | number;
+  };
+  product: {
+    id: string;
+    ourPrice: Prisma.Decimal | number;
+    providerPrice: Prisma.Decimal | number;
+    isActive: boolean;
+    isUnlimited: boolean;
+  };
+  quantity: number;
+  days: number;
+  promoCode: string | null;
+  baseAmount: number;
+  promoDiscount: number;
+  loyaltyDiscount: number;
+  bonusUsed: number;
+  totalAmount: number;
+  currentLoyaltyLevel: ResolvedLoyaltyLevel;
+  bonusSpend: BonusSpendBreakdown;
+};
 
 type ReconciliationCategory =
   | 'provider_failed_after_card_charge'
@@ -212,7 +239,96 @@ export class OrdersService {
     return this.loyaltyService.getEffectiveLevelForSpent(totalSpent);
   }
 
+  private async resolvePromoDiscountPercent(
+    promoCode: string,
+    consumePromoCode: boolean,
+  ): Promise<number> {
+    if (consumePromoCode) {
+      return this.promoCodesService.use(promoCode);
+    }
+
+    const preview = await this.promoCodesService.validate(promoCode);
+    return Number(preview.discountPercent);
+  }
+
+  private async buildOrderPricingSnapshot(
+    userId: string,
+    productId: string,
+    opts?: {
+      quantity?: number;
+      useBonuses?: number;
+      periodNum?: number;
+      promoCode?: string;
+      consumePromoCode?: boolean;
+    },
+  ): Promise<OrderPricingSnapshot> {
+    const quantity = opts?.quantity ?? 1;
+    const useBonuses = opts?.useBonuses ?? 0;
+
+    const [user, product] = await Promise.all([
+      this.usersService.findById(userId),
+      this.productsService.findById(productId),
+    ]);
+
+    if (!product.isActive) {
+      throw new BadRequestException('Продукт недоступен');
+    }
+
+    const days = product.isUnlimited && opts?.periodNum ? opts.periodNum : 1;
+    const baseAmount = Number(product.ourPrice) * quantity * days;
+    let totalAmount = baseAmount;
+    let promoDiscount = 0;
+    let loyaltyDiscount = 0;
+    const normalizedPromoCode = opts?.promoCode?.trim().toUpperCase() || null;
+
+    if (normalizedPromoCode) {
+      const discountPercent = await this.resolvePromoDiscountPercent(
+        normalizedPromoCode,
+        opts?.consumePromoCode === true,
+      );
+      promoDiscount = (totalAmount * discountPercent) / 100;
+      totalAmount -= promoDiscount;
+    }
+
+    const currentLoyaltyLevel = await this.getEffectiveLoyaltyLevel(
+      Number(user.totalSpent),
+    );
+
+    if (currentLoyaltyLevel) {
+      loyaltyDiscount =
+        (totalAmount * Number(currentLoyaltyLevel.discount)) / 100;
+      totalAmount -= loyaltyDiscount;
+    }
+
+    const bonusSpend = await this.computeBonusSpend(
+      userId,
+      Number(user.bonusBalance),
+      useBonuses,
+      totalAmount,
+    );
+    totalAmount -= bonusSpend.bonusToUse;
+
+    if (totalAmount < 0) totalAmount = 0;
+
+    return {
+      user,
+      product,
+      quantity,
+      days,
+      promoCode: normalizedPromoCode,
+      baseAmount,
+      promoDiscount,
+      loyaltyDiscount,
+      bonusUsed: bonusSpend.bonusToUse,
+      totalAmount: Math.round(totalAmount * 100) / 100,
+      currentLoyaltyLevel,
+      bonusSpend,
+    };
+  }
+
   private async cleanupExpiredBonusSpendHolds(userId?: string) {
+    await this.cleanupExpiredPendingPaymentSessions(userId);
+
     const cutoff = new Date(Date.now() - BONUS_HOLD_TTL_MS);
     const pendingHolds = await this.prisma.transaction.findMany({
       where: {
@@ -278,10 +394,70 @@ export class OrdersService {
         },
         data: {
           status: OrderStatus.CANCELLED,
-          errorMessage: 'Payment session expired',
+          errorMessage: PAYMENT_SESSION_EXPIRED_MESSAGE,
         },
       });
     }
+  }
+
+  isExpiredPaymentSessionOrder(order: {
+    status: OrderStatus;
+    createdAt: Date;
+    errorMessage?: string | null;
+  }): boolean {
+    if (order.status === OrderStatus.CANCELLED) {
+      return order.errorMessage === PAYMENT_SESSION_EXPIRED_MESSAGE;
+    }
+
+    if (order.status !== OrderStatus.PENDING) return false;
+    return order.createdAt < new Date(Date.now() - BONUS_HOLD_TTL_MS);
+  }
+
+  async expirePendingPaymentSession(orderId: string) {
+    await this.prisma.transaction.updateMany({
+      where: {
+        orderId,
+        type: {
+          in: [TransactionType.PAYMENT, TransactionType.BONUS_SPENT],
+        },
+        status: TransactionStatus.PENDING,
+      },
+      data: {
+        status: TransactionStatus.CANCELLED,
+        metadata: {
+          releaseReason: 'payment_session_expired',
+        } as any,
+      },
+    });
+
+    await this.prisma.order.updateMany({
+      where: {
+        id: orderId,
+        status: OrderStatus.PENDING,
+      },
+      data: {
+        status: OrderStatus.CANCELLED,
+        errorMessage: PAYMENT_SESSION_EXPIRED_MESSAGE,
+      },
+    });
+  }
+
+  private async cleanupExpiredPendingPaymentSessions(userId?: string) {
+    const cutoff = new Date(Date.now() - BONUS_HOLD_TTL_MS);
+    const staleOrders = await this.prisma.order.findMany({
+      where: {
+        ...(userId ? { userId } : {}),
+        status: OrderStatus.PENDING,
+        createdAt: { lt: cutoff },
+      },
+      select: { id: true },
+    });
+
+    if (staleOrders.length === 0) return;
+
+    await Promise.all(
+      staleOrders.map((order) => this.expirePendingPaymentSession(order.id)),
+    );
   }
 
   private async getBonusSpendAvailability(
@@ -563,62 +739,28 @@ export class OrdersService {
     promoCodeStr?: string,
   ) {
     await this.cleanupExpiredBonusSpendHolds(userId);
-
-    const [user, product] = await Promise.all([
-      this.usersService.findById(userId),
-      this.productsService.findById(productId),
-    ]);
-
-    if (!product.isActive) {
-      throw new BadRequestException('Продукт недоступен');
-    }
-
-    const days = product.isUnlimited && periodNum ? periodNum : 1;
-    let totalAmount = Number(product.ourPrice) * quantity * days;
-    let discount = 0;
-    let promoDiscount = 0;
-
-    // Применяем промокод
-    if (promoCodeStr) {
-      const discountPercent = await this.promoCodesService.use(promoCodeStr);
-      promoDiscount = (totalAmount * discountPercent) / 100;
-      totalAmount -= promoDiscount;
-    }
-
-    const currentLoyaltyLevel = await this.getEffectiveLoyaltyLevel(
-      Number(user.totalSpent),
-    );
-
-    // Применяем скидку лояльности
-    if (currentLoyaltyLevel) {
-      discount = (totalAmount * Number(currentLoyaltyLevel.discount)) / 100;
-      totalAmount -= discount;
-    }
-
-    // Применяем бонусы: referral bonus подчиняется minPayout, cashback — нет.
-    const bonusSpend = await this.computeBonusSpend(
-      userId,
-      Number(user.bonusBalance),
+    const pricing = await this.buildOrderPricingSnapshot(userId, productId, {
+      quantity,
       useBonuses,
-      totalAmount,
-    );
-    const bonusToUse = bonusSpend.bonusToUse;
-    totalAmount -= bonusToUse;
-
-    if (totalAmount < 0) totalAmount = 0;
+      periodNum,
+      promoCode: promoCodeStr,
+      consumePromoCode: true,
+    });
 
     const order = await this.prisma.order.create({
       data: {
         userId,
         productId,
-        quantity,
-        ...(product.isUnlimited && days > 1 ? { periodNum: days } : {}),
-        productPrice: product.ourPrice,
-        discount: new Prisma.Decimal(discount),
-        promoCode: promoCodeStr ? promoCodeStr.trim().toUpperCase() : null,
-        promoDiscount: new Prisma.Decimal(promoDiscount),
-        bonusUsed: new Prisma.Decimal(bonusToUse),
-        totalAmount: new Prisma.Decimal(totalAmount),
+        quantity: pricing.quantity,
+        ...(pricing.product.isUnlimited && pricing.days > 1
+          ? { periodNum: pricing.days }
+          : {}),
+        productPrice: pricing.product.ourPrice,
+        discount: new Prisma.Decimal(pricing.loyaltyDiscount),
+        promoCode: pricing.promoCode,
+        promoDiscount: new Prisma.Decimal(pricing.promoDiscount),
+        bonusUsed: new Prisma.Decimal(pricing.bonusUsed),
+        totalAmount: new Prisma.Decimal(pricing.totalAmount),
         status: OrderStatus.PENDING,
       },
       include: {
@@ -627,9 +769,42 @@ export class OrdersService {
       },
     });
 
-    await this.createBonusSpendHold(userId, order.id, bonusSpend);
+    await this.createBonusSpendHold(userId, order.id, pricing.bonusSpend);
 
     return order;
+  }
+
+  async previewPricing(
+    userId: string,
+    productId: string,
+    opts?: {
+      quantity?: number;
+      useBonuses?: number;
+      periodNum?: number;
+      promoCode?: string;
+    },
+  ) {
+    await this.cleanupExpiredBonusSpendHolds(userId);
+
+    const pricing = await this.buildOrderPricingSnapshot(userId, productId, {
+      ...opts,
+      consumePromoCode: false,
+    });
+
+    return {
+      productId,
+      quantity: pricing.quantity,
+      periodNum: pricing.product.isUnlimited && pricing.days > 1 ? pricing.days : null,
+      baseAmount: pricing.baseAmount,
+      promoCode: pricing.promoCode,
+      promoDiscount: pricing.promoDiscount,
+      loyaltyDiscount: pricing.loyaltyDiscount,
+      bonusUsed: pricing.bonusUsed,
+      totalAmount: pricing.totalAmount,
+      isFree: pricing.totalAmount <= 0,
+      currentLoyaltyLevel: pricing.currentLoyaltyLevel,
+      balanceSufficient: Number(pricing.user.balance) >= pricing.totalAmount,
+    };
   }
 
   /**
@@ -1359,49 +1534,16 @@ export class OrdersService {
       promoCode?: string;
     },
   ) {
-    const quantity = opts?.quantity ?? 1;
-    const useBonuses = opts?.useBonuses ?? 0;
+    await this.cleanupExpiredBonusSpendHolds(userId);
 
-    const [user, product] = await Promise.all([
-      this.usersService.findById(userId),
-      this.productsService.findById(productId),
-    ]);
-
-    if (!product.isActive) {
-      throw new BadRequestException('Продукт недоступен');
-    }
-
-    const days = product.isUnlimited && opts?.periodNum ? opts.periodNum : 1;
-    let totalAmount = Number(product.ourPrice) * quantity * days;
-    let discount = 0;
-    let promoDiscount = 0;
-
-    if (opts?.promoCode) {
-      const discountPercent = await this.promoCodesService.use(opts.promoCode);
-      promoDiscount = (totalAmount * discountPercent) / 100;
-      totalAmount -= promoDiscount;
-    }
-
-    const currentLoyaltyLevel = await this.getEffectiveLoyaltyLevel(
-      Number(user.totalSpent),
-    );
-
-    if (currentLoyaltyLevel) {
-      discount = (totalAmount * Number(currentLoyaltyLevel.discount)) / 100;
-      totalAmount -= discount;
-    }
-
-    const bonusSpend = await this.computeBonusSpend(
-      userId,
-      Number(user.bonusBalance),
-      useBonuses,
-      totalAmount,
-    );
-    const bonusToUse = bonusSpend.bonusToUse;
-    totalAmount -= bonusToUse;
-    if (totalAmount < 0) totalAmount = 0;
-
-    const priceRub = Math.round(totalAmount * 100) / 100;
+    const pricing = await this.buildOrderPricingSnapshot(userId, productId, {
+      quantity: opts?.quantity,
+      useBonuses: opts?.useBonuses,
+      periodNum: opts?.periodNum,
+      promoCode: opts?.promoCode,
+      consumePromoCode: true,
+    });
+    const priceRub = pricing.totalAmount;
 
     if (priceRub <= 0) {
       throw new BadRequestException(
@@ -1409,7 +1551,7 @@ export class OrdersService {
       );
     }
 
-    const userBalance = Number(user.balance);
+    const userBalance = Number(pricing.user.balance);
     if (userBalance < priceRub) {
       throw new BadRequestException(
         `Не хватает ${(priceRub - userBalance).toFixed(2)} ₽ на балансе. Пополните и повторите.`,
@@ -1430,10 +1572,10 @@ export class OrdersService {
         data: { balance: { decrement: new Prisma.Decimal(priceRub) } },
       });
 
-      if (bonusToUse > 0) {
+      if (pricing.bonusUsed > 0) {
         await tx.user.update({
           where: { id: userId },
-          data: { bonusBalance: { decrement: new Prisma.Decimal(bonusToUse) } },
+          data: { bonusBalance: { decrement: new Prisma.Decimal(pricing.bonusUsed) } },
         });
       }
 
@@ -1441,13 +1583,15 @@ export class OrdersService {
         data: {
           userId,
           productId,
-          quantity,
-          ...(product.isUnlimited && days > 1 ? { periodNum: days } : {}),
-          productPrice: product.ourPrice,
-          discount: new Prisma.Decimal(discount),
-          promoCode: opts?.promoCode ? opts.promoCode.trim().toUpperCase() : null,
-          promoDiscount: new Prisma.Decimal(promoDiscount),
-          bonusUsed: new Prisma.Decimal(bonusToUse),
+          quantity: pricing.quantity,
+          ...(pricing.product.isUnlimited && pricing.days > 1
+            ? { periodNum: pricing.days }
+            : {}),
+          productPrice: pricing.product.ourPrice,
+          discount: new Prisma.Decimal(pricing.loyaltyDiscount),
+          promoCode: pricing.promoCode,
+          promoDiscount: new Prisma.Decimal(pricing.promoDiscount),
+          bonusUsed: new Prisma.Decimal(pricing.bonusUsed),
           totalAmount: new Prisma.Decimal(priceRub),
           status: OrderStatus.PAID,
         },
@@ -1467,18 +1611,18 @@ export class OrdersService {
         },
       });
 
-      if (bonusToUse > 0) {
+      if (pricing.bonusUsed > 0) {
         await tx.transaction.create({
           data: {
             userId,
             orderId: newOrder.id,
             type: TransactionType.BONUS_SPENT,
             status: TransactionStatus.SUCCEEDED,
-            amount: new Prisma.Decimal(bonusToUse),
+            amount: new Prisma.Decimal(pricing.bonusUsed),
             metadata: {
               source: 'order_bonus_spend',
-              spentFromReferral: bonusSpend.spentFromReferral,
-              spentFromCashback: bonusSpend.spentFromCashback,
+              spentFromReferral: pricing.bonusSpend.spentFromReferral,
+              spentFromCashback: pricing.bonusSpend.spentFromCashback,
             } as any,
           },
         });
@@ -1497,11 +1641,13 @@ export class OrdersService {
           where: { id: userId },
           data: { balance: { increment: new Prisma.Decimal(priceRub) } },
         }),
-        ...(bonusToUse > 0
+        ...(pricing.bonusUsed > 0
           ? [
               this.prisma.user.update({
                 where: { id: userId },
-                data: { bonusBalance: { increment: new Prisma.Decimal(bonusToUse) } },
+                data: {
+                  bonusBalance: { increment: new Prisma.Decimal(pricing.bonusUsed) },
+                },
               }),
               this.prisma.transaction.create({
                 data: {
@@ -1509,11 +1655,11 @@ export class OrdersService {
                   orderId: created.id,
                   type: TransactionType.BONUS_ACCRUAL,
                   status: TransactionStatus.SUCCEEDED,
-                  amount: new Prisma.Decimal(bonusToUse),
+                  amount: new Prisma.Decimal(pricing.bonusUsed),
                   metadata: {
                     source: 'order_bonus_refund',
-                    restoredToReferral: bonusSpend.spentFromReferral,
-                    restoredToCashback: bonusSpend.spentFromCashback,
+                    restoredToReferral: pricing.bonusSpend.spentFromReferral,
+                    restoredToCashback: pricing.bonusSpend.spentFromCashback,
                   } as any,
                 },
               }),

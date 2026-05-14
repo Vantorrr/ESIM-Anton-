@@ -1,5 +1,7 @@
 // Общие типы для всех модулей проекта
 
+export * from './contracts/checkout';
+
 export interface User {
   id: string;
   telegramId: bigint;

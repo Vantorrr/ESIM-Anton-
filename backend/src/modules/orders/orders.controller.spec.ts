@@ -12,6 +12,7 @@ describe('OrdersController', () => {
     checkNewOrders: jest.fn(),
     createWithBalance: jest.fn(),
     create: jest.fn(),
+    previewPricing: jest.fn(),
     updateStatus: jest.fn(),
     fulfillOrder: jest.fn(),
   };
@@ -39,6 +40,23 @@ describe('OrdersController', () => {
     await expect(
       controller.checkNewOrders('user_2', { id: 'user_1', type: 'user' }),
     ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('quote использует previewPricing для текущего пользователя', async () => {
+    ordersService.previewPricing.mockResolvedValue({ totalAmount: 95 });
+
+    const result = await controller.quote(
+      { id: 'user_1', type: 'user' },
+      { productId: 'product_1', periodNum: 7, promoCode: 'SALE10' },
+    );
+
+    expect(ordersService.previewPricing).toHaveBeenCalledWith('user_1', 'product_1', {
+      quantity: undefined,
+      useBonuses: undefined,
+      periodNum: 7,
+      promoCode: 'SALE10',
+    });
+    expect(result).toEqual({ totalAmount: 95 });
   });
 
   it('fulfillFree позволяет владельцу выполнить бесплатный заказ', async () => {

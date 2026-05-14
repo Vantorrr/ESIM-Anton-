@@ -1,4 +1,12 @@
 import axios from 'axios';
+import type {
+  CreateOrderQuoteRequest,
+  CreateOrderRequest,
+  CreateOrderResponse,
+  CreateTopupOrderRequest,
+  CreateTopupOrderResponse,
+  OrderQuoteResponse,
+} from '@shared/contracts/checkout';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -148,6 +156,8 @@ export interface Order {
   expiresAt?: string | null;
 }
 
+export type OrderQuote = OrderQuoteResponse;
+
 export interface ReferralStats {
   referralCode: string;
   referralLink: string;
@@ -212,18 +222,33 @@ export const ordersApi = {
    * Без `paymentMethod` (или `'card'`) — поведение прежнее: создаётся PENDING
    * заказ, фронт продолжает через CloudPayments виджет.
    */
-  async create(orderData: {
-    userId?: string;
-    productId: string;
-    quantity?: number;
-    useBonuses?: number;
-    periodNum?: number;
-    promoCode?: string;
-    paymentMethod?: 'card' | 'balance';
-    email?: string;
-  }): Promise<any> {
+  async create(orderData: CreateOrderRequest): Promise<CreateOrderResponse & { order: Order }> {
     const { data } = await api.post('/orders', orderData);
-    return data;
+    return {
+      ...data,
+      order: data.order,
+    };
+  },
+
+  async quote(orderData: CreateOrderQuoteRequest): Promise<OrderQuoteResponse> {
+    const { data } = await api.post('/orders/quote', orderData);
+    return {
+      ...data,
+      baseAmount: Number(data.baseAmount ?? 0),
+      promoDiscount: Number(data.promoDiscount ?? 0),
+      loyaltyDiscount: Number(data.loyaltyDiscount ?? 0),
+      bonusUsed: Number(data.bonusUsed ?? 0),
+      totalAmount: Number(data.totalAmount ?? 0),
+      balanceSufficient: Boolean(data.balanceSufficient),
+      currentLoyaltyLevel: data.currentLoyaltyLevel
+        ? {
+            ...data.currentLoyaltyLevel,
+            minSpent: Number(data.currentLoyaltyLevel.minSpent ?? 0),
+            cashbackPercent: Number(data.currentLoyaltyLevel.cashbackPercent ?? 0),
+            discount: Number(data.currentLoyaltyLevel.discount ?? 0),
+          }
+        : null,
+    };
   },
 
   // Получить заказы пользователя
@@ -259,9 +284,15 @@ export const ordersApi = {
   },
 
   // Запустить пополнение
-  async topup(orderId: string, packageCode: string): Promise<any> {
-    const { data } = await api.post(`/orders/${orderId}/topup`, { packageCode });
-    return data;
+  async topup(
+    orderId: string,
+    payload: CreateTopupOrderRequest,
+  ): Promise<CreateTopupOrderResponse & { order: Order }> {
+    const { data } = await api.post(`/orders/${orderId}/topup`, payload);
+    return {
+      ...data,
+      order: data.order,
+    };
   },
 };
 

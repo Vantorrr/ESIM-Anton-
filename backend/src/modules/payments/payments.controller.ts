@@ -9,7 +9,6 @@ import {
   Header,
   HttpCode,
   UseGuards,
-  BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -17,6 +16,8 @@ import { PaymentsService } from './payments.service';
 import { TransactionStatus, TransactionType } from '@prisma/client';
 import { JwtAdminGuard, JwtUserGuard, CurrentUser, AuthUser } from '@/common/auth/jwt-user.guard';
 import { OrGuard } from '@/common/auth/or.guard';
+import { CreatePaymentDto } from './dto/create-payment.dto';
+import { CreateBalanceTopupDto } from './dto/create-balance-topup.dto';
 
 const PaymentsAccessGuard = OrGuard(JwtAdminGuard, JwtUserGuard);
 
@@ -31,7 +32,7 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Создать платеж для заказа' })
   async createPayment(
     @CurrentUser() user: AuthUser,
-    @Body() dto: { orderId: string },
+    @Body() dto: CreatePaymentDto,
   ) {
     await this.paymentsService.assertOrderOwnership(dto.orderId, user.id);
     return this.paymentsService.createPayment(dto.orderId);
@@ -56,16 +57,13 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Создать платёж для пополнения личного баланса' })
   async createBalanceTopup(
     @CurrentUser() user: AuthUser,
-    @Body() dto: { amount: number; provider?: 'cloudpayments' | 'robokassa' },
+    @Body() dto: CreateBalanceTopupDto,
   ) {
-    if (!dto?.amount || !Number.isFinite(Number(dto.amount))) {
-      throw new BadRequestException('amount обязателен (число)');
-    }
     const provider = dto.provider ?? 'cloudpayments';
     if (provider === 'robokassa') {
-      return this.paymentsService.createBalanceTopupPayment(user.id, Number(dto.amount));
+      return this.paymentsService.createBalanceTopupPayment(user.id, dto.amount);
     }
-    return this.paymentsService.prepareCloudPaymentsBalanceTopup(user.id, Number(dto.amount));
+    return this.paymentsService.prepareCloudPaymentsBalanceTopup(user.id, dto.amount);
   }
 
   /**

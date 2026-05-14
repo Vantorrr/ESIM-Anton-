@@ -31,6 +31,7 @@ Phase 10 добавляет отдельные rollout guardrails:
 - `CORS_ORIGIN`, `BACKEND_URL`, `FRONTEND_URL`, `MINI_APP_URL`, `SITE_URL` соответствуют production доменам
 - Telegram bot token и Mini App URL соответствуют production боту
 - CloudPayments webhook URL указывает на production backend
+- набор CloudPayments callbacks соответствует текущему runtime: `Check`, `Pay`, `Fail`; см. [cloudpayments-runbook.md](./cloudpayments-runbook.md)
 - ESIMAccess credentials валидны
 
 ## Если merge содержит Prisma baseline `20260507_init`
@@ -91,6 +92,7 @@ curl https://<backend-domain>/api/products
 - CloudPayments webhook endpoint доступен
 - Telegram Mini App cold start не теряет auth/new-order redirect path после удаления blind timeout coordination
 - admin `GET /orders?reconciliation=needs_attention` возвращает ожидаемый список или пустой результат без 500
+- checkout/payment smoke по [payment-production-checklist.md](./payment-production-checklist.md) пройден хотя бы на staging/test mode
 
 ## Когда останавливать rollout
 

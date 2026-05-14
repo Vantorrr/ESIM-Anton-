@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Wifi, Clock, Tag, CreditCard, Mail, Wallet } from '@/components/icons'
 import { MapPin, Smartphone, Ban } from 'lucide-react'
-import { productsApi, Product, userApi, ordersApi, promoApi } from '@/lib/api'
+import { productsApi, Product, userApi, ordersApi, promoApi, type OrderQuote } from '@/lib/api'
 import { isTelegramWebApp } from '@/lib/auth'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
 import { PurchaseOverlay, type PurchaseStage } from '@/components/PurchaseOverlay'
@@ -25,7 +25,7 @@ function ProductPageInner() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user: authUser, token: authToken } = useAuth()
+  const { user: authUser, token: authToken, isLoading: authLoading } = useAuth()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState(false)
@@ -36,6 +36,8 @@ function ProductPageInner() {
   const [promoDiscount, setPromoDiscount] = useState(0)
   const [promoError, setPromoError] = useState('')
   const [promoLoading, setPromoLoading] = useState(false)
+  const [pricingQuote, setPricingQuote] = useState<OrderQuote | null>(null)
+  const [pricingLoading, setPricingLoading] = useState(false)
   const [selectedDays, setSelectedDays] = useState(7)
   const [email, setEmail] = useState('')
   const [emailSaved, setEmailSaved] = useState(false)
@@ -50,8 +52,11 @@ function ProductPageInner() {
 
   const isDaily = product?.isUnlimited
   const basePrice = isDaily ? product.ourPrice * selectedDays : product?.ourPrice ?? 0
-  const discountAmount = promoApplied ? Math.round(basePrice * promoDiscount / 100) : 0
-  const totalPrice = basePrice - discountAmount
+  const estimatedPromoDiscount = promoApplied ? Math.round(basePrice * promoDiscount / 100) : 0
+  const estimatedTotalPrice = basePrice - estimatedPromoDiscount
+  const promoDiscountAmount = pricingQuote?.promoDiscount ?? estimatedPromoDiscount
+  const loyaltyDiscountAmount = pricingQuote?.loyaltyDiscount ?? 0
+  const payableTotal = pricingQuote?.totalAmount ?? estimatedTotalPrice
   const coverageSummary = product ? getCoverageSummary(product) : ''
   const safeReturnTo = sanitizeRedirect(searchParams.get('returnTo'), '')
 
@@ -86,17 +91,68 @@ function ProductPageInner() {
   // Если баланса хватает, по умолчанию выбираем оплату с баланса (один клик
   // вместо открытия виджета). Если не хватает — оставляем «Картой».
   useEffect(() => {
-    if (totalPrice <= 0) {
+    if (payableTotal <= 0) {
       setPaymentMethod('card')
       return
     }
 
-    if (balance !== null && balance >= totalPrice) {
+    if (balance !== null && balance >= payableTotal) {
       setPaymentMethod('balance')
     } else {
       setPaymentMethod('card')
     }
-  }, [balance, totalPrice])
+  }, [balance, payableTotal])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadQuote = async () => {
+      if (!product) {
+        if (!cancelled) {
+          setPricingQuote(null)
+          setPricingLoading(false)
+        }
+        return
+      }
+
+      if (authLoading) return
+
+      if (!authUser?.id && !authToken) {
+        if (!cancelled) {
+          setPricingQuote(null)
+          setPricingLoading(false)
+        }
+        return
+      }
+
+      setPricingLoading(true)
+      try {
+        const quote = await ordersApi.quote({
+          productId: product.id,
+          quantity: 1,
+          ...(isDaily && selectedDays > 1 ? { periodNum: selectedDays } : {}),
+          ...(promoApplied && promoCode.trim() ? { promoCode: promoCode.trim() } : {}),
+        })
+        if (!cancelled) {
+          setPricingQuote(quote)
+        }
+      } catch {
+        if (!cancelled) {
+          setPricingQuote(null)
+        }
+      } finally {
+        if (!cancelled) {
+          setPricingLoading(false)
+        }
+      }
+    }
+
+    void loadQuote()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authLoading, authToken, authUser?.id, isDaily, product, promoApplied, promoCode, selectedDays])
 
   const loadProduct = useCallback(async () => {
     try {
@@ -165,6 +221,14 @@ function ProductPageInner() {
       if (!user) throw new Error('Пользователь не найден')
 
       const userEmail = email.trim() || user.email || ''
+      const buildCreatePayload = (method: 'balance' | 'card') => {
+        const payload: any = { productId: product.id, quantity: 1 }
+        if (method === 'balance') payload.paymentMethod = 'balance'
+        if (isDaily && selectedDays > 1) payload.periodNum = selectedDays
+        if (promoApplied && promoCode.trim()) payload.promoCode = promoCode.trim()
+        if (userEmail) payload.email = userEmail
+        return payload
+      }
       if (userEmail && !user.email) {
         try {
           const { api: apiClient } = await import('@/lib/api')
@@ -178,11 +242,11 @@ function ProductPageInner() {
       const tg = isTelegramWebApp() ? (window as any).Telegram.WebApp : null
 
       // === Ветка «Покупка с баланса» ===
-      if (method === 'balance' && totalPrice > 0) {
+      if (method === 'balance' && payableTotal > 0) {
         const userBalance = Number(balance ?? 0)
         // Если баланса не хватает — редирект на /balance с auto-topup и returnTo
-        if (userBalance < totalPrice) {
-          const need = Math.ceil(totalPrice - userBalance)
+        if (userBalance < payableTotal) {
+          const need = Math.ceil(payableTotal - userBalance)
           const currentUrl = window.location.pathname + window.location.search
           // autoBuy=1 в returnTo — после возврата автоматически вызовем покупку
           const sep = currentUrl.includes('?') ? '&' : '?'
@@ -191,13 +255,8 @@ function ProductPageInner() {
           return
         }
 
-        const createPayload: any = { productId: product.id, quantity: 1, paymentMethod: 'balance' }
-        if (isDaily && selectedDays > 1) createPayload.periodNum = selectedDays
-        if (promoApplied && promoCode.trim()) createPayload.promoCode = promoCode.trim()
-        if (userEmail) createPayload.email = userEmail
-
         setPurchaseStage('paying')
-        await ordersApi.create(createPayload)
+        await ordersApi.create(buildCreatePayload('balance'))
 
         setPurchaseStage('done')
         await new Promise(r => setTimeout(r, 1200))
@@ -210,28 +269,12 @@ function ProductPageInner() {
         return
       }
 
-      // === Ветка «Картой» — старый flow с CloudPayments ===
+      // === Ветка «Картой» — всегда создаём новый order с актуальным pricing snapshot ===
       setPurchaseStage('creating')
-      let order;
-      try {
-        const myOrders = await ordersApi.getMy(user.id);
-        const pending = (Array.isArray(myOrders) ? myOrders : []).find(
-          (o: any) => o.productId === product.id && o.status === 'PENDING'
-        );
-        const createPayload: any = { productId: product.id, quantity: 1 };
-        if (isDaily && selectedDays > 1) createPayload.periodNum = selectedDays;
-        if (promoApplied && promoCode.trim()) createPayload.promoCode = promoCode.trim();
-        if (userEmail) createPayload.email = userEmail;
-        order = pending || await ordersApi.create(createPayload);
-      } catch {
-        const createPayload: any = { productId: product.id, quantity: 1 };
-        if (isDaily && selectedDays > 1) createPayload.periodNum = selectedDays;
-        if (promoApplied && promoCode.trim()) createPayload.promoCode = promoCode.trim();
-        if (userEmail) createPayload.email = userEmail;
-        order = await ordersApi.create(createPayload);
-      }
+      const createResult = await ordersApi.create(buildCreatePayload('card'))
+      const order = createResult.order
 
-      const orderTotal = Number(order.totalAmount ?? totalPrice)
+      const orderTotal = Number(order.totalAmount ?? payableTotal)
 
       if (orderTotal <= 0) {
         setPurchaseStage('provisioning')
@@ -300,12 +343,12 @@ function ProductPageInner() {
     if (autoBuyTriggeredRef.current) return
     if (searchParams.get('autoBuy') !== '1') return
     if (!product || balance === null) return
-    if (totalPrice <= 0 || balance < totalPrice) return
+    if (payableTotal <= 0 || balance < payableTotal) return
 
     autoBuyTriggeredRef.current = true
     void handlePurchase('balance')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product, balance, totalPrice, searchParams])
+  }, [product, balance, payableTotal, searchParams])
 
   if (loading) {
     return (
@@ -549,7 +592,7 @@ function ProductPageInner() {
         </div>
         {promoApplied && (
           <p className="text-xs text-green-600 mt-2 font-medium">
-            Скидка {promoDiscount}% применена! Вы экономите ₽{formatPrice(discountAmount)}
+            Скидка {promoDiscount}% применена! Вы экономите ₽{formatPrice(promoDiscountAmount)}
           </p>
         )}
         {promoError && (
@@ -558,22 +601,33 @@ function ProductPageInner() {
       </div>
 
       {/* Discount summary */}
-      {promoApplied && discountAmount > 0 && (
+      {(promoApplied && promoDiscountAmount > 0) || loyaltyDiscountAmount > 0 ? (
         <div className="card-neutral p-4 mb-4 animate-slide-up bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/30">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">Без скидки</span>
             <span className="text-sm text-gray-400 line-through">₽{formatPrice(basePrice)}</span>
           </div>
-          <div className="flex items-center justify-between mt-1">
-            <span className="text-sm text-green-700 font-medium">Скидка ({promoDiscount}%)</span>
-            <span className="text-sm text-green-700 font-medium">−₽{formatPrice(discountAmount)}</span>
-          </div>
+          {promoApplied && promoDiscountAmount > 0 && (
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-sm text-green-700 font-medium">Промокод ({promoDiscount}%)</span>
+              <span className="text-sm text-green-700 font-medium">−₽{formatPrice(promoDiscountAmount)}</span>
+            </div>
+          )}
+          {loyaltyDiscountAmount > 0 && (
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-sm text-green-700 font-medium">Скидка лояльности</span>
+              <span className="text-sm text-green-700 font-medium">−₽{formatPrice(loyaltyDiscountAmount)}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-green-200">
             <span className="text-sm font-bold text-primary">Итого</span>
-            <span className="text-lg font-bold text-primary">₽{formatPrice(totalPrice)}</span>
+            <span className="text-lg font-bold text-primary">₽{formatPrice(payableTotal)}</span>
           </div>
+          {pricingLoading && (
+            <p className="text-xs text-gray-500 mt-2">Уточняем итоговую сумму по вашему уровню лояльности…</p>
+          )}
         </div>
-      )}
+      ) : null}
 
       {/* Email for eSIM delivery */}
       <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.18s' }}>
@@ -601,7 +655,7 @@ function ProductPageInner() {
         <div className="grid grid-cols-2 gap-2">
           {(() => {
             const userBalance = Number(balance ?? 0)
-            const enoughBalance = userBalance >= totalPrice && totalPrice > 0
+            const enoughBalance = userBalance >= payableTotal && payableTotal > 0
             return (
               <>
                 <button
@@ -623,7 +677,7 @@ function ProductPageInner() {
                       ? '…'
                       : enoughBalance
                         ? `Доступно ₽${formatPrice(userBalance)}`
-                        : `Не хватает ₽${formatPrice(totalPrice - userBalance)}`}
+                        : `Не хватает ₽${formatPrice(payableTotal - userBalance)}`}
                   </span>
                 </button>
                 <button
@@ -709,9 +763,9 @@ function ProductPageInner() {
         <div className="max-w-lg mx-auto">
           {(() => {
             const userBalance = Number(balance ?? 0)
-            const enoughBalance = userBalance >= totalPrice && totalPrice > 0
-            const showTopupCta = paymentMethod === 'balance' && !enoughBalance && totalPrice > 0 && balance !== null
-            const need = Math.max(0, Math.ceil(totalPrice - userBalance))
+            const enoughBalance = userBalance >= payableTotal && payableTotal > 0
+            const showTopupCta = paymentMethod === 'balance' && !enoughBalance && payableTotal > 0 && balance !== null
+            const need = Math.max(0, Math.ceil(payableTotal - userBalance))
             return (
               <button
                 onClick={() => handlePurchase()}
@@ -726,9 +780,9 @@ function ProductPageInner() {
                 ) : showTopupCta ? (
                   <span>Пополнить на ₽{formatPrice(need)} и купить</span>
                 ) : paymentMethod === 'balance' ? (
-                  <span>Купить с баланса · ₽{formatPrice(totalPrice)}</span>
+                  <span>Купить с баланса · ₽{formatPrice(payableTotal)}</span>
                 ) : (
-                  <span>Оплатить картой · ₽{formatPrice(totalPrice)}</span>
+                  <span>Оплатить картой · ₽{formatPrice(payableTotal)}</span>
                 )}
               </button>
             )

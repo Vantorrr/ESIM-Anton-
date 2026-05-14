@@ -15,6 +15,15 @@ import { OrdersService } from './orders.service';
 import { OrderStatus } from '@prisma/client';
 import { JwtUserGuard, JwtAdminGuard, CurrentUser, AuthUser } from '@/common/auth/jwt-user.guard';
 import { OrGuard } from '@/common/auth/or.guard';
+import { CreateOrderQuoteDto } from './dto/create-order-quote.dto';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { CreateTopupOrderDto } from './dto/create-topup-order.dto';
+import type {
+  CheckoutOrder,
+  CreateOrderResponse,
+  CreateTopupOrderResponse,
+  OrderQuoteResponse,
+} from '@shared/contracts/checkout';
 
 const OrdersAccessGuard = OrGuard(JwtAdminGuard, JwtUserGuard);
 
@@ -23,6 +32,27 @@ const OrdersAccessGuard = OrGuard(JwtAdminGuard, JwtUserGuard);
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
+
+  private toCheckoutOrder(order: any): CheckoutOrder {
+    return {
+      id: order.id,
+      userId: order.userId,
+      productId: order.productId,
+      status: order.status,
+      quantity: Number(order.quantity),
+      periodNum: order.periodNum ?? null,
+      productPrice: Number(order.productPrice ?? 0),
+      discount: Number(order.discount ?? 0),
+      promoCode: order.promoCode ?? null,
+      promoDiscount: Number(order.promoDiscount ?? 0),
+      bonusUsed: Number(order.bonusUsed ?? 0),
+      totalAmount: Number(order.totalAmount ?? 0),
+      parentOrderId: order.parentOrderId ?? null,
+      topupPackageCode: order.topupPackageCode ?? null,
+      createdAt: order.createdAt,
+      completedAt: order.completedAt ?? null,
+    };
+  }
 
   @Get()
   @UseGuards(JwtAdminGuard)
@@ -50,6 +80,21 @@ export class OrdersController {
   @ApiOperation({ summary: 'Отменить (архивировать) заказ' })
   async cancelOrder(@Param('id') id: string) {
     return this.ordersService.cancelOrder(id);
+  }
+
+  @Post('quote')
+  @UseGuards(JwtUserGuard)
+  @ApiOperation({ summary: 'Посчитать актуальную цену заказа без создания order' })
+  async quote(
+    @CurrentUser() user: AuthUser,
+    @Body() body: CreateOrderQuoteDto,
+  ): Promise<OrderQuoteResponse> {
+    return this.ordersService.previewPricing(user.id, body.productId, {
+      quantity: body.quantity,
+      useBonuses: body.useBonuses,
+      periodNum: body.periodNum,
+      promoCode: body.promoCode,
+    });
   }
 
   @Get(':id')
@@ -100,30 +145,22 @@ export class OrdersController {
   @ApiOperation({ summary: 'Создать заказ (с баланса или картой)' })
   async create(
     @CurrentUser() user: AuthUser,
-    @Body()
-    createDto: {
-      productId: string;
-      quantity?: number;
-      useBonuses?: number;
-      periodNum?: number;
-      promoCode?: string;
-      paymentMethod?: 'card' | 'balance';
-    },
-  ) {
-    if (!createDto?.productId) {
-      throw new BadRequestException('productId обязателен');
-    }
-
+    @Body() createDto: CreateOrderDto,
+  ): Promise<CreateOrderResponse> {
     if (createDto.paymentMethod === 'balance') {
-      return this.ordersService.createWithBalance(user.id, createDto.productId, {
+      const result = await this.ordersService.createWithBalance(user.id, createDto.productId, {
         quantity: createDto.quantity,
         useBonuses: createDto.useBonuses,
         periodNum: createDto.periodNum,
         promoCode: createDto.promoCode,
       });
+      return {
+        paymentMethod: result.paymentMethod,
+        order: this.toCheckoutOrder(result.order),
+      };
     }
 
-    return this.ordersService.create(
+    const order = await this.ordersService.create(
       user.id,
       createDto.productId,
       createDto.quantity,
@@ -131,6 +168,10 @@ export class OrdersController {
       createDto.periodNum,
       createDto.promoCode,
     );
+    return {
+      paymentMethod: 'card',
+      order: this.toCheckoutOrder(order),
+    };
   }
 
   @Post(':id/fulfill-free')
@@ -222,11 +263,8 @@ export class OrdersController {
   async topup(
     @Param('id') parentId: string,
     @CurrentUser() user: AuthUser,
-    @Body() body: { packageCode: string; paymentMethod?: 'balance' | 'card' },
-  ) {
-    if (!body?.packageCode) {
-      throw new BadRequestException('packageCode обязателен');
-    }
+    @Body() body: CreateTopupOrderDto,
+  ): Promise<CreateTopupOrderResponse> {
     const method = body.paymentMethod === 'balance' ? 'balance' : 'card';
 
     const result = await this.ordersService.createTopupOrder(
@@ -239,8 +277,8 @@ export class OrdersController {
     // Для card-flow клиент должен сам вызвать POST /payments/create с order.id
     // (это разрывает цикл OrdersModule ↔ PaymentsModule на уровне TS-импортов)
     return {
-      method: result.paymentMethod,
-      order: result.order,
+      paymentMethod: result.paymentMethod,
+      order: this.toCheckoutOrder(result.order),
     };
   }
 }

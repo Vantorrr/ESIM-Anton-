@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, RefreshCw, Wifi, AlertCircle, CheckCircle2, Wallet, CreditCard } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
-import { ordersApi, userApi, api, type TopupPackage, type Order } from '@/lib/api'
+import { ordersApi, userApi, type TopupPackage, type Order } from '@/lib/api'
 import { useSmartBack } from '@/lib/useSmartBack'
 import { useAuth } from '@/components/AuthProvider'
 import { payCloudPayments } from '@/lib/cloudpayments'
@@ -106,11 +106,11 @@ export default function TopupPage() {
     setError(null)
     setSuccess(null)
     try {
-      const { data } = await api.post(`/orders/${orderId}/topup`, {
+      const data = await ordersApi.topup(orderId, {
         packageCode: pkg.packageCode,
         paymentMethod,
       })
-      if (data?.method === 'card' && data?.order?.id) {
+      if (data?.paymentMethod === 'card' && data?.order?.id) {
         const publicId = process.env.NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID
         if (!publicId) {
           throw new Error('Платёжный шлюз не настроен (NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID)')

@@ -445,6 +445,19 @@ export class PaymentsService {
       return `OK${InvId}`;
     }
 
+    const canReviveExpiredSession =
+      transaction.order &&
+      this.ordersService.isExpiredPaymentSessionOrder(transaction.order);
+    const shouldProcessOrderPayment =
+      transaction.order?.status === OrderStatus.PENDING || canReviveExpiredSession;
+
+    if (!shouldProcessOrderPayment) {
+      this.logger.warn(
+        `Игнорируем Robokassa webhook для заказа ${this.maskValue(transaction.orderId, 6)} в статусе ${transaction.order?.status}`,
+      );
+      return `OK${InvId}`;
+    }
+
     // Обновляем статус транзакции
     await this.prisma.transaction.update({
       where: { id: transaction.id },
@@ -457,6 +470,11 @@ export class PaymentsService {
     this.logger.log(
       `✅ Платеж подтверждён: InvId=${this.maskValue(InvId)} Order=${this.maskValue(transaction.orderId, 6)}`,
     );
+    if (canReviveExpiredSession && transaction.order?.status !== OrderStatus.PENDING) {
+      this.logger.warn(
+        `Поздний Robokassa webhook восстановил протухшую payment session для ${this.maskValue(transaction.orderId, 6)}`,
+      );
+    }
 
     // Выдаем eSIM
     try {

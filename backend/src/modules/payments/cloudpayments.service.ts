@@ -152,6 +152,13 @@ export class CloudPaymentsService {
       this.logger.error(`Amount mismatch: order=${order.totalAmount} pay=${Amount}`);
       return { code: 11 };
     }
+    if (this.ordersService.isExpiredPaymentSessionOrder(order)) {
+      if (order.status === OrderStatus.PENDING) {
+        await this.ordersService.expirePendingPaymentSession(order.id);
+      }
+      this.logger.warn(`Order payment session expired: ${order.id}`);
+      return { code: 20 };
+    }
     if (order.status !== OrderStatus.PENDING) {
       this.logger.warn(`Order not pending (${order.status}) — повторный check, ок`);
       // Не блокируем — повторный check может быть обычным ретраем CloudPayments
@@ -214,6 +221,15 @@ export class CloudPaymentsService {
     });
     if (!order) return { code: 10 };
     if (Number(order.totalAmount) !== Number(Amount)) return { code: 11 };
+    const canReviveExpiredSession = this.ordersService.isExpiredPaymentSessionOrder(order);
+    const shouldProcessPayment =
+      order.status === OrderStatus.PENDING || canReviveExpiredSession;
+    if (!shouldProcessPayment) {
+      this.logger.warn(
+        `Ignoring CP pay for non-actionable order ${order.id} in status ${order.status}`,
+      );
+      return { code: 0 };
+    }
 
     // Идемпотентность: если уже есть SUCCEEDED-транзакция с этим TransactionId — выходим
     if (cpTxId) {
@@ -260,7 +276,7 @@ export class CloudPaymentsService {
         });
       }
 
-      if (order.status === OrderStatus.PENDING) {
+      if (shouldProcessPayment) {
         await tx.order.update({
           where: { id: order.id },
           data: { status: OrderStatus.PAID },
@@ -269,7 +285,10 @@ export class CloudPaymentsService {
     });
 
     // Выдача eSIM — вне транзакции, чтобы долгий запрос к провайдеру не лочил БД
-    if (order.status === OrderStatus.PENDING) {
+    if (shouldProcessPayment) {
+      if (canReviveExpiredSession && order.status !== OrderStatus.PENDING) {
+        this.logger.warn(`Late CP pay revived expired order ${order.id}`);
+      }
       try {
         await this.ordersService.fulfillOrder(order.id);
         this.logger.log(`✅ eSIM issued for order ${order.id}`);

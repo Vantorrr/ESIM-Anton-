@@ -132,6 +132,7 @@ function makeService(orderOverrides: Record<string, unknown> = {}) {
 
   const promoCodesService = {
     use: jest.fn(),
+    validate: jest.fn(),
   };
 
   const telegramNotification = {
@@ -294,6 +295,42 @@ describe('OrdersService', () => {
           user: true,
         },
       });
+    });
+
+    it('previewPricing использует ту же pricing формулу без создания order и без consume промокода', async () => {
+      const { service, prisma, loyaltyService } = makeService();
+      const promoCodesService = (service as any).promoCodesService;
+      promoCodesService.validate.mockResolvedValue({
+        valid: true,
+        code: 'SALE10',
+        discountPercent: 10,
+      });
+      loyaltyService.getEffectiveLevelForSpent.mockResolvedValue({
+        id: 'gold',
+        name: 'Золото',
+        minSpent: 20000,
+        cashbackPercent: 7,
+        discount: 5,
+      });
+
+      const quote = await service.previewPricing('user_1', 'product_1', {
+        promoCode: 'sale10',
+      });
+
+      expect(promoCodesService.validate).toHaveBeenCalledWith('SALE10');
+      expect(promoCodesService.use).not.toHaveBeenCalled();
+      expect(prisma.order.create).not.toHaveBeenCalled();
+      expect(quote).toEqual(
+        expect.objectContaining({
+          productId: 'product_1',
+          promoCode: 'SALE10',
+          baseAmount: 100,
+          promoDiscount: 10,
+          loyaltyDiscount: 4.5,
+          totalAmount: 85.5,
+          isFree: false,
+        }),
+      );
     });
   });
 
@@ -502,6 +539,48 @@ describe('OrdersService', () => {
       expect(prisma.order.updateMany).toHaveBeenCalledWith({
         where: {
           id: { in: ['order_stale'] },
+          status: OrderStatus.PENDING,
+        },
+        data: {
+          status: OrderStatus.CANCELLED,
+          errorMessage: 'Payment session expired',
+        },
+      });
+    });
+
+    it('cancels stale pending orders even without bonus hold', async () => {
+      const { service, prisma } = makeService();
+      prisma.order.findMany.mockImplementation(({ where }: any) => {
+        if (where?.status === OrderStatus.PENDING) {
+          return Promise.resolve([{ id: 'order_card_stale' }]);
+        }
+        return Promise.resolve([]);
+      });
+      prisma.transaction.findMany.mockImplementation(({ where }: any) => {
+        if (where?.status === TransactionStatus.PENDING) return Promise.resolve([]);
+        return Promise.resolve([]);
+      });
+
+      await service.findByUser('user_1');
+
+      expect(prisma.transaction.updateMany).toHaveBeenCalledWith({
+        where: {
+          orderId: 'order_card_stale',
+          type: {
+            in: [TransactionType.PAYMENT, TransactionType.BONUS_SPENT],
+          },
+          status: TransactionStatus.PENDING,
+        },
+        data: {
+          status: TransactionStatus.CANCELLED,
+          metadata: {
+            releaseReason: 'payment_session_expired',
+          },
+        },
+      });
+      expect(prisma.order.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 'order_card_stale',
           status: OrderStatus.PENDING,
         },
         data: {
