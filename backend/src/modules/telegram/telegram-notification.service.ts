@@ -229,7 +229,7 @@ export class TelegramNotificationService {
     }
     keyboardRows.push([{
       text: '📱 Открыть Мои eSIM',
-      web_app: { url: `${this.miniAppUrl}/my-esim` },
+      web_app: { url: this.miniAppUrl },
     }]);
 
     const keyboard = { inline_keyboard: keyboardRows };
