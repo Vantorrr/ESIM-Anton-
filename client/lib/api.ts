@@ -368,6 +368,7 @@ export const paymentsApi = {
     const { data } = await api.post('/payments/charge-saved-card', { orderId });
     return {
       ...data,
+      repeatChargeAttemptId: data.repeatChargeAttemptId ?? null,
       reasonCode:
         data.reasonCode === null || data.reasonCode === undefined
           ? null

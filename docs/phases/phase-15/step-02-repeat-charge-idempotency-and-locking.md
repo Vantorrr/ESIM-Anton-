@@ -28,13 +28,20 @@
 
 ## Статус
 
-- `planned`
+- `completed`
 
 ## Журнал изменений
 
 ### 2026-05-17
 
 - Шаг выделен как payment-critical и должен выполняться раньше payload minimization и webhook hardening.
+- Добавлена таблица `repeat_charge_attempts` и enum `RepeatChargeAttemptStatus` как durable cross-process contract для one-order-one-attempt semantics.
+- `PaymentsService.chargeOrderWithSavedCard()` теперь сначала claim-ит attempt в БД и только потом делает внешний вызов CloudPayments token API.
+- Параллельный/retry запрос по тому же `orderId` больше не создаёт второй provider call:
+  - существующий `IN_PROGRESS` attempt возвращает user-facing response без нового списания;
+  - idempotency key теперь привязан к attempt contract, а не к controller-local логике.
+- Shared/API contract `ChargeOrderWithSavedCardResponse` теперь возвращает явный `chargeState` и `repeatChargeAttemptId`, поэтому duplicate/in-progress path больше не определяется по тексту сообщения.
+- Unit tests зафиксировали duplicate/in-progress сценарий как обязательный invariant.
 
 ## Файлы
 

@@ -27,6 +27,7 @@ function makeOrder(overrides: Record<string, unknown> = {}) {
       referredById: 'ref_1',
     },
     transactions: [],
+    repeatChargeAttempt: null,
     ...overrides,
   };
 }
@@ -36,6 +37,7 @@ function makeService(orderOverrides: Record<string, unknown> = {}) {
     order: {
       findUnique: jest.fn().mockResolvedValue(makeOrder(orderOverrides)),
       findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
       update: jest.fn().mockImplementation(({ data }: any) =>
         Promise.resolve({
           id: 'order_1',
@@ -587,6 +589,128 @@ describe('OrdersService', () => {
           status: OrderStatus.CANCELLED,
           errorMessage: 'Payment session expired',
         },
+      });
+    });
+  });
+
+  describe('reconciliation visibility', () => {
+    it('includes ambiguous saved-card repeat charge orders in needs_attention', async () => {
+      const { service, prisma } = makeService();
+      prisma.order.findMany.mockResolvedValue([
+        makeOrder({
+          id: 'order_ambiguous',
+          status: OrderStatus.PENDING,
+          errorMessage: null,
+          transactions: [
+            {
+              type: TransactionType.PAYMENT,
+              status: TransactionStatus.PENDING,
+              amount: 100,
+              paymentProvider: 'cloudpayments',
+              paymentMethod: 'saved_card_token',
+              metadata: {
+                repeatCharge: true,
+              },
+            },
+          ],
+          repeatChargeAttempt: {
+            id: 'attempt_1',
+            status: 'AMBIGUOUS',
+            providerReasonCode: null,
+            providerMessage: 'Saved card charge failed: transport timeout',
+            ambiguousReason: 'timeout',
+          },
+        }),
+      ]);
+      prisma.order.count.mockResolvedValue(1);
+
+      const result = await service.findAll({ reconciliation: 'needs_attention' });
+
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [
+              {
+                status: OrderStatus.FAILED,
+                transactions: {
+                  some: {
+                    type: TransactionType.PAYMENT,
+                    status: TransactionStatus.SUCCEEDED,
+                  },
+                },
+              },
+              {
+                repeatChargeAttempt: {
+                  is: {
+                    status: 'AMBIGUOUS',
+                  },
+                },
+              },
+            ],
+          },
+        }),
+      );
+      expect(result.data).toHaveLength(1);
+      expect(result.meta).toMatchObject({
+        total: 1,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+      });
+      expect(result.data[0].reconciliation).toEqual({
+        needsAttention: true,
+        category: 'repeat_charge_ambiguous',
+        refunded: false,
+        paymentProvider: 'cloudpayments',
+        paymentMethod: 'saved_card_token',
+        paymentAmount: 100,
+        lastError: 'Saved card charge failed: transport timeout',
+        repeatChargeAttemptId: 'attempt_1',
+        repeatChargeAttemptStatus: 'AMBIGUOUS',
+        providerReasonCode: null,
+        providerMessage: 'Saved card charge failed: transport timeout',
+        ambiguousReason: 'timeout',
+      });
+    });
+
+    it('preserves database total for needs_attention pagination metadata', async () => {
+      const { service, prisma } = makeService();
+      prisma.order.findMany.mockResolvedValue([
+        makeOrder({
+          id: 'order_page_1',
+          status: OrderStatus.PENDING,
+          transactions: [
+            {
+              type: TransactionType.PAYMENT,
+              status: TransactionStatus.PENDING,
+              amount: 100,
+              paymentProvider: 'cloudpayments',
+              paymentMethod: 'saved_card_token',
+              metadata: {},
+            },
+          ],
+          repeatChargeAttempt: {
+            id: 'attempt_page_1',
+            status: 'AMBIGUOUS',
+            providerReasonCode: null,
+            providerMessage: 'pending review',
+            ambiguousReason: 'timeout',
+          },
+        }),
+      ]);
+      prisma.order.count.mockResolvedValue(3);
+
+      const result = await service.findAll({
+        reconciliation: 'needs_attention',
+        page: 1,
+        limit: 1,
+      });
+
+      expect(result.meta).toMatchObject({
+        total: 3,
+        page: 1,
+        limit: 1,
+        totalPages: 3,
       });
     });
   });

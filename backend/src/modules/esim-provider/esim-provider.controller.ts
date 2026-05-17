@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query, UseGuards, HttpCode, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { JwtAdminGuard } from '@/common/auth/jwt-user.guard';
 import { EsimProviderService } from './esim-provider.service';
 import { EsimWebhookService, EsimWebhookPayload } from './esim-webhook.service';
 import { EsimWebhookGuard } from './esim-webhook.guard';
+import { EsimWebhookReplayService } from './esim-webhook-replay.service';
 
 @ApiTags('esim-provider')
 @Controller('esim-provider')
@@ -11,6 +12,7 @@ export class EsimProviderController {
   constructor(
     private readonly esimProviderService: EsimProviderService,
     private readonly esimWebhookService: EsimWebhookService,
+    private readonly esimWebhookReplayService: EsimWebhookReplayService,
   ) {}
 
   // ─────────────────────────────────────────────────────────────────────
@@ -21,9 +23,18 @@ export class EsimProviderController {
   @HttpCode(200)
   @UseGuards(EsimWebhookGuard)
   @ApiExcludeEndpoint()
-  async handleWebhook(@Body() payload: EsimWebhookPayload) {
-    await this.esimWebhookService.handleWebhook(payload);
-    return { success: true };
+  async handleWebhook(
+    @Body() payload: EsimWebhookPayload,
+    @Req() req: { esimUnsignedWebhookReceiptId?: string },
+  ) {
+    try {
+      await this.esimWebhookService.handleWebhook(payload);
+      await this.esimWebhookReplayService.confirmReceipt(req.esimUnsignedWebhookReceiptId);
+      return { success: true };
+    } catch (error) {
+      await this.esimWebhookReplayService.releaseReceipt(req.esimUnsignedWebhookReceiptId);
+      throw error;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────

@@ -28,13 +28,22 @@
 
 ## Статус
 
-- `planned`
+- `completed`
 
 ## Журнал изменений
 
 ### 2026-05-17
 
 - Шаг оформлен как финальный, потому что он связывает code hardening, docs sync и runtime verification.
+- Для degraded-auth path введён durable replay barrier `esim_webhook_receipts`:
+  - guard claim-ит unsigned `ORDER_STATUS` по dedup key;
+  - duplicate/replay того же unsigned события отклоняется до service processing;
+  - receipt остаётся в БД после успешной обработки и удаляется только при failed processing, чтобы provider retry оставался возможен.
+- Unsigned compatibility path больше не является общим bypass:
+  - без подписи разрешён только `CHECK_HEALTH`;
+  - через `rt-accesscode` разрешён только `ORDER_STATUS`;
+  - событие обязано содержать валидный `eventGenerateTime` и укладываться в freshness window.
+- `ORDER_STATUS/GOT_RESOURCE` provider query больше не проглатывает runtime error молча: при failure webhook возвращается в retryable path вместо ложного "успеха".
 
 ## Файлы
 

@@ -93,4 +93,29 @@ describe('EsimWebhookService', () => {
     expect(prisma.order.findFirst).not.toHaveBeenCalled();
     expect(esimProviderService.queryOrder).not.toHaveBeenCalled();
   });
+
+  it('ORDER_STATUS пробрасывает ошибку provider query, чтобы callback можно было ретраить', async () => {
+    const { service, prisma, esimProviderService } = makeService();
+
+    prisma.order.findFirst.mockResolvedValue({
+      id: 'order_1',
+      iccid: null,
+      qrCode: null,
+      activationCode: null,
+      smdpAddress: null,
+    });
+    esimProviderService.queryOrder.mockRejectedValue(new Error('provider timeout'));
+
+    await expect(
+      service.handleWebhook({
+        notifyType: 'ORDER_STATUS',
+        notifyId: 'notify_1',
+        eventGenerateTime: new Date().toISOString(),
+        content: {
+          orderNo: 'B123',
+          orderStatus: 'GOT_RESOURCE',
+        },
+      }),
+    ).rejects.toThrow('provider timeout');
+  });
 });

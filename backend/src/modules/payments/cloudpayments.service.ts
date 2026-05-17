@@ -6,6 +6,10 @@ import { TelegramNotificationService } from '../telegram/telegram-notification.s
 import { PushService } from '../notifications/push.service';
 import { TransactionType, TransactionStatus, OrderStatus, Prisma } from '@prisma/client';
 import * as crypto from 'crypto';
+import {
+  encryptCloudPaymentsToken,
+  fingerprintCloudPaymentsToken,
+} from './cloudpayments-token-crypto';
 
 /**
  * Покrytie payload-а CloudPayments-вебхука. Сюда попадает то, что присылает
@@ -44,6 +48,7 @@ export class CloudPaymentsService {
   private readonly publicId: string;
   private readonly apiSecret: string;
   private readonly enforceHmac: boolean;
+  private readonly tokenEncryptionKeySource: string;
 
   constructor(
     private prisma: PrismaService,
@@ -54,6 +59,8 @@ export class CloudPaymentsService {
   ) {
     this.publicId = this.configService.get('CLOUDPAYMENTS_PUBLIC_ID') || '';
     this.apiSecret = this.configService.get('CLOUDPAYMENTS_API_SECRET') || '';
+    this.tokenEncryptionKeySource =
+      this.configService.get('CLOUDPAYMENTS_TOKEN_ENCRYPTION_KEY') || this.apiSecret;
     // По умолчанию HMAC обязателен в проде; в dev можно отключить флагом
     this.enforceHmac =
       (this.configService.get('CLOUDPAYMENTS_ENFORCE_HMAC') ?? 'true') !== 'false';
@@ -126,6 +133,37 @@ export class CloudPaymentsService {
     }
   }
 
+  private buildWebhookMetadata(body: CpWebhookBody, status: TransactionStatus) {
+    const data = this.parseData(body);
+
+    return {
+      source: 'cloudpayments_webhook',
+      status,
+      invoiceId: body?.InvoiceId ? String(body.InvoiceId) : null,
+      transactionId: body?.TransactionId ? String(body.TransactionId) : null,
+      accountId: body?.AccountId ? String(body.AccountId) : null,
+      amount: body?.Amount != null ? Number(body.Amount) : null,
+      currency: body?.Currency ? String(body.Currency) : null,
+      cardMask: this.buildCardMask(body),
+      cardBrand: body?.CardType ? String(body.CardType) : null,
+      reasonCode:
+        body?.ReasonCode !== undefined && body?.ReasonCode !== null && body?.ReasonCode !== ''
+          ? Number(body.ReasonCode)
+          : null,
+      reason: body?.CardHolderMessage
+        ? String(body.CardHolderMessage)
+        : body?.Message
+          ? String(body.Message)
+          : null,
+      purpose: data.purpose ?? 'esim_order',
+      parentOrderId: data.parentOrderId ? String(data.parentOrderId) : null,
+      testMode:
+        body?.TestMode !== undefined && body?.TestMode !== null
+          ? String(body.TestMode)
+          : null,
+    } as const;
+  }
+
   private buildCardMask(body: CpWebhookBody): string | null {
     const lastFour = String(body?.CardLastFour ?? '').trim();
     if (!lastFour) return null;
@@ -165,6 +203,9 @@ export class CloudPaymentsService {
 
     const rawToken = String(body?.Token ?? '').trim();
     if (!rawToken) return;
+    if (!this.tokenEncryptionKeySource) {
+      throw new Error('CloudPayments token encryption key is not configured');
+    }
 
     const accountId = String(body?.AccountId ?? '').trim();
     if (!accountId) {
@@ -186,8 +227,9 @@ export class CloudPaymentsService {
 
     const { expMonth, expYear } = this.parseCardExpiry(body);
     const sourceTransactionId = body?.TransactionId ? String(body.TransactionId) : null;
+    const tokenFingerprint = fingerprintCloudPaymentsToken(rawToken);
     const existingToken = await tx.cloudPaymentsCardToken.findUnique({
-      where: { cloudPaymentsToken: rawToken },
+      where: { tokenFingerprint },
       select: { id: true, userId: true, isActive: true },
     });
 
@@ -202,7 +244,7 @@ export class CloudPaymentsService {
       where: {
         userId: order.userId,
         isActive: true,
-        cloudPaymentsToken: { not: rawToken },
+        tokenFingerprint: { not: tokenFingerprint },
       },
       data: {
         isActive: false,
@@ -212,11 +254,12 @@ export class CloudPaymentsService {
     });
 
     await tx.cloudPaymentsCardToken.upsert({
-      where: { cloudPaymentsToken: rawToken },
+      where: { tokenFingerprint },
       create: {
         userId: order.userId,
         accountId,
-        cloudPaymentsToken: rawToken,
+        cloudPaymentsToken: encryptCloudPaymentsToken(rawToken, this.tokenEncryptionKeySource),
+        tokenFingerprint,
         cardMask,
         cardBrand: body?.CardType ? String(body.CardType) : null,
         expMonth,
@@ -228,6 +271,8 @@ export class CloudPaymentsService {
       },
       update: {
         accountId,
+        cloudPaymentsToken: encryptCloudPaymentsToken(rawToken, this.tokenEncryptionKeySource),
+        tokenFingerprint,
         cardMask,
         cardBrand: body?.CardType ? String(body.CardType) : null,
         expMonth,
@@ -373,8 +418,9 @@ export class CloudPaymentsService {
       }
     }
 
-    // Одной транзакцией: апсертим Transaction(SUCCEEDED) + переводим Order в PAID
-    await this.prisma.$transaction(async (tx) => {
+    // Одной транзакцией: апсертим Transaction(SUCCEEDED) + claim-им право на переход заказа в PAID.
+    // Только победитель этого claim-а имеет право запускать fulfill/post-payment side effects.
+    const didClaimOrderForFulfillment = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.transaction.findFirst({
         where: { orderId: order.id, paymentProvider: 'cloudpayments' },
         orderBy: { createdAt: 'desc' },
@@ -385,7 +431,7 @@ export class CloudPaymentsService {
           data: {
             status: TransactionStatus.SUCCEEDED,
             paymentId: cpTxId,
-            metadata: body,
+            metadata: this.buildWebhookMetadata(body, TransactionStatus.SUCCEEDED) as any,
           },
         });
       } else {
@@ -398,23 +444,43 @@ export class CloudPaymentsService {
             amount: order.totalAmount,
             paymentProvider: 'cloudpayments',
             paymentId: cpTxId,
-            metadata: body,
+            metadata: this.buildWebhookMetadata(body, TransactionStatus.SUCCEEDED) as any,
           },
         });
       }
 
+      let claimed = false;
       if (shouldProcessPayment) {
-        await tx.order.update({
-          where: { id: order.id },
-          data: { status: OrderStatus.PAID },
+        const orderUpdate = await tx.order.updateMany({
+          where: canReviveExpiredSession
+            ? {
+                id: order.id,
+                OR: [
+                  { status: OrderStatus.PENDING },
+                  {
+                    status: OrderStatus.CANCELLED,
+                    errorMessage: 'Payment session expired',
+                  },
+                ],
+              }
+            : {
+                id: order.id,
+                status: OrderStatus.PENDING,
+              },
+          data: {
+            status: OrderStatus.PAID,
+            errorMessage: null,
+          },
         });
+        claimed = orderUpdate.count === 1;
       }
 
       await this.persistOrderCardToken(tx, order, body, data);
+      return claimed;
     });
 
     // Выдача eSIM — вне транзакции, чтобы долгий запрос к провайдеру не лочил БД
-    if (shouldProcessPayment) {
+    if (didClaimOrderForFulfillment) {
       if (canReviveExpiredSession && order.status !== OrderStatus.PENDING) {
         this.logger.warn(`Late CP pay revived expired order ${order.id}`);
       }
@@ -436,6 +502,10 @@ export class CloudPaymentsService {
       } catch (e: any) {
         this.logger.error(`Push notification error: ${e.message}`);
       }
+    } else if (shouldProcessPayment) {
+      this.logger.warn(
+        `Skipping duplicate fulfill for CP pay order ${order.id}: another callback already claimed completion`,
+      );
     }
 
     return { code: 0 };
@@ -485,7 +555,7 @@ export class CloudPaymentsService {
         data: {
           status: TransactionStatus.SUCCEEDED,
           paymentId: cpTxId,
-          metadata: body,
+          metadata: this.buildWebhookMetadata(body, TransactionStatus.SUCCEEDED) as any,
         },
       });
 
@@ -536,7 +606,10 @@ export class CloudPaymentsService {
           paymentProvider: 'cloudpayments',
           status: TransactionStatus.PENDING,
         },
-        data: { status: TransactionStatus.FAILED, metadata: body },
+        data: {
+          status: TransactionStatus.FAILED,
+          metadata: this.buildWebhookMetadata(body, TransactionStatus.FAILED) as any,
+        },
       });
       return { code: 0 };
     }
@@ -553,7 +626,10 @@ export class CloudPaymentsService {
     if (tx) {
       await this.prisma.transaction.update({
         where: { id: tx.id },
-        data: { status: TransactionStatus.FAILED, metadata: body },
+        data: {
+          status: TransactionStatus.FAILED,
+          metadata: this.buildWebhookMetadata(body, TransactionStatus.FAILED) as any,
+        },
       });
     }
     await this.ordersService.releaseBonusSpendHold(String(InvoiceId), 'cloudpayments_failed');

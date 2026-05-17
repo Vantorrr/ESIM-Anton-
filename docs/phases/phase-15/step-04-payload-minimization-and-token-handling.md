@@ -31,13 +31,20 @@
 
 ## Статус
 
-- `planned`
+- `completed`
 
 ## Журнал изменений
 
 ### 2026-05-17
 
 - Шаг вынесен отдельно от orchestration, потому что он затрагивает storage contract, API shape и operational debugging policy.
+- `cloudpayments_card_tokens` переведена на encrypted-at-rest storage:
+  - `cloudPaymentsToken` теперь хранится в зашифрованном виде;
+  - identity/uniqueness переехала на `tokenFingerprint`;
+  - для совместимости key source берётся из `CLOUDPAYMENTS_TOKEN_ENCRYPTION_KEY`, а при его отсутствии временно fallback-ится к `CLOUDPAYMENTS_API_SECRET`.
+- CloudPayments webhook paths перестали сохранять сырое `body` в `transaction.metadata`; вместо этого используется safelist audit payload без `Token` и других лишних полей.
+- User/admin transaction responses теперь редактируют CloudPayments metadata до safelist shape, даже если в старых строках metadata остались лишние ключи.
+- `.env.example` дополнен `CLOUDPAYMENTS_TOKEN_ENCRYPTION_KEY`, а Windows-specific Prisma type refresh workaround зафиксирован в wiki как operational gotcha.
 
 ## Файлы
 

@@ -28,6 +28,7 @@
 - `backend` больше не должен использовать `db push` как основную production стратегию; baseline migration добавлен, новые schema changes нужно вести через migrations.
 - `backend/prisma/seed.ts` создаёт продукты без `upsert`, поэтому повторный запуск может раздувать каталог дубликатами.
 - исторически проект жил без `prisma/migrations`; после добавления baseline migration существующие БД нужно baseline/apply'ить осознанно, а не смешивать с ручными `db push`.
+- На Windows `pnpm prisma generate` может упираться в lock `query_engine-windows.dll.node`; если нужен только refresh типов после schema change, рабочий обход — `pnpm prisma generate --no-engine`.
 
 ## Product behavior
 
@@ -55,3 +56,6 @@
 - `OrdersService` теперь opportunistically чистит stale `PENDING` payment sessions не только для bonus hold-ов, но и для обычных неоплаченных заказов через `cleanupExpiredPendingPaymentSessions()`. Важно: это не отдельный cron и не глобальный workflow engine. Cleanup срабатывает только на checkout/order-related backend paths, а поздний успешный webhook может намеренно “поднять” только заказ, отменённый именно по policy `Payment session expired`, но не admin-cancelled/manual-cancelled order.
 - `admin` build проходит, но сохраняются warning'и по `@typescript-eslint/no-unused-vars` и замечание про отсутствие Next ESLint plugin integration.
 - eSIM Access webhook contract нельзя считать "всегда строго подписанным". В живом рантайме `ORDER_STATUS` уже приходил только с `rt-accesscode`, без `RT-Signature/RT-Timestamp/RT-RequestID`. Для этого в guard есть degraded-auth ветка, а `ORDER_STATUS/GOT_RESOURCE` используется для позднего дообогащения заказа по `providerOrderId`, даже если в payload нет `iccid`.
+- Mixed-auth eSIM webhook path больше нельзя трактовать как общий unsigned bypass. После Phase 15 он ограничен только `ORDER_STATUS` + valid `rt-accesscode` + freshness window, а replay блокируется через `esim_webhook_receipts`. Если `ORDER_STATUS` enrichment падает на provider query, событие должно оставаться retryable, а не silently accepted.
+- Saved-card repeat charge больше нельзя трактовать как stateless controller action. Source of truth теперь живёт в `repeat_charge_attempts`: один `orderId` = один durable attempt, а status `AMBIGUOUS` блокирует новый charge до reconciliation и не должен подменяться `Order.errorMessage`/raw metadata.
+- CloudPayments metadata больше нельзя считать безопасным dump-контейнером. Даже admin/user transaction endpoints проходят redaction до safelist shape, а `cloudpayments_card_tokens` используют encrypted-at-rest token storage + `tokenFingerprint` для identity lookup.

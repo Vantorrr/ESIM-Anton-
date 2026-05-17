@@ -25,6 +25,9 @@ function makeService() {
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    repeatChargeAttempt: {
+      findUnique: jest.fn(),
+    },
     user: {
       findUnique: jest.fn(),
       update: jest.fn(),
@@ -34,11 +37,33 @@ function makeService() {
         transaction: {
           update: jest.fn().mockResolvedValue(undefined),
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          create: prisma.transaction.create,
+          findFirst: prisma.transaction.findFirst,
         },
         order: {
+          findUnique: prisma.order.findUnique,
           update: jest.fn().mockResolvedValue(undefined),
         },
         cloudPaymentsCardToken: {
+          update: jest.fn().mockResolvedValue(undefined),
+        },
+        repeatChargeAttempt: {
+          findUnique: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockImplementation(async ({ data }: any) => ({
+            id: 'attempt_1',
+            orderId: data.orderId,
+            userId: data.userId,
+            savedCardId: data.savedCardId,
+            status: data.status,
+            idempotencyKey: data.idempotencyKey,
+            cloudPaymentsTransactionId: null,
+            providerReasonCode: null,
+            providerMessage: null,
+            ambiguousReason: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            finishedAt: null,
+          })),
           update: jest.fn().mockResolvedValue(undefined),
         },
       }),
@@ -163,7 +188,9 @@ describe('PaymentsService saved card repeat charge', () => {
       'saved_card_fallback',
     );
     expect(result.success).toBe(false);
+    expect(result.chargeState).toBe('declined');
     expect(result.fallbackToWidget).toBe(true);
+    expect(result.repeatChargeAttemptId).toBeNull();
     expect(result.savedCard).toBeNull();
   });
 
@@ -248,6 +275,289 @@ describe('PaymentsService saved card repeat charge', () => {
       price: 100,
     });
     expect(result.success).toBe(true);
+    expect(result.chargeState).toBe('succeeded');
     expect(result.fallbackToWidget).toBe(false);
+    expect(result.repeatChargeAttemptId).toBe('attempt_1');
+  });
+
+  it('does not call provider again when repeat charge attempt is already in progress', async () => {
+    const { service, prisma } = makeService();
+    prisma.order.findUnique.mockResolvedValue({
+      id: 'order_1',
+      userId: 'user_1',
+      productId: 'product_1',
+      status: OrderStatus.PENDING,
+      quantity: 1,
+      periodNum: null,
+      productPrice: 100,
+      discount: 0,
+      promoCode: null,
+      promoDiscount: 0,
+      bonusUsed: 0,
+      totalAmount: 100,
+      parentOrderId: null,
+      topupPackageCode: null,
+      product: { name: 'Japan 10 GB', country: 'JP', dataAmount: '10 GB' },
+      user: { id: 'user_1', email: 'user@example.com' },
+      transactions: [],
+    });
+    prisma.cloudPaymentsCardToken.findFirst.mockResolvedValue({
+      id: 'card_1',
+      userId: 'user_1',
+      accountId: 'user_1',
+      cloudPaymentsToken: 'tk_1',
+      cardMask: '4242 42****** 4242',
+      cardBrand: 'Visa',
+      expMonth: 12,
+      expYear: 2030,
+      isActive: true,
+      lastUsedAt: null,
+    });
+    prisma.$transaction.mockResolvedValue({
+      created: false,
+      paymentTxId: 'tx_1',
+      attempt: {
+        id: 'attempt_1',
+        orderId: 'order_1',
+        userId: 'user_1',
+        savedCardId: 'card_1',
+        status: 'IN_PROGRESS',
+        idempotencyKey: 'repeat-charge-order_1',
+        cloudPaymentsTransactionId: null,
+        providerReasonCode: null,
+        providerMessage: null,
+        ambiguousReason: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        finishedAt: null,
+      },
+    });
+    prisma.order.findUniqueOrThrow.mockResolvedValue({
+      id: 'order_1',
+      userId: 'user_1',
+      productId: 'product_1',
+      status: OrderStatus.PENDING,
+      quantity: 1,
+      periodNum: null,
+      productPrice: 100,
+      discount: 0,
+      promoCode: null,
+      promoDiscount: 0,
+      bonusUsed: 0,
+      totalAmount: 100,
+      parentOrderId: null,
+      topupPackageCode: null,
+      createdAt: new Date(),
+      completedAt: null,
+    });
+
+    const result = await service.chargeOrderWithSavedCard('user_1', 'order_1');
+
+    expect(mockedAxios.post).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
+    expect(result.chargeState).toBe('in_progress');
+    expect(result.fallbackToWidget).toBe(false);
+    expect(result.repeatChargeAttemptId).toBe('attempt_1');
+    expect(result.message).toContain('уже обрабатывается');
+  });
+
+  it('keeps order pending on transport timeout and does not fallback to widget', async () => {
+    const { service, prisma, ordersService } = makeService();
+    prisma.order.findUnique.mockResolvedValue({
+      id: 'order_1',
+      userId: 'user_1',
+      productId: 'product_1',
+      status: OrderStatus.PENDING,
+      quantity: 1,
+      periodNum: null,
+      productPrice: 100,
+      discount: 0,
+      promoCode: null,
+      promoDiscount: 0,
+      bonusUsed: 0,
+      totalAmount: 100,
+      parentOrderId: null,
+      topupPackageCode: null,
+      product: { name: 'Japan 10 GB', country: 'JP', dataAmount: '10 GB' },
+      user: { id: 'user_1', email: 'user@example.com' },
+      transactions: [],
+    });
+    prisma.cloudPaymentsCardToken.findFirst.mockResolvedValue({
+      id: 'card_1',
+      userId: 'user_1',
+      accountId: 'user_1',
+      cloudPaymentsToken: 'tk_1',
+      cardMask: '4242 42****** 4242',
+      cardBrand: 'Visa',
+      expMonth: 12,
+      expYear: 2030,
+      isActive: true,
+      lastUsedAt: null,
+    });
+    prisma.transaction.create.mockResolvedValue({
+      id: 'tx_1',
+      orderId: 'order_1',
+      type: TransactionType.PAYMENT,
+      status: TransactionStatus.PENDING,
+    });
+    prisma.order.findUniqueOrThrow.mockResolvedValue({
+      id: 'order_1',
+      userId: 'user_1',
+      productId: 'product_1',
+      status: OrderStatus.PENDING,
+      quantity: 1,
+      periodNum: null,
+      productPrice: 100,
+      discount: 0,
+      promoCode: null,
+      promoDiscount: 0,
+      bonusUsed: 0,
+      totalAmount: 100,
+      parentOrderId: null,
+      topupPackageCode: null,
+      createdAt: new Date(),
+      completedAt: null,
+    });
+    mockedAxios.post.mockRejectedValue({ code: 'ECONNABORTED' });
+
+    const result = await service.chargeOrderWithSavedCard('user_1', 'order_1');
+
+    expect(result.success).toBe(false);
+    expect(result.chargeState).toBe('ambiguous');
+    expect(result.fallbackToWidget).toBe(false);
+    expect(result.repeatChargeAttemptId).toBe('attempt_1');
+    expect(result.message).toContain('еще уточняется');
+    expect(ordersService.releaseBonusSpendHold).not.toHaveBeenCalled();
+  });
+
+  it('returns declined state and widget fallback on confirmed provider decline', async () => {
+    const { service, prisma, ordersService } = makeService();
+    prisma.order.findUnique.mockResolvedValue({
+      id: 'order_1',
+      userId: 'user_1',
+      productId: 'product_1',
+      status: OrderStatus.PENDING,
+      quantity: 1,
+      periodNum: null,
+      productPrice: 100,
+      discount: 0,
+      promoCode: null,
+      promoDiscount: 0,
+      bonusUsed: 0,
+      totalAmount: 100,
+      parentOrderId: null,
+      topupPackageCode: null,
+      product: { name: 'Japan 10 GB', country: 'JP', dataAmount: '10 GB' },
+      user: { id: 'user_1', email: 'user@example.com' },
+      transactions: [],
+    });
+    prisma.cloudPaymentsCardToken.findFirst.mockResolvedValue({
+      id: 'card_1',
+      userId: 'user_1',
+      accountId: 'user_1',
+      cloudPaymentsToken: 'tk_1',
+      cardMask: '4242 42****** 4242',
+      cardBrand: 'Visa',
+      expMonth: 12,
+      expYear: 2030,
+      isActive: true,
+      lastUsedAt: null,
+    });
+    prisma.transaction.create.mockResolvedValue({
+      id: 'tx_1',
+      orderId: 'order_1',
+      type: TransactionType.PAYMENT,
+      status: TransactionStatus.PENDING,
+    });
+    prisma.order.findUniqueOrThrow.mockResolvedValue({
+      id: 'order_1',
+      userId: 'user_1',
+      productId: 'product_1',
+      status: OrderStatus.CANCELLED,
+      quantity: 1,
+      periodNum: null,
+      productPrice: 100,
+      discount: 0,
+      promoCode: null,
+      promoDiscount: 0,
+      bonusUsed: 0,
+      totalAmount: 100,
+      parentOrderId: null,
+      topupPackageCode: null,
+      createdAt: new Date(),
+      completedAt: null,
+    });
+    mockedAxios.post.mockResolvedValue({
+      data: {
+        Success: false,
+        Message: 'Declined',
+        Model: {
+          ReasonCode: 5051,
+          CardHolderMessage: 'Недостаточно средств',
+        },
+      },
+    } as any);
+
+    const result = await service.chargeOrderWithSavedCard('user_1', 'order_1');
+
+    expect(result.success).toBe(false);
+    expect(result.chargeState).toBe('declined');
+    expect(result.fallbackToWidget).toBe(true);
+    expect(result.repeatChargeAttemptId).toBe('attempt_1');
+    expect(result.message).toContain('Откройте оплату новой картой');
+    expect(ordersService.releaseBonusSpendHold).toHaveBeenCalledWith(
+      'order_1',
+      'saved_card_fallback',
+    );
+  });
+
+  it('redacts cloudpayments metadata in user transaction responses', async () => {
+    const { service, prisma } = makeService();
+    prisma.transaction.findMany.mockResolvedValue([
+      {
+        id: 'tx_1',
+        userId: 'user_1',
+        orderId: 'order_1',
+        type: TransactionType.PAYMENT,
+        status: TransactionStatus.SUCCEEDED,
+        amount: 100,
+        paymentProvider: 'cloudpayments',
+        paymentId: 'cp_tx_1',
+        paymentMethod: 'card',
+        metadata: {
+          source: 'cloudpayments_webhook',
+          transactionId: 'cp_tx_1',
+          cardMask: '**** 4242',
+          Token: 'raw-token-should-not-leak',
+          CardLastFour: '4242',
+        },
+        createdAt: new Date(),
+        order: null,
+      },
+    ]);
+
+    const result = await service.findByUser('user_1');
+
+    expect(result).toHaveLength(1);
+    expect(result[0].metadata).toEqual({
+      source: 'cloudpayments_webhook',
+      purpose: null,
+      status: null,
+      invoiceId: null,
+      transactionId: 'cp_tx_1',
+      accountId: null,
+      amount: null,
+      currency: null,
+      cardMask: '**** 4242',
+      cardBrand: null,
+      reasonCode: null,
+      reason: null,
+      repeatCharge: null,
+      repeatChargeAttemptId: null,
+      savedCardId: null,
+      ambiguousReason: null,
+      testMode: null,
+      parentOrderId: null,
+    });
   });
 });

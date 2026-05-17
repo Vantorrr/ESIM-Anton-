@@ -60,10 +60,22 @@
 
 - зафиксировать успешную оплату;
 - перевести order в `PAID`;
-- вызвать fulfillment.
+- вызвать fulfillment;
 - при Phase 14 tokenized flow дополнительно забрать `Token`, `CardFirstSix`, `CardLastFour`, `CardType`, `CardExpDate`, если они реально пришли в payload.
 
 Late `Pay` разрешено принимать только для order, который был auto-expired по policy `Payment session expired`.
+
+### Completion claim
+
+Для обычного widget purchase flow `Pay`-callback не должен иметь race window на втором `fulfillOrder()`.
+
+Текущий repo baseline:
+
+- webhook сначала делает durable DB-claim на переход `order -> PAID`;
+- только callback, который реально сделал этот transition, имеет право:
+  - запускать `OrdersService.fulfillOrder()`;
+  - отправлять success push/notification side effects;
+- повторный/параллельный `Pay` может обновить transaction audit, но не должен второй раз выдавать eSIM или повторно начислять post-payment side effects.
 
 ### Fail
 
@@ -98,6 +110,10 @@ Late `Pay` разрешено принимать только для order, ко
   - card mask / brand / expiry;
   - minimal audit trail получения и деактивации;
 - raw PAN/CVV хранить и логировать запрещено.
+- token должен храниться в БД в зашифрованном виде:
+  - preferred key source: `CLOUDPAYMENTS_TOKEN_ENCRYPTION_KEY`;
+  - временный backward-compatible fallback: `CLOUDPAYMENTS_API_SECRET`, если отдельный key ещё не выдан;
+  - lookup/uniqueness должны опираться на `tokenFingerprint`, а не на plaintext token.
 
 ## Phase 14 Step 01 Model Decisions
 
@@ -134,7 +150,8 @@ Repo baseline после Step 03:
   - login = `CLOUDPAYMENTS_PUBLIC_ID`
   - password = `CLOUDPAYMENTS_API_SECRET`
 - idempotency:
-  - backend отправляет `X-Request-ID: repeat-order-<orderId>`;
+  - backend создаёт durable `repeat_charge_attempts` запись с unique `orderId`;
+  - `X-Request-ID` теперь привязан к persisted attempt key, а не к process-local состоянию;
 - repeat charge включён только для purchase orders без `parentOrderId` / `topupPackageCode`.
 
 ### Fallback semantics
@@ -153,6 +170,42 @@ Repo baseline после Step 03:
 - dangling payment sessions;
 - непонятный mixed lifecycle одного invoice между token API и widget;
 - неоднозначный бонусный hold state.
+
+### Ambiguous outcome policy
+
+Если token charge завершился transport error / timeout и backend не получил подтверждённый provider decision:
+
+- order **не** переводится в `CANCELLED`;
+- repeat-charge attempt помечается как `AMBIGUOUS`;
+- `PAYMENT` transaction остаётся pending repeat-charge boundary;
+- повторный `POST /payments/charge-saved-card` по тому же order не должен запускать новый charge и должен возвращать явный `chargeState` (`ambiguous` / `in_progress`);
+- fresh widget fallback разрешён только после явного подтверждения decline или ручного triage.
+
+Support/admin triage minimum:
+
+- искать order по `orderId`;
+- сверять `repeat_charge_attempts.status`, `repeatChargeAttemptId`, `cloudPaymentsTransactionId`, `providerReasonCode`, `providerMessage`;
+- использовать `/orders?reconciliation=needs_attention` как основной список ambiguous repeat-charge cases;
+- не инициировать новую оплату до выяснения, был ли первый charge действительно неуспешен.
+
+## Metadata redaction baseline
+
+CloudPayments webhook и repeat-charge runtime больше не должны сохранять в `transaction.metadata` полный provider payload.
+
+Допустимый safelist:
+
+- `source`, `purpose`, `status`;
+- `invoiceId`, `transactionId`, `accountId`;
+- `amount`, `currency`;
+- `cardMask`, `cardBrand`;
+- `reasonCode`, `reason`;
+- `repeatChargeAttemptId`, `savedCardId`, `ambiguousReason`.
+
+Недопустимо сохранять/возвращать через transaction API:
+
+- `Token`;
+- сырой `Data`;
+- любые лишние card payload fragments, не нужные для triage.
 
 ### Token disable policy
 

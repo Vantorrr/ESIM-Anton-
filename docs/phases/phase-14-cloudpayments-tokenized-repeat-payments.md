@@ -138,6 +138,11 @@
 - Исходная широкая saved-cards фаза была заменена на более узкую фазу под repeat payments через CloudPayments token.
 - Scope сознательно сфокусирован на первом production contour `purchase`, но без MVP-компромиссов в storage/orchestration contracts.
 - Фаза оставляет совместимый extension seam для будущего подключения tokenized top-up и balance-topup без обязательного переписывания базовой модели.
+- Runtime verification подтвердила:
+  - обычный CloudPayments widget purchase flow не сломан;
+  - token capture после успешного `Pay` реально доходит до `cloudpayments_card_tokens`;
+  - purchase checkout получил production baseline для saved-card repeat charge и safe fallback на новую карту.
+- Все найденные после feature rollout security/consistency риски по repeat charge, payload boundary и webhook degraded-auth path сознательно вынесены в отдельную [Phase 15](./phase-15-payment-and-webhook-security-hardening.md), а не считаются незавершённостью самой feature phase.
 
 ## Ссылки
 

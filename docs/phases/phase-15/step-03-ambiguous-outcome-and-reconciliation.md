@@ -37,13 +37,24 @@
 
 ## Статус
 
-- `planned`
+- `completed`
 
 ## Журнал изменений
 
 ### 2026-05-17
 
 - Шаг выделен отдельно, потому что это уже не просто race fix, а state-machine и operations policy change.
+- Unknown outcome теперь выражается через `repeat_charge_attempts.status = AMBIGUOUS` и `ambiguousReason`, а не через `errorMessage` или сырой `metadata`.
+- Transport/timeout ошибка token charge больше не переводит order в `CANCELLED` и не открывает fallback на widget:
+  - `Order` остаётся в `PENDING`;
+  - payment transaction сохраняется как pending repeat-charge boundary;
+  - повторный вызов `charge-saved-card` возвращает message о pending reconciliation вместо нового списания.
+- Runbook policy для текущего baseline:
+  - ambiguous repeat charge triage идёт по `orderId`, `repeatChargeAttemptId`, `cloudPaymentsTransactionId` и статусу attempt;
+  - пока нет подтверждённого decline или success, fresh widget retry на том же order запрещён.
+- `OrdersService.findAll({ reconciliation: 'needs_attention' })` теперь включает `PENDING` purchase orders с `repeat_charge_attempts.status = AMBIGUOUS`, а reconciliation payload отдаёт `repeatChargeAttemptId`, `repeatChargeAttemptStatus`, `providerReasonCode`, `providerMessage` и `ambiguousReason`.
+- Client product page больше не бросает generic error для `AMBIGUOUS` / `IN_PROGRESS`: пользователь получает dedicated notice и CTA в существующий orders flow без auto-widget fallback.
+- Unit test на simulated timeout зафиксировал отсутствие `fallbackToWidget` и отсутствие немедленного release bonus hold.
 
 ## Файлы
 

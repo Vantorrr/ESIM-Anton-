@@ -13,7 +13,45 @@ import { getCoverageSummary } from '@/lib/productCoverage'
 import { useAuth } from '@/components/AuthProvider'
 import { sanitizeRedirect } from '@/lib/security'
 import { payCloudPayments } from '@/lib/cloudpayments'
-import type { SavedPaymentCardSummary } from '@shared/contracts/checkout'
+import type {
+  ChargeOrderWithSavedCardResponse,
+  SavedPaymentCardSummary,
+} from '@shared/contracts/checkout'
+
+type SavedCardFollowUpState = {
+  kind: 'ambiguous' | 'in_progress'
+  orderId: string
+  attemptId: string | null
+  message: string
+}
+
+function getSavedCardFollowUpState(
+  response: ChargeOrderWithSavedCardResponse,
+): SavedCardFollowUpState | null {
+  if (response.chargeState === 'ambiguous') {
+    return {
+      kind: 'ambiguous',
+      orderId: response.order.id,
+      attemptId: response.repeatChargeAttemptId ?? null,
+      message:
+        response.message ||
+        'Платеж по привязанной карте сейчас проверяется. Не оплачивайте заказ повторно, дождитесь проверки в списке заказов.',
+    }
+  }
+
+  if (response.chargeState === 'in_progress') {
+    return {
+      kind: 'in_progress',
+      orderId: response.order.id,
+      attemptId: response.repeatChargeAttemptId ?? null,
+      message:
+        response.message ||
+        'Запрос на списание уже обрабатывается. Не запускайте оплату повторно, откройте список заказов и дождитесь обновления.',
+    }
+  }
+
+  return null
+}
 
 export default function ProductPage() {
   return (
@@ -46,6 +84,7 @@ function ProductPageInner() {
   const [balance, setBalance] = useState<number | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'balance' | 'card' | 'saved_card'>('card')
   const [savedCard, setSavedCard] = useState<SavedPaymentCardSummary | null>(null)
+  const [savedCardFollowUp, setSavedCardFollowUp] = useState<SavedCardFollowUpState | null>(null)
   const [agreedEsim, setAgreedEsim] = useState(false)
   const [agreedOnlyInternet, setAgreedOnlyInternet] = useState(false)
   const [agreedTerms, setAgreedTerms] = useState(false)
@@ -235,6 +274,7 @@ function ProductPageInner() {
     setPurchasing(true)
     setPurchaseStage('creating')
     setPurchaseError('')
+    setSavedCardFollowUp(null)
 
     try {
       const { getToken } = await import('@/lib/auth')
@@ -371,6 +411,19 @@ function ProductPageInner() {
 
         setSavedCard(repeatCharge.savedCard)
 
+        const followUp = getSavedCardFollowUpState(repeatCharge)
+        if (followUp) {
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem(
+              'mojo_pending_saved_card_order_id',
+              followUp.orderId,
+            )
+          }
+          setPurchaseStage(null)
+          setSavedCardFollowUp(followUp)
+          return
+        }
+
         if (repeatCharge.fallbackToWidget) {
           if (tg) {
             tg.showAlert(
@@ -405,7 +458,9 @@ function ProductPageInner() {
           return
         }
 
-        throw new Error(repeatCharge.message || 'Не удалось списать с привязанной карты')
+        throw new Error(
+          repeatCharge.message || 'Не удалось списать с привязанной карты',
+        )
       }
 
       await openWidgetForOrder({ id: order.id, totalAmount: orderTotal })
@@ -820,6 +875,41 @@ function ProductPageInner() {
           })()}
         </div>
       </div>
+
+      {savedCardFollowUp && (
+        <div className="card-neutral p-4 mb-4 animate-slide-up bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/30">
+          <p className="text-xs uppercase tracking-wide text-amber-700 dark:text-amber-500 mb-2">
+            {savedCardFollowUp.kind === 'ambiguous'
+              ? 'Платеж проверяется'
+              : 'Запрос уже в работе'}
+          </p>
+          <p className="text-sm text-amber-950 dark:text-amber-200 leading-relaxed">
+            {savedCardFollowUp.message}
+          </p>
+          <p className="text-xs text-amber-700/80 dark:text-amber-400 mt-2">
+            Заказ: #{savedCardFollowUp.orderId.slice(-8)}
+            {savedCardFollowUp.attemptId
+              ? ` · attempt ${savedCardFollowUp.attemptId.slice(-8)}`
+              : ''}
+          </p>
+          <div className="flex gap-2 mt-4">
+            <button
+              type="button"
+              onClick={() => router.push('/orders')}
+              className="flex-1 py-3 rounded-xl bg-[#f77430] text-white text-sm font-semibold"
+            >
+              Открыть заказы
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push(`/order/${savedCardFollowUp.orderId}`)}
+              className="flex-1 py-3 rounded-xl border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-sm font-semibold"
+            >
+              Открыть заказ
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Checkboxes before purchase */}
       <div className="mb-4 animate-slide-up flex flex-col gap-2" style={{ animationDelay: '0.22s' }}>

@@ -189,6 +189,7 @@ export class EsimWebhookService {
       this.logger.warn(
         `ORDER_STATUS: provider query по ${content.orderNo} завершился ошибкой: ${error.message}`,
       );
+      throw error;
     }
   }
 

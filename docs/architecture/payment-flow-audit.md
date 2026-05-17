@@ -42,7 +42,7 @@
 5. CloudPayments widget получает `invoiceId = order.id` и `amount = order.totalAmount`.
 6. `CloudPaymentsService.checkOrder()` валидирует `InvoiceId` и `Amount`.
 7. Если `check` видит протухшую payment session, backend помечает заказ `CANCELLED` с `Payment session expired` и возвращает CloudPayments код `20`.
-8. `CloudPaymentsService.payOrder()` переводит заказ в `PAID`, пишет `PAYMENT/SUCCEEDED`, затем вызывает `OrdersService.fulfillOrder()`.
+8. `CloudPaymentsService.payOrder()` сначала durable-claim-ит право на переход заказа в `PAID`, пишет `PAYMENT/SUCCEEDED`, и только победитель этого claim-а вызывает `OrdersService.fulfillOrder()`.
 9. Если `pay` пришёл поздно уже после auto-expire, backend может безопасно revive только заказ с marker `Payment session expired`; admin/manual cancelled orders не поднимаются.
 10. `fulfillOrder()` выдаёт eSIM, переводит заказ в `COMPLETED`, затем применяет purchase side effects:
    - finalize bonus hold;
@@ -61,20 +61,33 @@
    - проверяет ownership order;
    - убеждается, что это именно purchase order, а не top-up;
    - находит active token пользователя;
+   - создаёт durable `repeat_charge_attempts` claim по `orderId`;
    - создаёт/использует `PAYMENT(PENDING)` transaction под repeat charge;
    - вызывает CloudPayments API `payments/tokens/charge`.
 6. При success backend:
+   - помечает repeat-charge attempt как `SUCCEEDED`;
    - помечает payment transaction как `SUCCEEDED`;
    - переводит order в `PAID`;
    - обновляет `lastUsedAt` у token;
    - вызывает `fulfillOrder()`.
 7. При token failure backend **не** переиспользует тот же order для widget fallback.
    Вместо этого:
+   - repeat-charge attempt помечается как `DECLINED`;
    - order переводится в `CANCELLED`;
    - pending payment transaction закрывается;
    - bonus hold release-ится;
    - клиент создаёт fresh order и только после этого уходит в обычный widget flow новой картой.
-8. Токен автоматически деактивируется только на ограниченном наборе permanent-ish provider codes; временные отказы ведут только к fallback на новую карту.
+8. При network/timeout ambiguity backend **не** трактует outcome как decline:
+   - repeat-charge attempt получает статус `AMBIGUOUS`;
+   - order остаётся в `PENDING`;
+   - widget fallback на том же order не открывается;
+   - повторный вызов `POST /payments/charge-saved-card` не делает второй provider call и возвращает `chargeState = ambiguous` с attempt correlation id.
+9. При duplicate/parallel saved-card retry backend возвращает `chargeState = in_progress` или `chargeState = ambiguous`, а клиент показывает dedicated notice и CTA в `/orders` / `/order/[id]` вместо generic error.
+10. Токен автоматически деактивируется только на ограниченном наборе permanent-ish provider codes; временные отказы ведут только к fallback на новую карту.
+11. CloudPayments token storage и transaction audit теперь минимизированы:
+   - token хранится encrypted at rest;
+   - uniqueness/live lookup идут через `tokenFingerprint`;
+   - transaction metadata и API response используют safelist вместо raw provider payload.
 
 ### 2. Purchase from balance
 
@@ -152,6 +165,8 @@ Quote (`POST /orders/quote`) и реальные purchase mutations (`create`, `
 - Quote и order creation теперь используют одну backend pricing формулу.
 - Repeat purchase by saved card не обходит order state machine и не вводит отдельный hidden purchase lifecycle.
 - Token fail не должен приводить к widget retry на том же order/invoice.
+- Repeat charge по saved card теперь обязан иметь один durable attempt на order; `IN_PROGRESS` и `AMBIGUOUS` attempt запрещают второй provider charge на тот же `orderId`.
+- Обычный CloudPayments widget `pay` callback тоже не должен иметь second-fulfill window: только один callback может claim-ить completion boundary и запустить `fulfillOrder()`.
 
 ## Confirmed Risks / Remaining Gaps
 
@@ -168,7 +183,7 @@ Quote (`POST /orders/quote`) и реальные purchase mutations (`create`, `
 - Legacy Robokassa flow остаётся отдельным runtime path и использует свой webhook lifecycle.
 - Client пока не показывает отдельный UI для bonus spend на product page, хотя backend pricing formula это поддерживает.
 - `POST /orders/:id/fulfill-free` остаётся отдельным client-visible step вместо полного server-side auto-fulfill внутри `POST /orders`.
-- Saved-card repeat charge требует реальной terminal verification: provider response shape и token/widget semantics пока подтверждены только docs + repo baseline.
+- Saved-card repeat charge уже защищён durable attempt contract, но для `AMBIGUOUS` outcome по-прежнему нет автоматического reconciliation worker: текущий baseline опирается на persisted attempt state + support/runbook triage.
 
 ## Enterprise Refactor Baseline
 

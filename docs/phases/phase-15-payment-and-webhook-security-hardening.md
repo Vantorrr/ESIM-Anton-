@@ -106,6 +106,15 @@
 
 - Фаза выделена как отдельный follow-up после security-аудита реализации Phase 14 и live incident вокруг eSIM webhook contract.
 - Scope сознательно отделён от продуктовой фазы tokenized repeat payments: это hardening/reconciliation phase, а не новая payment feature phase.
+- Реализация в repo baseline закрыла все пять шагов фазы:
+  - saved-card repeat charge получил durable `repeat_charge_attempts` contract;
+  - ambiguous outcome больше не уходит в `CANCELLED + widget fallback`;
+  - `ChargeOrderWithSavedCardResponse` и client checkout теперь используют явный `chargeState` и `repeatChargeAttemptId`;
+  - CloudPayments token хранится encrypted at rest, а transaction metadata/API surface сведены к safelist;
+  - unsigned eSIM `ORDER_STATUS` path получил freshness + replay barrier через `esim_webhook_receipts`.
+- После implementation audit был дополнительно закрыт ещё один runtime defect уже в обычном CloudPayments widget flow:
+  - `pay` webhook теперь использует durable DB claim на переход `order -> PAID`, и только победитель claim-а имеет право запускать `fulfillOrder()` и post-payment side effects;
+  - admin reconciliation pagination для `needs_attention` больше не занижает backlog через длину текущей страницы.
 
 ## Ссылки
 

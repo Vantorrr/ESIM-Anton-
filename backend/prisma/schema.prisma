@@ -31,6 +31,7 @@ model User {
   utmSource      String?
   notifications  Notification[]
   orders         Order[]
+  repeatChargeAttempts RepeatChargeAttempt[]
   transactions   Transaction[]
   pushSubs       PushSubscription[]
   cloudPaymentsCardTokens CloudPaymentsCardToken[]
@@ -48,7 +49,8 @@ model CloudPaymentsCardToken {
   id                   String   @id @default(cuid())
   userId               String
   accountId            String
-  cloudPaymentsToken   String   @unique
+  cloudPaymentsToken   String
+  tokenFingerprint     String   @unique
   cardMask             String
   cardBrand            String?
   expMonth             Int?
@@ -63,6 +65,7 @@ model CloudPaymentsCardToken {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repeatChargeAttempts RepeatChargeAttempt[]
 
   @@index([userId, isActive])
   @@index([accountId, isActive])
@@ -194,6 +197,7 @@ model Order {
   topupPackageCode      String?
   product          EsimProduct   @relation(fields: [productId], references: [id])
   user             User          @relation(fields: [userId], references: [id])
+  repeatChargeAttempt RepeatChargeAttempt?
   transactions     Transaction[]
 
   @@index([userId])
@@ -226,6 +230,29 @@ model Transaction {
   @@map("transactions")
 }
 
+model RepeatChargeAttempt {
+  id                        String                  @id @default(cuid())
+  orderId                   String                  @unique
+  userId                    String
+  savedCardId               String
+  status                    RepeatChargeAttemptStatus @default(IN_PROGRESS)
+  idempotencyKey            String                  @unique
+  cloudPaymentsTransactionId String?
+  providerReasonCode        Int?
+  providerMessage           String?
+  ambiguousReason           String?
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  finishedAt                DateTime?
+  order                     Order                   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user                      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  savedCard                 CloudPaymentsCardToken  @relation(fields: [savedCardId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+  @@index([savedCardId])
+  @@map("repeat_charge_attempts")
+}
+
 model Notification {
   id        String           @id @default(cuid())
   userId    String
@@ -240,6 +267,21 @@ model Notification {
   @@index([userId])
   @@index([isRead])
   @@map("notifications")
+}
+
+model EsimWebhookReceipt {
+  id               String                   @id @default(cuid())
+  dedupKey         String                   @unique
+  authMode         EsimWebhookReceiptAuthMode
+  notifyType       String
+  notifyId         String?
+  orderNo          String?
+  eventGeneratedAt DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@index([authMode, notifyType, createdAt])
+  @@map("esim_webhook_receipts")
 }
 
 model PromoCode {
@@ -306,6 +348,13 @@ enum TransactionStatus {
   CANCELLED
 }
 
+enum RepeatChargeAttemptStatus {
+  IN_PROGRESS
+  SUCCEEDED
+  DECLINED
+  AMBIGUOUS
+}
+
 enum NotificationType {
   ORDER_CREATED
   ORDER_COMPLETED
@@ -313,6 +362,10 @@ enum NotificationType {
   BONUS_RECEIVED
   REFERRAL_REGISTERED
   LEVEL_UP
+}
+
+enum EsimWebhookReceiptAuthMode {
+  UNSIGNED_ACCESSCODE
 }
 
 enum AdminRole {

@@ -87,9 +87,11 @@ export class PaymentsController {
 
     return {
       success: result.success,
+      chargeState: result.chargeState,
       fallbackToWidget: result.fallbackToWidget,
       order: this.toCheckoutOrder(result.orderModel),
       savedCard: result.savedCard,
+      repeatChargeAttemptId: result.repeatChargeAttemptId ?? null,
       message: result.message ?? null,
       reasonCode: result.reasonCode ?? null,
     };

@@ -76,6 +76,10 @@ Production topology по проверенным документам и коду
 - основной рабочий путь — `EsimAccessProvider`
 - Webhook-контроллер `EsimWebhookService` принимает Push-уведомления от eSIM Access (трафик 80/100%, статус, истечение)
 - live provider runtime уже показывал mixed auth contract: `CHECK_HEALTH` и часть `ORDER_STATUS` могут прийти без `RT-Signature/RT-Timestamp/RT-RequestID`, но с `rt-accesscode`; source of truth здесь текущий guard, а не старая фазовая формулировка
+- degraded-auth compatibility path теперь явно ограничен:
+  - без подписи допускается только `CHECK_HEALTH`;
+  - unsigned `rt-accesscode` path допускает только `ORDER_STATUS`;
+  - для unsigned `ORDER_STATUS` действует freshness window и durable replay barrier через `esim_webhook_receipts`
 - legacy-код под eSIM Go/fallback всё ещё существует
 - `syncProducts()` в provider service пока не обновляет БД реально, а только возвращает счётчик пакетов
 

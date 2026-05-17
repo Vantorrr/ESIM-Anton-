@@ -123,6 +123,11 @@ export interface OrderReconciliation {
   paymentMethod: string | null
   paymentAmount: NumericLike | null
   lastError: string | null
+  repeatChargeAttemptId: string | null
+  repeatChargeAttemptStatus: string | null
+  providerReasonCode: number | null
+  providerMessage: string | null
+  ambiguousReason: string | null
 }
 
 export interface AdminOrder {

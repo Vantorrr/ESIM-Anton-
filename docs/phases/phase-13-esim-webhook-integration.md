@@ -31,7 +31,7 @@ Endpoint защищен классом `EsimWebhookGuard`, который:
 2. **Защита от Timing Attacks:**
    Используется `crypto.timingSafeEqual` для сравнения подписей.
 3. **Деградированный live-runtime fallback:**
-   В реальном рантайме был зафиксирован `ORDER_STATUS` webhook от eSIM Access, который приходил без `RT-Signature`, `RT-Timestamp`, `RT-RequestID`, но с валидным `rt-accesscode`. Текущий Guard принимает такой запрос в degraded-auth режиме только если `rt-accesscode` совпадает с `ESIMACCESS_ACCESS_CODE`.
+   В реальном рантайме был зафиксирован `ORDER_STATUS` webhook от eSIM Access, который приходил без `RT-Signature`, `RT-Timestamp`, `RT-RequestID`, но с валидным `rt-accesscode`. Текущий Guard принимает такой запрос в degraded-auth режиме только если `rt-accesscode` совпадает с `ESIMACCESS_ACCESS_CODE`, `notifyType === ORDER_STATUS`, `eventGenerateTime` свежий и dedup key ещё не занят в `esim_webhook_receipts`.
 4. **Безопасная обработка Health Check:**
    `CHECK_HEALTH` по-прежнему пропускается без подписи для валидации URL на стороне провайдера. Неподписанные запросы без `CHECK_HEALTH` и без валидного `rt-accesscode` отклоняются с `401 Unauthorized`.
 
@@ -58,6 +58,13 @@ Live runtime eSIM Access оказался менее строгим, чем пр
 - `ORDER_STATUS` не всегда содержит `iccid`, поэтому нельзя отбрасывать событие только из-за отсутствия ICCID.
 
 Это поведение уже учтено в текущем коде и должно считаться source of truth вместо старого предположения "все не-health webhooks обязательно подписаны".
+
+Дополнительный hardening baseline после Phase 15:
+
+- unsigned fallback ограничен только `ORDER_STATUS`, а не любыми notifyType;
+- для unsigned path действует freshness window;
+- duplicate/replay unsigned callback отклоняется через durable receipt barrier;
+- если enrichment по `ORDER_STATUS/GOT_RESOURCE` падает, webhook не считается окончательно обработанным и остаётся retryable.
 
 ## 6. Итог
 

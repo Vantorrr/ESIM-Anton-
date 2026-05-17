@@ -18,6 +18,7 @@ import { LoyaltyService } from '../loyalty/loyalty.service';
 import {
   OrderStatus,
   Prisma,
+  RepeatChargeAttemptStatus,
   TransactionStatus,
   TransactionType,
 } from '@prisma/client';
@@ -88,7 +89,8 @@ type OrderPricingSnapshot = {
 type ReconciliationCategory =
   | 'provider_failed_after_card_charge'
   | 'provider_failed_balance_refunded'
-  | 'topup_failed_balance_refunded';
+  | 'topup_failed_balance_refunded'
+  | 'repeat_charge_ambiguous';
 
 type ReconciliationSnapshot = {
   needsAttention: boolean;
@@ -98,6 +100,11 @@ type ReconciliationSnapshot = {
   paymentMethod: string | null;
   paymentAmount: number | null;
   lastError: string | null;
+  repeatChargeAttemptId: string | null;
+  repeatChargeAttemptStatus: RepeatChargeAttemptStatus | null;
+  providerReasonCode: number | null;
+  providerMessage: string | null;
+  ambiguousReason: string | null;
 };
 
 @Injectable()
@@ -138,6 +145,13 @@ export class OrdersService {
       paymentMethod?: string | null;
       metadata?: Prisma.JsonValue | null;
     }>;
+    repeatChargeAttempt?: {
+      id: string;
+      status: RepeatChargeAttemptStatus;
+      providerReasonCode?: number | null;
+      providerMessage?: string | null;
+      ambiguousReason?: string | null;
+    } | null;
   }): ReconciliationSnapshot {
     const paymentTx = order.transactions?.find(
       (tx) => tx.type === TransactionType.PAYMENT && tx.status === TransactionStatus.SUCCEEDED,
@@ -145,6 +159,31 @@ export class OrdersService {
     const refundTx = order.transactions?.find(
       (tx) => tx.type === TransactionType.REFUND && tx.status === TransactionStatus.SUCCEEDED,
     );
+    const repeatChargeAttempt = order.repeatChargeAttempt ?? null;
+
+    if (repeatChargeAttempt?.status === RepeatChargeAttemptStatus.AMBIGUOUS) {
+      const repeatChargeTx = order.transactions?.find(
+        (tx) =>
+          tx.type === TransactionType.PAYMENT &&
+          tx.paymentProvider === 'cloudpayments' &&
+          tx.paymentMethod === 'saved_card_token',
+      );
+
+      return {
+        needsAttention: true,
+        category: 'repeat_charge_ambiguous',
+        refunded: false,
+        paymentProvider: repeatChargeTx?.paymentProvider ?? 'cloudpayments',
+        paymentMethod: repeatChargeTx?.paymentMethod ?? 'saved_card_token',
+        paymentAmount: repeatChargeTx ? Number(repeatChargeTx.amount) : null,
+        lastError: repeatChargeAttempt.providerMessage ?? order.errorMessage ?? null,
+        repeatChargeAttemptId: repeatChargeAttempt.id,
+        repeatChargeAttemptStatus: repeatChargeAttempt.status,
+        providerReasonCode: repeatChargeAttempt.providerReasonCode ?? null,
+        providerMessage: repeatChargeAttempt.providerMessage ?? null,
+        ambiguousReason: repeatChargeAttempt.ambiguousReason ?? null,
+      };
+    }
 
     if (order.status !== OrderStatus.FAILED || !paymentTx) {
       return {
@@ -155,6 +194,11 @@ export class OrdersService {
         paymentMethod: paymentTx?.paymentMethod ?? null,
         paymentAmount: paymentTx ? Number(paymentTx.amount) : null,
         lastError: order.errorMessage ?? null,
+        repeatChargeAttemptId: repeatChargeAttempt?.id ?? null,
+        repeatChargeAttemptStatus: repeatChargeAttempt?.status ?? null,
+        providerReasonCode: repeatChargeAttempt?.providerReasonCode ?? null,
+        providerMessage: repeatChargeAttempt?.providerMessage ?? null,
+        ambiguousReason: repeatChargeAttempt?.ambiguousReason ?? null,
       };
     }
 
@@ -179,6 +223,11 @@ export class OrdersService {
       paymentMethod: paymentTx.paymentMethod ?? null,
       paymentAmount: Number(paymentTx.amount),
       lastError: order.errorMessage ?? null,
+      repeatChargeAttemptId: repeatChargeAttempt?.id ?? null,
+      repeatChargeAttemptStatus: repeatChargeAttempt?.status ?? null,
+      providerReasonCode: repeatChargeAttempt?.providerReasonCode ?? null,
+      providerMessage: repeatChargeAttempt?.providerMessage ?? null,
+      ambiguousReason: repeatChargeAttempt?.ambiguousReason ?? null,
     };
   }
 
@@ -194,6 +243,13 @@ export class OrdersService {
       paymentMethod?: string | null;
       metadata?: Prisma.JsonValue | null;
     }>;
+    repeatChargeAttempt?: {
+      id: string;
+      status: RepeatChargeAttemptStatus;
+      providerReasonCode?: number | null;
+      providerMessage?: string | null;
+      ambiguousReason?: string | null;
+    } | null;
   }>(order: T) {
     return {
       ...order,
@@ -215,6 +271,13 @@ export class OrdersService {
         paymentMethod?: string | null;
         metadata?: Prisma.JsonValue | null;
       }>;
+      repeatChargeAttempt?: {
+        id: string;
+        status: RepeatChargeAttemptStatus;
+        providerReasonCode?: number | null;
+        providerMessage?: string | null;
+        ambiguousReason?: string | null;
+      } | null;
     },
     stage: 'purchase' | 'topup',
   ) {
@@ -231,6 +294,11 @@ export class OrdersService {
         paymentMethod: reconciliation.paymentMethod,
         paymentAmount: reconciliation.paymentAmount,
         error: reconciliation.lastError,
+        repeatChargeAttemptId: reconciliation.repeatChargeAttemptId,
+        repeatChargeAttemptStatus: reconciliation.repeatChargeAttemptStatus,
+        providerReasonCode: reconciliation.providerReasonCode,
+        providerMessage: reconciliation.providerMessage,
+        ambiguousReason: reconciliation.ambiguousReason,
       })}`,
     );
   }
@@ -822,6 +890,7 @@ export class OrdersService {
           },
         },
         transactions: true,
+        repeatChargeAttempt: true,
       },
     });
 
@@ -895,6 +964,7 @@ export class OrdersService {
       include: {
         product: true,
         transactions: true,
+        repeatChargeAttempt: true,
       },
     });
 
@@ -1793,13 +1863,24 @@ export class OrdersService {
       ...(status && { status }),
       ...(reconciliation === 'needs_attention'
         ? {
-            status: OrderStatus.FAILED,
-            transactions: {
-              some: {
-                type: TransactionType.PAYMENT,
-                status: TransactionStatus.SUCCEEDED,
+            OR: [
+              {
+                status: OrderStatus.FAILED,
+                transactions: {
+                  some: {
+                    type: TransactionType.PAYMENT,
+                    status: TransactionStatus.SUCCEEDED,
+                  },
+                },
               },
-            },
+              {
+                repeatChargeAttempt: {
+                  is: {
+                    status: RepeatChargeAttemptStatus.AMBIGUOUS,
+                  },
+                },
+              },
+            ],
           }
         : {}),
     };
@@ -1822,6 +1903,7 @@ export class OrdersService {
             },
           },
           transactions: true,
+          repeatChargeAttempt: true,
         },
       }),
       this.prisma.order.count({ where }),
@@ -1836,12 +1918,10 @@ export class OrdersService {
     return {
       data: decoratedOrders,
       meta: {
-        total: reconciliation === 'needs_attention' ? decoratedOrders.length : total,
+        total,
         page,
         limit,
-        totalPages: Math.ceil(
-          (reconciliation === 'needs_attention' ? decoratedOrders.length : total) / limit,
-        ),
+        totalPages: Math.ceil(total / limit),
       },
     };
   }

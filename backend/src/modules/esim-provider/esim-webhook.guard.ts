@@ -8,6 +8,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { Request } from 'express';
+import { EsimWebhookReplayService } from './esim-webhook-replay.service';
+import type { EsimWebhookPayload } from './esim-webhook.service';
 
 /**
  * Guard для верификации webhook от eSIM Access.
@@ -32,7 +34,10 @@ export class EsimWebhookGuard implements CanActivate {
   private readonly secretKey: string;
   private readonly accessCode: string;
 
-  constructor(private config: ConfigService) {
+  constructor(
+    private config: ConfigService,
+    private readonly replayService: EsimWebhookReplayService,
+  ) {
     this.secretKey = this.config.get('ESIMACCESS_SECRET_KEY') || '';
     this.accessCode = this.config.get('ESIMACCESS_ACCESS_CODE') || '';
     if (!this.secretKey) {
@@ -40,7 +45,7 @@ export class EsimWebhookGuard implements CanActivate {
     }
   }
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     // Если секрет не настроен — пропускаем (dev-среда)
     if (!this.secretKey) {
       this.logger.warn('Webhook guard: секрет не задан, пропускаем верификацию');
@@ -63,13 +68,22 @@ export class EsimWebhookGuard implements CanActivate {
       // Без RT-* подписи пропускаем:
       // 1. CHECK_HEALTH ping от провайдера;
       // 2. live webhook с валидным RT-AccessCode (реально наблюдаемый runtime).
-      const body = request.body as Record<string, unknown>;
+      const body = request.body as EsimWebhookPayload;
       if (body?.notifyType === 'CHECK_HEALTH') {
         this.logger.log('Webhook: CHECK_HEALTH ping (без подписи), пропускаем');
         return true;
       }
 
       if (accessCodeHeader && accessCodeHeader === this.accessCode) {
+        const receipt = await this.replayService.claimUnsignedOrderStatus(body);
+        (request as Request & {
+          esimUnsignedWebhookReceiptId?: string;
+          esimWebhookAuthMode?: 'unsigned_accesscode';
+        }).esimUnsignedWebhookReceiptId = receipt.receiptId;
+        (request as Request & {
+          esimUnsignedWebhookReceiptId?: string;
+          esimWebhookAuthMode?: 'unsigned_accesscode';
+        }).esimWebhookAuthMode = 'unsigned_accesscode';
         this.logger.warn(
           `Webhook: подпись отсутствует, но RT-AccessCode совпал. ` +
           `Принимаем degraded-auth режим для notifyType=${body?.notifyType ?? 'unknown'}`,

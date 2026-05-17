@@ -33,13 +33,19 @@
 
 ## Статус
 
-- `planned`
+- `completed`
 
 ## Журнал изменений
 
 ### 2026-05-17
 
 - Шаг создан как стартовая точка новой hardening phase после security-аудита Phase 14.
+- Повторная code inspection подтвердила четыре реальные группы рисков:
+  - `POST /payments/charge-saved-card` не имел durable claim semantics и мог породить второй provider call при concurrency/retry;
+  - transport/timeout ошибка token charge трактовалась как обычный decline и немедленно вела к `Order(CANCELLED) + fallbackToWidget`;
+  - repeat-charge path тащил provider result дальше нужной boundary через `transaction.metadata`;
+  - degraded-auth path у eSIM webhook по `rt-accesscode` оставался без replay/freshness policy и ограниченного event scope.
+- В качестве canonical baseline для payment hardening выбран локальный durable attempt contract внутри текущего `payments` модуля, без выделения отдельной payment/reconciliation platform.
 
 ## Файлы
 

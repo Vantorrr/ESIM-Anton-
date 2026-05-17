@@ -54,12 +54,14 @@ describe('PaymentsController', () => {
   it('chargeOrderWithSavedCard использует user.id и маппит order в checkout shape', async () => {
     paymentsService.chargeOrderWithSavedCard.mockResolvedValue({
       success: true,
+      chargeState: 'succeeded',
       fallbackToWidget: false,
       savedCard: {
         id: 'card_1',
         cardMask: '4242 42****** 4242',
         isActive: true,
       },
+      repeatChargeAttemptId: 'attempt_1',
       message: 'ok',
       reasonCode: 0,
       orderModel: {
@@ -90,7 +92,9 @@ describe('PaymentsController', () => {
     expect(paymentsService.chargeOrderWithSavedCard).toHaveBeenCalledWith('user_1', 'order_1');
     expect(result).toMatchObject({
       success: true,
+      chargeState: 'succeeded',
       fallbackToWidget: false,
+      repeatChargeAttemptId: 'attempt_1',
       message: 'ok',
       reasonCode: 0,
       savedCard: {

@@ -29,6 +29,7 @@ function makeService() {
         },
         order: {
           update: jest.fn().mockResolvedValue(undefined),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
       }),
     ),
@@ -157,6 +158,56 @@ describe('CloudPaymentsService', () => {
 
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(ordersService.fulfillOrder).not.toHaveBeenCalled();
+    expect(result).toEqual({ code: 0 });
+  });
+
+  it('does not fulfill twice when another callback already claimed the order', async () => {
+    const { service, prisma, ordersService, pushService } = makeService();
+    prisma.order.findUnique.mockResolvedValue({
+      id: 'order_1',
+      userId: 'user_1',
+      status: OrderStatus.PENDING,
+      totalAmount: 100,
+      createdAt: new Date(),
+      errorMessage: null,
+      product: {
+        name: 'Japan 10 GB',
+        country: 'JP',
+        dataAmount: '10 GB',
+      },
+      user: {
+        id: 'user_1',
+      },
+    });
+    prisma.transaction.findFirst.mockResolvedValue(null);
+    ordersService.isExpiredPaymentSessionOrder.mockReturnValue(false);
+    prisma.$transaction.mockImplementation(async (callback: any) =>
+      callback({
+        transaction: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          update: jest.fn().mockResolvedValue(undefined),
+          create: jest.fn().mockResolvedValue(undefined),
+        },
+        cloudPaymentsCardToken: {
+          findUnique: jest.fn().mockResolvedValue(null),
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+          upsert: jest.fn().mockResolvedValue(undefined),
+        },
+        order: {
+          update: jest.fn().mockResolvedValue(undefined),
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        },
+      }),
+    );
+
+    const result = await service.handlePay({
+      InvoiceId: 'order_1',
+      Amount: 100,
+      TransactionId: 'cp_tx_1',
+    });
+
+    expect(ordersService.fulfillOrder).not.toHaveBeenCalled();
+    expect(pushService.sendPaymentSuccess).not.toHaveBeenCalled();
     expect(result).toEqual({ code: 0 });
   });
 

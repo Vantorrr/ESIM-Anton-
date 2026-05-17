@@ -104,11 +104,19 @@ export interface ChargeOrderWithSavedCardRequest {
   orderId: string;
 }
 
+export type SavedCardChargeState =
+  | 'succeeded'
+  | 'declined'
+  | 'in_progress'
+  | 'ambiguous';
+
 export interface ChargeOrderWithSavedCardResponse {
   success: boolean;
+  chargeState: SavedCardChargeState;
   fallbackToWidget: boolean;
   order: CheckoutOrder;
   savedCard: SavedPaymentCardSummary | null;
+  repeatChargeAttemptId?: string | null;
   message?: string | null;
   reasonCode?: number | null;
 }
