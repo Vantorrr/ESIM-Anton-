@@ -15,6 +15,7 @@
 - `client/app/balance/page.tsx`
 - `client/lib/api.ts`
 - shared checkout contracts / DTO
+- repeat-charge / saved-card checkout paths
 
 ## Что уже покрыто кодом
 
@@ -34,6 +35,7 @@
 Требует staging/manual smoke:
 
 - реальный CloudPayments widget flow;
+- реальный CloudPayments token charge flow (`payments/tokens/charge`);
 - реальный callback delivery `check/pay/fail` из CloudPayments;
 - 3DS user path;
 - balance purchase end-to-end;
@@ -49,6 +51,7 @@
 - production/staging env не требуют новых secrets;
 - CloudPayments public id и API secret заполнены корректно;
 - CloudPayments callback URLs направлены на правильный backend domain;
+- terminal-side tokenization / card-save option реально включены в CloudPayments Back Office;
 - Robokassa credentials не сломаны, если path всё ещё поддерживается;
 - support понимает policy `Payment session expired` и умеет читать reconciliation signals.
 
@@ -97,6 +100,27 @@ Source:
   - `fail` callback не валит backend;
   - order не становится `PAID/COMPLETED`;
   - bonus hold, если был, release-ится корректно.
+
+### 2A. Saved-card purchase success
+
+- Под пользователем с уже сохранённым token открыть product page.
+- Проверить:
+  - UI показывает привязанную карту и отдельный путь на новую карту;
+  - `POST /orders` создаёт fresh `PENDING` order;
+  - `POST /payments/charge-saved-card` проходит успешно;
+  - order доходит до `COMPLETED`;
+  - новый widget flow при этом не открывается;
+  - top-up/balance routes не меняются.
+
+### 2B. Saved-card purchase fallback
+
+- Запустить purchase по saved card на токене/карте, которая даёт decline.
+- Проверить:
+  - first order закрывается, а не переиспользуется;
+  - bonus hold release-ится;
+  - клиент получает message и уходит в fresh widget fallback order;
+  - widget fallback order имеет новый `order.id`;
+  - permanent-ish provider decline при необходимости деактивирует token, временный decline — нет.
 
 ### 3. Expired session + late pay
 
@@ -158,6 +182,7 @@ Source:
 
 - `GET /api/orders?reconciliation=needs_attention` не даёт 500;
 - новые card orders создаются и доходят до callback path;
+- saved-card purchase path не режет обычный widget purchase path;
 - support/admin видят корректный `paymentMethod` и финансовые поля;
 - нет всплеска `Payment session expired` для свежих заказов;
 - нет regressions в `/product/[id]`, `/balance`, `/topup/[orderId]`.
@@ -168,5 +193,8 @@ Source:
 
 - unit tests и typechecks зелёные;
 - staging smoke matrix пройдена хотя бы по happy-path + failure-path + expired-session path;
+- для Phase 14 дополнительно пройдены:
+  - saved-card purchase success;
+  - saved-card fallback на новую карту;
 - callback URLs и test/prod mode CloudPayments проверены вручную;
 - Robokassa path либо smoke-проверен, либо бизнес официально согласовал его вывод в отдельной фазе.

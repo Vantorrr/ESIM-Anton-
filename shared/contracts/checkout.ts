@@ -36,6 +36,16 @@ export interface CheckoutOrder {
   completedAt?: string | Date | null;
 }
 
+export interface SavedPaymentCardSummary {
+  id: string;
+  cardMask: string;
+  cardBrand?: string | null;
+  expMonth?: number | null;
+  expYear?: number | null;
+  isActive: boolean;
+  lastUsedAt?: string | Date | null;
+}
+
 export interface CreateOrderQuoteRequest {
   productId: string;
   quantity?: number;
@@ -88,4 +98,17 @@ export interface CreatePaymentRequest {
 export interface CreateBalanceTopupRequest {
   amount: number;
   provider?: BalanceTopupProvider;
+}
+
+export interface ChargeOrderWithSavedCardRequest {
+  orderId: string;
+}
+
+export interface ChargeOrderWithSavedCardResponse {
+  success: boolean;
+  fallbackToWidget: boolean;
+  order: CheckoutOrder;
+  savedCard: SavedPaymentCardSummary | null;
+  message?: string | null;
+  reasonCode?: number | null;
 }

@@ -5,11 +5,47 @@ import { TelegramNotificationService } from '../telegram/telegram-notification.s
 import { TransactionType, TransactionStatus, OrderStatus, Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import axios from 'axios';
+import { PushService } from '../notifications/push.service';
+import type {
+  ChargeOrderWithSavedCardResponse,
+  SavedPaymentCardSummary,
+} from '@shared/contracts/checkout';
+
+type CloudPaymentsCardTokenRecord = {
+  id: string;
+  userId: string;
+  accountId: string;
+  cloudPaymentsToken: string;
+  cardMask: string;
+  cardBrand: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+  isActive: boolean;
+  lastUsedAt: Date | null;
+};
+
+type CloudPaymentsTokenChargeApiResponse = {
+  Success?: boolean;
+  Message?: string | null;
+  Model?: {
+    TransactionId?: number | string | null;
+    Amount?: number | string | null;
+    Reason?: string | null;
+    ReasonCode?: number | string | null;
+    CardHolderMessage?: string | null;
+  } | null;
+  ReasonCode?: number | string | null;
+};
 
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
   private readonly debugSensitiveLogs: boolean;
+  private readonly cloudPaymentsPublicId: string;
+  private readonly cloudPaymentsApiSecret: string;
+  private readonly cloudPaymentsTokensChargeUrl =
+    'https://api.cloudpayments.ru/payments/tokens/charge';
   
   // Robokassa credentials
   private readonly merchantLogin: string;
@@ -23,7 +59,10 @@ export class PaymentsService {
     private ordersService: OrdersService,
     private configService: ConfigService,
     private telegramNotification: TelegramNotificationService,
+    private pushService: PushService,
   ) {
+    this.cloudPaymentsPublicId = this.configService.get('CLOUDPAYMENTS_PUBLIC_ID') || '';
+    this.cloudPaymentsApiSecret = this.configService.get('CLOUDPAYMENTS_API_SECRET') || '';
     this.merchantLogin = this.configService.get('ROBOKASSA_MERCHANT_LOGIN') || '';
     this.password1 = this.configService.get('ROBOKASSA_PASSWORD1') || '';
     this.password2 = this.configService.get('ROBOKASSA_PASSWORD2') || '';
@@ -61,6 +100,434 @@ export class PaymentsService {
     this.logger.log(
       `📨 Robokassa webhook: InvId=${this.maskValue(payload?.InvId)} amount=${payload?.OutSum ?? 'n/a'} signature=${this.maskValue(payload?.SignatureValue)}`,
     );
+  }
+
+  private toSavedPaymentCardSummary(
+    card: CloudPaymentsCardTokenRecord | null,
+  ): SavedPaymentCardSummary | null {
+    if (!card) return null;
+
+    return {
+      id: card.id,
+      cardMask: card.cardMask,
+      cardBrand: card.cardBrand,
+      expMonth: card.expMonth,
+      expYear: card.expYear,
+      isActive: card.isActive,
+      lastUsedAt: card.lastUsedAt,
+    };
+  }
+
+  private async getActiveSavedCardRecord(userId: string) {
+    return this.prisma.cloudPaymentsCardToken.findFirst({
+      where: {
+        userId,
+        isActive: true,
+      },
+      orderBy: [{ lastUsedAt: 'desc' }, { updatedAt: 'desc' }],
+      select: {
+        id: true,
+        userId: true,
+        accountId: true,
+        cloudPaymentsToken: true,
+        cardMask: true,
+        cardBrand: true,
+        expMonth: true,
+        expYear: true,
+        isActive: true,
+        lastUsedAt: true,
+      },
+    });
+  }
+
+  async getActiveSavedCard(userId: string): Promise<SavedPaymentCardSummary | null> {
+    const card = await this.getActiveSavedCardRecord(userId);
+    return this.toSavedPaymentCardSummary(card);
+  }
+
+  private ensureCloudPaymentsApiConfigured() {
+    if (!this.cloudPaymentsPublicId || !this.cloudPaymentsApiSecret) {
+      throw new BadRequestException('CloudPayments token API не настроен');
+    }
+  }
+
+  private getRepeatChargeDescription(orderId: string) {
+    return `Mojo mobile заказ #${orderId.slice(-8)}`;
+  }
+
+  private getRepeatChargeReasonCode(payload?: CloudPaymentsTokenChargeApiResponse | null) {
+    const raw = payload?.Model?.ReasonCode ?? payload?.ReasonCode ?? null;
+    if (raw === null || raw === undefined || raw === '') return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private getRepeatChargeMessage(payload?: CloudPaymentsTokenChargeApiResponse | null) {
+    return (
+      payload?.Model?.CardHolderMessage ||
+      payload?.Message ||
+      'Не удалось списать с привязанной карты'
+    );
+  }
+
+  private isPermanentSavedCardFailure(reasonCode: number | null) {
+    if (reasonCode === null) return false;
+
+    return new Set([5033, 5036, 5041, 5043, 5054, 5062, 5063]).has(reasonCode);
+  }
+
+  private async cancelRepeatChargeOrder(
+    orderId: string,
+    reason: string,
+    paymentStatus: TransactionStatus,
+    metadata?: Record<string, unknown>,
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.transaction.updateMany({
+        where: {
+          orderId,
+          type: TransactionType.PAYMENT,
+          status: TransactionStatus.PENDING,
+        },
+        data: {
+          status: paymentStatus,
+          metadata: {
+            reason,
+            ...metadata,
+          } as any,
+        },
+      });
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: OrderStatus.CANCELLED,
+          errorMessage: reason,
+        },
+      });
+    });
+
+    await this.ordersService.releaseBonusSpendHold(orderId, 'saved_card_fallback');
+  }
+
+  async chargeOrderWithSavedCard(
+    userId: string,
+    orderId: string,
+  ): Promise<
+    ChargeOrderWithSavedCardResponse & {
+      orderModel: {
+        id: string;
+        userId: string;
+        productId: string;
+        status: OrderStatus;
+        quantity: number;
+        periodNum: number | null;
+        productPrice: Prisma.Decimal;
+        discount: Prisma.Decimal;
+        promoCode: string | null;
+        promoDiscount: Prisma.Decimal;
+        bonusUsed: Prisma.Decimal;
+        totalAmount: Prisma.Decimal;
+        parentOrderId: string | null;
+        topupPackageCode: string | null;
+        createdAt: Date;
+        completedAt: Date | null;
+      };
+    }
+  > {
+    this.ensureCloudPaymentsApiConfigured();
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        product: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+        transactions: true,
+      },
+    });
+
+    if (!order) {
+      throw new BadRequestException('Заказ не найден');
+    }
+    if (order.userId !== userId) {
+      throw new BadRequestException('Заказ принадлежит другому пользователю');
+    }
+    if (order.parentOrderId || order.topupPackageCode) {
+      throw new BadRequestException('Repeat charge доступен только для purchase flow');
+    }
+    if (order.status !== OrderStatus.PENDING) {
+      throw new BadRequestException('Заказ уже не находится в статусе PENDING');
+    }
+    if (Number(order.totalAmount) <= 0) {
+      throw new BadRequestException('Repeat charge не применяется к бесплатным заказам');
+    }
+
+    const existingSucceededPayment = order.transactions.find(
+      (tx) =>
+        tx.type === TransactionType.PAYMENT &&
+        tx.status === TransactionStatus.SUCCEEDED,
+    );
+    if (existingSucceededPayment) {
+      throw new BadRequestException('Заказ уже оплачен');
+    }
+
+    const savedCard = await this.getActiveSavedCardRecord(userId);
+    if (!savedCard) {
+      const reason = 'Saved card unavailable';
+      await this.cancelRepeatChargeOrder(order.id, reason, TransactionStatus.CANCELLED, {
+        code: 'no_active_saved_card',
+      });
+      const cancelledOrder = await this.prisma.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+      return {
+        success: false,
+        fallbackToWidget: true,
+        order: cancelledOrder as any,
+        orderModel: cancelledOrder as any,
+        savedCard: null,
+        message: 'Привязанная карта недоступна. Откройте оплату новой картой.',
+        reasonCode: null,
+      };
+    }
+
+    if (savedCard.accountId !== userId) {
+      this.logger.error(
+        `Active saved card account mismatch: user=${userId} accountId=${savedCard.accountId}`,
+      );
+      throw new BadRequestException('Некорректная привязанная карта');
+    }
+
+    const existingPendingTx = order.transactions.find(
+      (tx) =>
+        tx.type === TransactionType.PAYMENT &&
+        tx.status === TransactionStatus.PENDING &&
+        tx.paymentProvider === 'cloudpayments',
+    );
+
+    const paymentTx =
+      existingPendingTx ||
+      (await this.prisma.transaction.create({
+        data: {
+          userId,
+          orderId: order.id,
+          type: TransactionType.PAYMENT,
+          status: TransactionStatus.PENDING,
+          amount: order.totalAmount,
+          paymentProvider: 'cloudpayments',
+          paymentMethod: 'saved_card_token',
+          metadata: {
+            purpose: 'esim_order',
+            repeatCharge: true,
+            savedCardId: savedCard.id,
+          } as any,
+        },
+      }));
+
+    let providerPayload: CloudPaymentsTokenChargeApiResponse | null = null;
+
+    try {
+      const { data } = await axios.post<CloudPaymentsTokenChargeApiResponse>(
+        this.cloudPaymentsTokensChargeUrl,
+        {
+          Amount: Number(order.totalAmount),
+          Currency: 'RUB',
+          AccountId: savedCard.accountId,
+          Token: savedCard.cloudPaymentsToken,
+          InvoiceId: order.id,
+          Description: this.getRepeatChargeDescription(order.id),
+          Email: order.user.email || undefined,
+          JsonData: {
+            purpose: 'esim_order',
+            repeatCharge: true,
+            savedCardId: savedCard.id,
+          },
+        },
+        {
+          auth: {
+            username: this.cloudPaymentsPublicId,
+            password: this.cloudPaymentsApiSecret,
+          },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Request-ID': `repeat-order-${order.id}`,
+          },
+          timeout: 30000,
+        },
+      );
+
+      providerPayload = data;
+    } catch (error: any) {
+      providerPayload = error?.response?.data ?? null;
+      const reasonCode = this.getRepeatChargeReasonCode(providerPayload);
+      const reason = this.getRepeatChargeMessage(providerPayload);
+      const shouldDeactivate = this.isPermanentSavedCardFailure(reasonCode);
+
+      await this.cancelRepeatChargeOrder(
+        order.id,
+        `Saved card charge failed: ${reason}`,
+        TransactionStatus.FAILED,
+        {
+          providerPayload,
+          reasonCode,
+          savedCardId: savedCard.id,
+        },
+      );
+
+      if (shouldDeactivate) {
+        await this.prisma.cloudPaymentsCardToken.update({
+          where: { id: savedCard.id },
+          data: {
+            isActive: false,
+            deactivatedAt: new Date(),
+            deactivationReason: `provider_reason_${reasonCode}`,
+          },
+        });
+      }
+
+      const cancelledOrder = await this.prisma.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+
+      return {
+        success: false,
+        fallbackToWidget: true,
+        order: cancelledOrder as any,
+        orderModel: cancelledOrder as any,
+        savedCard: shouldDeactivate ? null : this.toSavedPaymentCardSummary(savedCard),
+        message: shouldDeactivate
+          ? 'Привязанная карта больше недоступна. Откройте оплату новой картой.'
+          : `${reason}. Откройте оплату новой картой.`,
+        reasonCode,
+      };
+    }
+
+    if (!providerPayload?.Success) {
+      const reasonCode = this.getRepeatChargeReasonCode(providerPayload);
+      const reason = this.getRepeatChargeMessage(providerPayload);
+      const shouldDeactivate = this.isPermanentSavedCardFailure(reasonCode);
+
+      await this.cancelRepeatChargeOrder(
+        order.id,
+        `Saved card charge failed: ${reason}`,
+        TransactionStatus.FAILED,
+        {
+          providerPayload,
+          reasonCode,
+          savedCardId: savedCard.id,
+        },
+      );
+
+      if (shouldDeactivate) {
+        await this.prisma.cloudPaymentsCardToken.update({
+          where: { id: savedCard.id },
+          data: {
+            isActive: false,
+            deactivatedAt: new Date(),
+            deactivationReason: `provider_reason_${reasonCode}`,
+          },
+        });
+      }
+
+      const cancelledOrder = await this.prisma.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+
+      return {
+        success: false,
+        fallbackToWidget: true,
+        order: cancelledOrder as any,
+        orderModel: cancelledOrder as any,
+        savedCard: shouldDeactivate ? null : this.toSavedPaymentCardSummary(savedCard),
+        message: shouldDeactivate
+          ? 'Привязанная карта больше недоступна. Откройте оплату новой картой.'
+          : `${reason}. Откройте оплату новой картой.`,
+        reasonCode,
+      };
+    }
+
+    const cpTransactionId = providerPayload?.Model?.TransactionId
+      ? String(providerPayload.Model.TransactionId)
+      : null;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.transaction.update({
+        where: { id: paymentTx.id },
+        data: {
+          status: TransactionStatus.SUCCEEDED,
+          paymentId: cpTransactionId,
+          metadata: providerPayload as any,
+        },
+      });
+
+      await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status: OrderStatus.PAID,
+        },
+      });
+
+      await tx.cloudPaymentsCardToken.update({
+        where: { id: savedCard.id },
+        data: {
+          lastUsedAt: new Date(),
+          isActive: true,
+          deactivatedAt: null,
+          deactivationReason: null,
+        },
+      });
+    });
+
+    let finalOrder = await this.prisma.order.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+
+    try {
+      await this.ordersService.fulfillOrder(order.id);
+      finalOrder = await this.prisma.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `Repeat charge payment captured but fulfill failed for order ${order.id}: ${error.message}`,
+      );
+      finalOrder = await this.prisma.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+    }
+
+    try {
+      await this.pushService.sendPaymentSuccess(order.userId, {
+        orderId: order.id,
+        productName: order.product.name,
+        country: order.product.country,
+        dataAmount: order.product.dataAmount,
+        price: Number(order.totalAmount),
+      });
+    } catch (error: any) {
+      this.logger.error(`Push notification error: ${error.message}`);
+    }
+
+    return {
+      success: true,
+      fallbackToWidget: false,
+      order: finalOrder as any,
+      orderModel: finalOrder as any,
+      savedCard: this.toSavedPaymentCardSummary({
+        ...savedCard,
+        lastUsedAt: new Date(),
+      }),
+      message:
+        finalOrder.status === OrderStatus.COMPLETED
+          ? 'Оплата по привязанной карте прошла успешно'
+          : 'Оплата прошла, заказ обрабатывается',
+      reasonCode: 0,
+    };
   }
 
   /**

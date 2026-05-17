@@ -4,7 +4,7 @@ import { PrismaService } from '@/common/prisma/prisma.service';
 import { OrdersService } from '../orders/orders.service';
 import { TelegramNotificationService } from '../telegram/telegram-notification.service';
 import { PushService } from '../notifications/push.service';
-import { TransactionType, TransactionStatus, OrderStatus } from '@prisma/client';
+import { TransactionType, TransactionStatus, OrderStatus, Prisma } from '@prisma/client';
 import * as crypto from 'crypto';
 
 /**
@@ -22,6 +22,8 @@ interface CpData {
   parentOrderId?: string;
   [k: string]: any;
 }
+
+type CardTokenTxClient = Prisma.TransactionClient;
 
 /**
  * Сервис обработки вебхуков CloudPayments. Покрывает три кейса:
@@ -124,6 +126,122 @@ export class CloudPaymentsService {
     }
   }
 
+  private buildCardMask(body: CpWebhookBody): string | null {
+    const lastFour = String(body?.CardLastFour ?? '').trim();
+    if (!lastFour) return null;
+    return `**** ${lastFour}`;
+  }
+
+  private parseCardExpiry(body: CpWebhookBody): { expMonth: number | null; expYear: number | null } {
+    const raw = String(body?.CardExpDate ?? '').trim();
+    if (!raw) {
+      return { expMonth: null, expYear: null };
+    }
+
+    const [monthRaw, yearRaw] = raw.split('/');
+    const expMonth = Number(monthRaw);
+    const shortYear = Number(yearRaw);
+
+    if (!Number.isInteger(expMonth) || expMonth < 1 || expMonth > 12) {
+      return { expMonth: null, expYear: null };
+    }
+    if (!Number.isInteger(shortYear) || shortYear < 0) {
+      return { expMonth, expYear: null };
+    }
+
+    return {
+      expMonth,
+      expYear: shortYear >= 100 ? shortYear : 2000 + shortYear,
+    };
+  }
+
+  private async persistOrderCardToken(
+    tx: CardTokenTxClient,
+    order: { id: string; userId: string },
+    body: CpWebhookBody,
+    data: CpData,
+  ) {
+    if (data.purpose !== 'esim_order') return;
+
+    const rawToken = String(body?.Token ?? '').trim();
+    if (!rawToken) return;
+
+    const accountId = String(body?.AccountId ?? '').trim();
+    if (!accountId) {
+      this.logger.warn(`CP pay for order ${order.id} returned token without AccountId; skip save`);
+      return;
+    }
+    if (accountId !== order.userId) {
+      this.logger.error(
+        `CP pay account mismatch for token save: order.user=${order.userId} pay.account=${accountId}`,
+      );
+      throw new Error('CloudPayments AccountId mismatch');
+    }
+
+    const cardMask = this.buildCardMask(body);
+    if (!cardMask) {
+      this.logger.warn(`CP pay for order ${order.id} returned token without card mask; skip save`);
+      return;
+    }
+
+    const { expMonth, expYear } = this.parseCardExpiry(body);
+    const sourceTransactionId = body?.TransactionId ? String(body.TransactionId) : null;
+    const existingToken = await tx.cloudPaymentsCardToken.findUnique({
+      where: { cloudPaymentsToken: rawToken },
+      select: { id: true, userId: true, isActive: true },
+    });
+
+    if (existingToken && existingToken.userId !== order.userId) {
+      this.logger.error(
+        `CP token ${rawToken.slice(0, 8)}*** already belongs to another user ${existingToken.userId}`,
+      );
+      throw new Error('CloudPayments token ownership mismatch');
+    }
+
+    await tx.cloudPaymentsCardToken.updateMany({
+      where: {
+        userId: order.userId,
+        isActive: true,
+        cloudPaymentsToken: { not: rawToken },
+      },
+      data: {
+        isActive: false,
+        deactivatedAt: new Date(),
+        deactivationReason: 'replaced_by_new_token',
+      },
+    });
+
+    await tx.cloudPaymentsCardToken.upsert({
+      where: { cloudPaymentsToken: rawToken },
+      create: {
+        userId: order.userId,
+        accountId,
+        cloudPaymentsToken: rawToken,
+        cardMask,
+        cardBrand: body?.CardType ? String(body.CardType) : null,
+        expMonth,
+        expYear,
+        isActive: true,
+        consentCapturedAt: new Date(),
+        sourceTransactionId,
+        sourceInvoiceId: order.id,
+      },
+      update: {
+        accountId,
+        cardMask,
+        cardBrand: body?.CardType ? String(body.CardType) : null,
+        expMonth,
+        expYear,
+        isActive: true,
+        deactivatedAt: null,
+        deactivationReason: null,
+        consentCapturedAt: new Date(),
+        sourceTransactionId,
+        sourceInvoiceId: order.id,
+      },
+    });
+  }
+
   // ─────────────────────────────────────────────
   //  CHECK
   // ─────────────────────────────────────────────
@@ -141,7 +259,7 @@ export class CloudPaymentsService {
   }
 
   private async checkOrder(body: CpWebhookBody) {
-    const { InvoiceId, Amount } = body;
+    const { InvoiceId, Amount, AccountId } = body;
     const order = await this.prisma.order.findUnique({ where: { id: String(InvoiceId) } });
 
     if (!order) {
@@ -150,6 +268,10 @@ export class CloudPaymentsService {
     }
     if (Number(order.totalAmount) !== Number(Amount)) {
       this.logger.error(`Amount mismatch: order=${order.totalAmount} pay=${Amount}`);
+      return { code: 11 };
+    }
+    if (AccountId && String(order.userId) !== String(AccountId)) {
+      this.logger.error(`Order user mismatch: order.user=${order.userId} pay.account=${AccountId}`);
       return { code: 11 };
     }
     if (this.ordersService.isExpiredPaymentSessionOrder(order)) {
@@ -212,8 +334,9 @@ export class CloudPaymentsService {
   }
 
   private async payOrder(body: CpWebhookBody) {
-    const { InvoiceId, Amount, TransactionId } = body;
+    const { InvoiceId, Amount, TransactionId, AccountId } = body;
     const cpTxId = String(TransactionId ?? '');
+    const data = this.parseData(body);
 
     const order = await this.prisma.order.findUnique({
       where: { id: String(InvoiceId) },
@@ -221,6 +344,10 @@ export class CloudPaymentsService {
     });
     if (!order) return { code: 10 };
     if (Number(order.totalAmount) !== Number(Amount)) return { code: 11 };
+    if (AccountId && String(order.userId) !== String(AccountId)) {
+      this.logger.error(`Order user mismatch: order.user=${order.userId} pay.account=${AccountId}`);
+      return { code: 11 };
+    }
     const canReviveExpiredSession = this.ordersService.isExpiredPaymentSessionOrder(order);
     const shouldProcessPayment =
       order.status === OrderStatus.PENDING || canReviveExpiredSession;
@@ -282,6 +409,8 @@ export class CloudPaymentsService {
           data: { status: OrderStatus.PAID },
         });
       }
+
+      await this.persistOrderCardToken(tx, order, body, data);
     });
 
     // Выдача eSIM — вне транзакции, чтобы долгий запрос к провайдеру не лочил БД

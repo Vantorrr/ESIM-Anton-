@@ -25,6 +25,7 @@ export interface CloudPaymentsChargeOptions {
   email?: string
   data?: Record<string, any>
   skin?: 'classic' | 'modern' | 'mini'
+  saveCard?: boolean
 }
 
 export interface CloudPaymentsResult {
@@ -90,6 +91,10 @@ export async function payCloudPayments(
         email: options.email,
         skin: options.skin || 'modern',
         data: options.data || {},
+        // CloudPayments docs use SaveCard in API tables; the widget surface in the
+        // wild is inconsistent between examples, so we pass both spellings.
+        saveCard: options.saveCard,
+        SaveCard: options.saveCard,
       },
       {
         onSuccess: (opts: any) => finish({ success: true, options: opts }),

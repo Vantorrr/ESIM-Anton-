@@ -168,6 +168,7 @@ function BalancePageInner() {
         currency: prep.currency,
         invoiceId: prep.invoiceId,
         accountId: prep.accountId,
+        email: authUser?.email || undefined,
         data: prep.data,
       })
 

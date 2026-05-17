@@ -10,12 +10,22 @@ function makeService() {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
     },
+    cloudPaymentsCardToken: {
+      findUnique: jest.fn(),
+      updateMany: jest.fn(),
+      upsert: jest.fn(),
+    },
     $transaction: jest.fn().mockImplementation(async (callback: any) =>
       callback({
         transaction: {
           findFirst: jest.fn().mockResolvedValue(null),
           update: jest.fn().mockResolvedValue(undefined),
           create: jest.fn().mockResolvedValue(undefined),
+        },
+        cloudPaymentsCardToken: {
+          findUnique: jest.fn().mockResolvedValue(null),
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+          upsert: jest.fn().mockResolvedValue(undefined),
         },
         order: {
           update: jest.fn().mockResolvedValue(undefined),
@@ -63,6 +73,7 @@ describe('CloudPaymentsService', () => {
     const { service, prisma, ordersService } = makeService();
     prisma.order.findUnique.mockResolvedValue({
       id: 'order_1',
+      userId: 'user_1',
       status: OrderStatus.PENDING,
       totalAmount: 100,
       createdAt: new Date(Date.now() - 31 * 60 * 1000),
@@ -147,5 +158,26 @@ describe('CloudPaymentsService', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(ordersService.fulfillOrder).not.toHaveBeenCalled();
     expect(result).toEqual({ code: 0 });
+  });
+
+  it('rejects order webhook when AccountId does not match owner', async () => {
+    const { service, prisma, ordersService } = makeService();
+    prisma.order.findUnique.mockResolvedValue({
+      id: 'order_1',
+      userId: 'user_1',
+      status: OrderStatus.PENDING,
+      totalAmount: 100,
+      createdAt: new Date(),
+      errorMessage: null,
+    });
+    ordersService.isExpiredPaymentSessionOrder.mockReturnValue(false);
+
+    const result = await service.handleCheck({
+      InvoiceId: 'order_1',
+      Amount: 100,
+      AccountId: 'user_2',
+    });
+
+    expect(result).toEqual({ code: 11 });
   });
 });

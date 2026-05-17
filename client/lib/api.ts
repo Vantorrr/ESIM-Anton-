@@ -1,11 +1,13 @@
 import axios from 'axios';
 import type {
+  ChargeOrderWithSavedCardResponse,
   CreateOrderQuoteRequest,
   CreateOrderRequest,
   CreateOrderResponse,
   CreateTopupOrderRequest,
   CreateTopupOrderResponse,
   OrderQuoteResponse,
+  SavedPaymentCardSummary,
 } from '@shared/contracts/checkout';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
@@ -355,6 +357,32 @@ export const paymentsApi = {
   }> {
     const { data } = await api.post(`/payments/balance/topup`, { amount });
     return data;
+  },
+
+  async getActiveSavedCard(): Promise<SavedPaymentCardSummary | null> {
+    const { data } = await api.get('/payments/cards/active');
+    return data;
+  },
+
+  async chargeOrderWithSavedCard(orderId: string): Promise<ChargeOrderWithSavedCardResponse> {
+    const { data } = await api.post('/payments/charge-saved-card', { orderId });
+    return {
+      ...data,
+      reasonCode:
+        data.reasonCode === null || data.reasonCode === undefined
+          ? null
+          : Number(data.reasonCode),
+      order: {
+        ...data.order,
+        quantity: Number(data.order.quantity ?? 0),
+        periodNum: data.order.periodNum ?? null,
+        productPrice: Number(data.order.productPrice ?? 0),
+        discount: Number(data.order.discount ?? 0),
+        promoDiscount: Number(data.order.promoDiscount ?? 0),
+        bonusUsed: Number(data.order.bonusUsed ?? 0),
+        totalAmount: Number(data.order.totalAmount ?? 0),
+      },
+    };
   },
 
   // Старый Robokassa-flow пополнения. Оставлен на случай fallback,

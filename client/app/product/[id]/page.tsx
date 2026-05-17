@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Wifi, Clock, Tag, CreditCard, Mail, Wallet } from '@/components/icons'
 import BackHeader from '@/components/BackHeader'
 import { MapPin, Smartphone, Ban } from 'lucide-react'
-import { productsApi, Product, userApi, ordersApi, promoApi, type OrderQuote } from '@/lib/api'
+import { productsApi, Product, userApi, ordersApi, promoApi, paymentsApi, type OrderQuote } from '@/lib/api'
 import { isTelegramWebApp } from '@/lib/auth'
 import { formatPrice, formatDataAmount, getFlagUrl, getCountryName } from '@/lib/utils'
 import { PurchaseOverlay, type PurchaseStage } from '@/components/PurchaseOverlay'
@@ -13,6 +13,7 @@ import { getCoverageSummary } from '@/lib/productCoverage'
 import { useAuth } from '@/components/AuthProvider'
 import { sanitizeRedirect } from '@/lib/security'
 import { payCloudPayments } from '@/lib/cloudpayments'
+import type { SavedPaymentCardSummary } from '@shared/contracts/checkout'
 
 export default function ProductPage() {
   return (
@@ -43,7 +44,8 @@ function ProductPageInner() {
   const [email, setEmail] = useState('')
   const [emailSaved, setEmailSaved] = useState(false)
   const [balance, setBalance] = useState<number | null>(null)
-  const [paymentMethod, setPaymentMethod] = useState<'balance' | 'card'>('card')
+  const [paymentMethod, setPaymentMethod] = useState<'balance' | 'card' | 'saved_card'>('card')
+  const [savedCard, setSavedCard] = useState<SavedPaymentCardSummary | null>(null)
   const [agreedEsim, setAgreedEsim] = useState(false)
   const [agreedOnlyInternet, setAgreedOnlyInternet] = useState(false)
   const [agreedTerms, setAgreedTerms] = useState(false)
@@ -89,6 +91,35 @@ function ProductPageInner() {
     }
   }, [authUser?.id])
 
+  useEffect(() => {
+    let cancelled = false
+
+    const loadSavedCard = async () => {
+      if (authLoading) return
+      if (!authUser?.id && !authToken) {
+        if (!cancelled) setSavedCard(null)
+        return
+      }
+
+      try {
+        const card = await paymentsApi.getActiveSavedCard()
+        if (!cancelled) {
+          setSavedCard(card)
+        }
+      } catch {
+        if (!cancelled) {
+          setSavedCard(null)
+        }
+      }
+    }
+
+    void loadSavedCard()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authLoading, authToken, authUser?.id])
+
   // Если баланса хватает, по умолчанию выбираем оплату с баланса (один клик
   // вместо открытия виджета). Если не хватает — оставляем «Картой».
   useEffect(() => {
@@ -99,10 +130,12 @@ function ProductPageInner() {
 
     if (balance !== null && balance >= payableTotal) {
       setPaymentMethod('balance')
+    } else if (savedCard) {
+      setPaymentMethod('saved_card')
     } else {
       setPaymentMethod('card')
     }
-  }, [balance, payableTotal])
+  }, [balance, payableTotal, savedCard])
 
   useEffect(() => {
     let cancelled = false
@@ -241,6 +274,37 @@ function ProductPageInner() {
       }
 
       const tg = isTelegramWebApp() ? (window as any).Telegram.WebApp : null
+      const finishSuccessfulPurchase = async (message: string) => {
+        if (tg) {
+          tg.showAlert(message, () => router.push('/my-esim'))
+        } else {
+          alert(message)
+          router.push('/my-esim')
+        }
+      }
+      const openWidgetForOrder = async (orderForWidget: { id: string; totalAmount: number }) => {
+        setPurchaseStage(null)
+
+        const result = await payCloudPayments({
+          publicId: process.env.NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID || '',
+          description: `Mojo mobile заказ #${orderForWidget.id.slice(-8)}`,
+          amount: Number(orderForWidget.totalAmount ?? payableTotal),
+          currency: 'RUB',
+          invoiceId: orderForWidget.id,
+          accountId: user.id,
+          email: userEmail || undefined,
+          data: { purpose: 'esim_order' },
+          saveCard: true,
+        })
+
+        if (result.success) {
+          await finishSuccessfulPurchase('Оплата прошла успешно!')
+        } else {
+          console.error('Payment failed:', result.reason)
+          if (tg) tg.showAlert('Оплата не прошла. Попробуйте еще раз.')
+          else alert('Оплата не прошла. Попробуйте еще раз.')
+        }
+      }
 
       // === Ветка «Покупка с баланса» ===
       if (method === 'balance' && payableTotal > 0) {
@@ -293,30 +357,58 @@ function ProductPageInner() {
         return
       }
 
-      // Скрываем оверлей — CloudPayments покажет свой виджет
-      setPurchaseStage(null)
+      if (method === 'saved_card' && savedCard) {
+        setPurchaseStage('paying')
+        const repeatCharge = await paymentsApi.chargeOrderWithSavedCard(order.id)
 
-      const result = await payCloudPayments({
-        publicId: process.env.NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID || '',
-        description: `Mojo mobile заказ #${order.id.slice(-8)}`,
-        amount: orderTotal,
-        currency: 'RUB',
-        invoiceId: order.id,
-        accountId: user.id,
-      })
-
-      if (result.success) {
-        if (tg) {
-          tg.showAlert('Оплата прошла успешно!', () => router.push('/my-esim'))
-        } else {
-          alert('Оплата прошла успешно!')
-          router.push('/my-esim')
+        if (repeatCharge.success) {
+          setSavedCard(repeatCharge.savedCard)
+          await finishSuccessfulPurchase(
+            repeatCharge.message || 'Оплата по привязанной карте прошла успешно!',
+          )
+          return
         }
-      } else {
-        console.error('Payment failed:', result.reason)
-        if (tg) tg.showAlert('Оплата не прошла. Попробуйте еще раз.')
-        else alert('Оплата не прошла. Попробуйте еще раз.')
+
+        setSavedCard(repeatCharge.savedCard)
+
+        if (repeatCharge.fallbackToWidget) {
+          if (tg) {
+            tg.showAlert(
+              repeatCharge.message || 'Не удалось списать с привязанной карты. Откроем оплату новой картой.',
+            )
+          } else {
+            alert(
+              repeatCharge.message || 'Не удалось списать с привязанной карты. Откроем оплату новой картой.',
+            )
+          }
+
+          setPurchaseStage('creating')
+          const widgetFallback = await ordersApi.create(buildCreatePayload('card'))
+          const fallbackOrder = widgetFallback.order
+          const fallbackTotal = Number(fallbackOrder.totalAmount ?? payableTotal)
+
+          if (fallbackTotal <= 0) {
+            setPurchaseStage('provisioning')
+            const { api: apiClient } = await import('@/lib/api')
+            await apiClient.post(`/orders/${fallbackOrder.id}/fulfill-free`)
+            setPurchaseStage('done')
+            await new Promise(r => setTimeout(r, 1200))
+            if (tg) {
+              tg.showAlert('eSIM активирована! Промокод применён.', () => router.push('/my-esim'))
+            } else {
+              router.push('/my-esim')
+            }
+            return
+          }
+
+          await openWidgetForOrder(fallbackOrder)
+          return
+        }
+
+        throw new Error(repeatCharge.message || 'Не удалось списать с привязанной карты')
       }
+
+      await openWidgetForOrder({ id: order.id, totalAmount: orderTotal })
 
     } catch (error: any) {
       console.error('Ошибка создания заказа:', error);
@@ -350,6 +442,18 @@ function ProductPageInner() {
     void handlePurchase('balance')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product, balance, payableTotal, searchParams])
+
+  const savedCardLabel = savedCard
+    ? [
+        savedCard.cardBrand || 'Карта',
+        savedCard.cardMask,
+        savedCard.expMonth && savedCard.expYear
+          ? `${String(savedCard.expMonth).padStart(2, '0')}/${String(savedCard.expYear).slice(-2)}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : null
 
   if (loading) {
     return (
@@ -647,7 +751,7 @@ function ProductPageInner() {
       {/* Payment method — тоггл «С баланса / Картой» */}
       <div className="card-neutral p-4 mb-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Способ оплаты</h3>
-        <div className="grid grid-cols-2 gap-2">
+        <div className={`grid gap-2 ${savedCard ? 'grid-cols-1' : 'grid-cols-2'}`}>
           {(() => {
             const userBalance = Number(balance ?? 0)
             const enoughBalance = userBalance >= payableTotal && payableTotal > 0
@@ -677,20 +781,40 @@ function ProductPageInner() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod('card')}
-                  className={`flex flex-col items-start text-left px-3 py-3 rounded-xl border transition-all ${paymentMethod === 'card'
+                  onClick={() => setPaymentMethod(savedCard ? 'saved_card' : 'card')}
+                  className={`flex flex-col items-start text-left px-3 py-3 rounded-xl border transition-all ${(savedCard ? paymentMethod === 'saved_card' : paymentMethod === 'card')
                       ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20'
                       : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
                     }`}
                 >
                   <div className="flex items-center gap-2">
-                    <CreditCard size={18} className={paymentMethod === 'card' ? 'text-[#f77430]' : 'text-gray-500'} />
-                    <span className={`text-sm font-medium ${paymentMethod === 'card' ? 'text-[#f77430]' : 'text-primary'}`}>
-                      Картой
+                    <CreditCard size={18} className={(savedCard ? paymentMethod === 'saved_card' : paymentMethod === 'card') ? 'text-[#f77430]' : 'text-gray-500'} />
+                    <span className={`text-sm font-medium ${(savedCard ? paymentMethod === 'saved_card' : paymentMethod === 'card') ? 'text-[#f77430]' : 'text-primary'}`}>
+                      {savedCard ? 'Привязанная карта' : 'Картой'}
                     </span>
                   </div>
-                  <span className="text-xs text-gray-500 mt-1">Visa, MC, МИР</span>
+                  <span className="text-xs text-gray-500 mt-1">
+                    {savedCardLabel || 'Visa, MC, МИР'}
+                  </span>
                 </button>
+                {savedCard && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('card')}
+                    className={`flex flex-col items-start text-left px-3 py-3 rounded-xl border transition-all ${paymentMethod === 'card'
+                        ? 'border-[#f77430] bg-orange-50 dark:bg-orange-900/20'
+                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <CreditCard size={18} className={paymentMethod === 'card' ? 'text-[#f77430]' : 'text-gray-500'} />
+                      <span className={`text-sm font-medium ${paymentMethod === 'card' ? 'text-[#f77430]' : 'text-primary'}`}>
+                        Новая карта
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500 mt-1">Открыть CloudPayments widget</span>
+                  </button>
+                )}
               </>
             )
           })()}
@@ -776,6 +900,8 @@ function ProductPageInner() {
                   <span>Пополнить на ₽{formatPrice(need)} и купить</span>
                 ) : paymentMethod === 'balance' ? (
                   <span>Купить с баланса · ₽{formatPrice(payableTotal)}</span>
+                ) : paymentMethod === 'saved_card' ? (
+                  <span>Оплатить привязанной картой · ₽{formatPrice(payableTotal)}</span>
                 ) : (
                   <span>Оплатить картой · ₽{formatPrice(payableTotal)}</span>
                 )}

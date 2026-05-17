@@ -18,6 +18,12 @@ import { JwtAdminGuard, JwtUserGuard, CurrentUser, AuthUser } from '@/common/aut
 import { OrGuard } from '@/common/auth/or.guard';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { CreateBalanceTopupDto } from './dto/create-balance-topup.dto';
+import { ChargeOrderWithSavedCardDto } from './dto/charge-order-with-saved-card.dto';
+import type {
+  ChargeOrderWithSavedCardResponse,
+  CheckoutOrder,
+  SavedPaymentCardSummary,
+} from '@shared/contracts/checkout';
 
 const PaymentsAccessGuard = OrGuard(JwtAdminGuard, JwtUserGuard);
 
@@ -25,6 +31,27 @@ const PaymentsAccessGuard = OrGuard(JwtAdminGuard, JwtUserGuard);
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) { }
+
+  private toCheckoutOrder(order: any): CheckoutOrder {
+    return {
+      id: order.id,
+      userId: order.userId,
+      productId: order.productId,
+      status: order.status,
+      quantity: Number(order.quantity),
+      periodNum: order.periodNum ?? null,
+      productPrice: Number(order.productPrice ?? 0),
+      discount: Number(order.discount ?? 0),
+      promoCode: order.promoCode ?? null,
+      promoDiscount: Number(order.promoDiscount ?? 0),
+      bonusUsed: Number(order.bonusUsed ?? 0),
+      totalAmount: Number(order.totalAmount ?? 0),
+      parentOrderId: order.parentOrderId ?? null,
+      topupPackageCode: order.topupPackageCode ?? null,
+      createdAt: order.createdAt,
+      completedAt: order.completedAt ?? null,
+    };
+  }
 
   @Post('create')
   @UseGuards(JwtUserGuard)
@@ -36,6 +63,36 @@ export class PaymentsController {
   ) {
     await this.paymentsService.assertOrderOwnership(dto.orderId, user.id);
     return this.paymentsService.createPayment(dto.orderId);
+  }
+
+  @Get('cards/active')
+  @UseGuards(JwtUserGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Получить активную привязанную карту CloudPayments текущего пользователя' })
+  async getActiveSavedCard(
+    @CurrentUser() user: AuthUser,
+  ): Promise<SavedPaymentCardSummary | null> {
+    return this.paymentsService.getActiveSavedCard(user.id);
+  }
+
+  @Post('charge-saved-card')
+  @UseGuards(JwtUserGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Попытаться оплатить purchase order по активному CloudPayments token' })
+  async chargeOrderWithSavedCard(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ChargeOrderWithSavedCardDto,
+  ): Promise<ChargeOrderWithSavedCardResponse> {
+    const result = await this.paymentsService.chargeOrderWithSavedCard(user.id, dto.orderId);
+
+    return {
+      success: result.success,
+      fallbackToWidget: result.fallbackToWidget,
+      order: this.toCheckoutOrder(result.orderModel),
+      savedCard: result.savedCard,
+      message: result.message ?? null,
+      reasonCode: result.reasonCode ?? null,
+    };
   }
 
   /**

@@ -51,6 +51,31 @@
    - referral bonus;
    - recalculation `loyaltyLevel`.
 
+### 1A. Purchase by saved card token
+
+1. `client/app/product/[id]/page.tsx` загружает active saved card через `GET /payments/cards/active`.
+2. Если balance недостаточен и active saved card есть, purchase checkout по умолчанию предлагает оплату привязанной картой, но оставляет явный switch на новую карту.
+3. При клике CTA клиент всё равно сначала создаёт новый `POST /orders`, чтобы сохранить один canonical purchase order flow и pricing snapshot.
+4. Затем клиент вызывает `POST /payments/charge-saved-card { orderId }`.
+5. Backend в `PaymentsService.chargeOrderWithSavedCard()`:
+   - проверяет ownership order;
+   - убеждается, что это именно purchase order, а не top-up;
+   - находит active token пользователя;
+   - создаёт/использует `PAYMENT(PENDING)` transaction под repeat charge;
+   - вызывает CloudPayments API `payments/tokens/charge`.
+6. При success backend:
+   - помечает payment transaction как `SUCCEEDED`;
+   - переводит order в `PAID`;
+   - обновляет `lastUsedAt` у token;
+   - вызывает `fulfillOrder()`.
+7. При token failure backend **не** переиспользует тот же order для widget fallback.
+   Вместо этого:
+   - order переводится в `CANCELLED`;
+   - pending payment transaction закрывается;
+   - bonus hold release-ится;
+   - клиент создаёт fresh order и только после этого уходит в обычный widget flow новой картой.
+8. Токен автоматически деактивируется только на ограниченном наборе permanent-ish provider codes; временные отказы ведут только к fallback на новую карту.
+
 ### 2. Purchase from balance
 
 1. Product page использует тот же `POST /orders/quote`.
@@ -125,6 +150,8 @@ Quote (`POST /orders/quote`) и реальные purchase mutations (`create`, `
 - Итоговая оплачиваемая сумма canonical = `Order.totalAmount`.
 - Product page больше не имеет права самостоятельно выбирать старый `PENDING` order.
 - Quote и order creation теперь используют одну backend pricing формулу.
+- Repeat purchase by saved card не обходит order state machine и не вводит отдельный hidden purchase lifecycle.
+- Token fail не должен приводить к widget retry на том же order/invoice.
 
 ## Confirmed Risks / Remaining Gaps
 
@@ -141,6 +168,7 @@ Quote (`POST /orders/quote`) и реальные purchase mutations (`create`, `
 - Legacy Robokassa flow остаётся отдельным runtime path и использует свой webhook lifecycle.
 - Client пока не показывает отдельный UI для bonus spend на product page, хотя backend pricing formula это поддерживает.
 - `POST /orders/:id/fulfill-free` остаётся отдельным client-visible step вместо полного server-side auto-fulfill внутри `POST /orders`.
+- Saved-card repeat charge требует реальной terminal verification: provider response shape и token/widget semantics пока подтверждены только docs + repo baseline.
 
 ## Enterprise Refactor Baseline
 
@@ -154,6 +182,11 @@ Quote (`POST /orders/quote`) и реальные purchase mutations (`create`, `
 - В `shared/contracts/checkout.ts` появился общий contract-level type surface для `quote/create/topup`.
 - Backend `orders/payments` write endpoints переведены с inline body contracts на DTO + `class-validator`.
 - `POST /orders` и `POST /orders/:id/topup` выровнены к одному response shape: `{ paymentMethod, order }`.
+- Добавлен CloudPayments token storage baseline в Prisma.
+- Добавлены purchase-only saved-card endpoints:
+  - `GET /payments/cards/active`
+  - `POST /payments/charge-saved-card`
+- Product page получила minimal saved-card checkout UX без отдельного wallet management раздела.
 
 ## DTO And Shared Contract Baseline
 
@@ -255,3 +288,8 @@ Runtime smoke:
 5. Top-up card/balance:
    - по-прежнему используют fresh order id;
    - не создают loyalty/referral side effects.
+6. Saved-card purchase:
+   - active card видна в purchase checkout;
+   - repeat charge success доводит order до `COMPLETED`;
+   - token fail закрывает first order и создаёт fresh widget fallback order;
+   - top-up и balance-topup не получают tokenized path раньше отдельной follow-up фазы.

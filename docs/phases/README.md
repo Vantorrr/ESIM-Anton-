@@ -96,3 +96,9 @@
   - Умные уведомления по % использованного трафика, дедупликация спама.
   - Гибридная модель с fallbacks через cron.
   - Документ: [phase-13-esim-webhook-integration.md](./phase-13-esim-webhook-integration.md)
+
+- [ ] **Phase 14: CloudPayments Tokenized Repeat Payments**
+  - Включить реальный tokenization flow в текущем CloudPayments widget и захватывать token после первой оплаты.
+  - Добавить минимальную persistence-модель для `token + mask + owner` и repeat charge через CloudPayments API для purchase flow.
+  - Добавить production-grade checkout/orchestration contour для оплаты привязанной картой и безопасный fallback на новую карту без построения полноценной saved-cards platform, сохранив extension seam для будущего top-up / balance-topup.
+  - Документ: [phase-14-cloudpayments-tokenized-repeat-payments.md](./phase-14-cloudpayments-tokenized-repeat-payments.md)
