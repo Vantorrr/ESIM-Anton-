@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 // Lucide icons removed due to type issues - using emoji instead
 import BottomNav from '@/components/BottomNav'
-import { useSmartBack } from '@/lib/useSmartBack'
+import BackHeader from '@/components/BackHeader'
 import { useAuth } from '@/components/AuthProvider'
 import { api, paymentsApi } from '@/lib/api'
 import { payCloudPayments } from '@/lib/cloudpayments'
@@ -65,7 +65,6 @@ function BalancePageInner() {
   const [topupOpen, setTopupOpen] = useState(false)
   const [topupAmount, setTopupAmount] = useState('500')
   const [topupSubmitting, setTopupSubmitting] = useState(false)
-  const handleBack = useSmartBack('/profile')
 
   // Когда нас прислали с продукта/тарифа в формате ?topup=NN&returnTo=...,
   // запоминаем returnTo чтобы после успешного пополнения вернуться обратно
@@ -211,154 +210,140 @@ function BalancePageInner() {
 
   return (
     <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-[#f4f5f7]/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800 -mx-5 px-5 pt-3 pb-3 mb-4">
-        <div className="flex items-center justify-between">
-          <button 
-            onClick={handleBack}
-            className="p-2 -ml-2 text-gray-600 dark:text-gray-300"
-          >
-            <span className="text-xl">←</span>
-          </button>
-          <h1 className="font-semibold text-lg text-gray-900 dark:text-white">Баланс</h1>
-          <div className="w-10" />
+      <BackHeader title="Баланс" fallbackRoute="/profile" />
+
+      {/* Balance Cards */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-5 text-white">
+          <p className="text-sm opacity-80 mb-1">Основной баланс</p>
+          <p className="text-3xl font-bold">₽ {balance}</p>
+        </div>
+        <div className="bg-gradient-to-br from-[#f77430] to-[#f29b41] rounded-2xl p-5 text-white">
+          <p className="text-sm opacity-80 mb-1">Бонусы</p>
+          <p className="text-3xl font-bold">₽ {bonusBalance}</p>
         </div>
       </div>
-        
-      {/* Balance Cards */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-5 text-white">
-            <p className="text-sm opacity-80 mb-1">Основной баланс</p>
-            <p className="text-3xl font-bold">₽ {balance}</p>
-          </div>
-          <div className="bg-gradient-to-br from-[#f77430] to-[#f29b41] rounded-2xl p-5 text-white">
-            <p className="text-sm opacity-80 mb-1">Бонусы</p>
-            <p className="text-3xl font-bold">₽ {bonusBalance}</p>
-          </div>
-        </div>
 
-        {/* Top Up Button */}
-        <button
-          onClick={() => setTopupOpen(true)}
-          className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold rounded-2xl transition-colors mb-8 shadow-lg shadow-orange-500/30"
-        >
-          <span className="text-xl">➕</span>
-          Пополнить баланс
-        </button>
+      {/* Top Up Button */}
+      <button
+        onClick={() => setTopupOpen(true)}
+        className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold rounded-2xl transition-colors mb-8 shadow-lg shadow-orange-500/30"
+      >
+        <span className="text-xl">➕</span>
+        Пополнить баланс
+      </button>
 
-        {topupOpen && (
-          <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto my-auto">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Пополнение баланса
-              </h2>
-              <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">
-                Сумма, ₽
-              </label>
-              <input
-                type="number"
-                value={topupAmount}
-                onChange={(e) => setTopupAmount(e.target.value)}
-                min={100}
-                step={100}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-lg font-semibold text-center"
-              />
-              <div className="flex gap-2 mt-3 flex-wrap">
-                {[500, 1000, 2000, 5000].map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setTopupAmount(String(v))}
-                    className={`flex-1 min-w-[70px] px-3 py-2 rounded-lg text-sm font-medium ${
-                      Number(topupAmount) === v
-                        ? 'bg-[#f77430] text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200'
+      {topupOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto my-auto">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Пополнение баланса
+            </h2>
+            <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">
+              Сумма, ₽
+            </label>
+            <input
+              type="number"
+              value={topupAmount}
+              onChange={(e) => setTopupAmount(e.target.value)}
+              min={100}
+              step={100}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-lg font-semibold text-center"
+            />
+            <div className="flex gap-2 mt-3 flex-wrap">
+              {[500, 1000, 2000, 5000].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setTopupAmount(String(v))}
+                  className={`flex-1 min-w-[70px] px-3 py-2 rounded-lg text-sm font-medium ${Number(topupAmount) === v
+                      ? 'bg-[#f77430] text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200'
                     }`}
-                  >
-                    {v} ₽
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2 mt-5">
-                <button
-                  onClick={() => setTopupOpen(false)}
-                  className="flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium"
                 >
-                  Отмена
+                  {v} ₽
                 </button>
-                <button
-                  onClick={handleTopupSubmit}
-                  disabled={topupSubmitting}
-                  className="flex-1 px-4 py-3 rounded-xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold disabled:opacity-50"
-                >
-                  {topupSubmitting ? 'Создаём...' : 'Оплатить'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Info */}
-        <div className="bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-4 mb-6">
-          <p className="text-sm text-orange-800 dark:text-orange-200">
-            💡 Бонусами можно оплатить до 50% стоимости заказа. 1 бонус = 1 рубль.
-          </p>
-        </div>
-
-        {/* Transaction History */}
-        <section>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            История операций
-          </h2>
-          
-          {loading ? (
-            <div className="flex flex-col gap-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="skeleton w-10 h-10 rounded-full" />
-                    <div className="flex-1">
-                      <div className="skeleton h-4 w-32 mb-2" />
-                      <div className="skeleton h-3 w-24" />
-                    </div>
-                  </div>
-                </div>
               ))}
             </div>
-          ) : transactions.length === 0 ? (
-            <div className="text-center py-12">
-              <span className="block text-5xl text-gray-300 dark:text-gray-600 mb-4">📋</span>
-              <p className="text-gray-500 dark:text-gray-400">
-                Пока нет операций
-              </p>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setTopupOpen(false)}
+                className="flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleTopupSubmit}
+                disabled={topupSubmitting}
+                className="flex-1 px-4 py-3 rounded-xl bg-[#f77430] hover:bg-[#f2622a] text-white font-semibold disabled:opacity-50"
+              >
+                {topupSubmitting ? 'Создаём...' : 'Оплатить'}
+              </button>
             </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {transactions.map((tx) => (
-                <div 
-                  key={tx.id}
-                  className="bg-white dark:bg-gray-800 rounded-xl p-4 flex items-center gap-3"
-                >
-                  <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                    {getTransactionIcon(tx.type)}
-                  </div>
+          </div>
+        </div>
+      )}
+
+      {/* Info */}
+      <div className="bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-4 mb-6">
+        <p className="text-sm text-orange-800 dark:text-orange-200">
+          💡 Бонусами можно оплатить до 50% стоимости заказа. 1 бонус = 1 рубль.
+        </p>
+      </div>
+
+      {/* Transaction History */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          История операций
+        </h2>
+
+        {loading ? (
+          <div className="flex flex-col gap-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                  <div className="skeleton w-10 h-10 rounded-full" />
                   <div className="flex-1">
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {tx.description}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {tx.date}
-                    </p>
+                    <div className="skeleton h-4 w-32 mb-2" />
+                    <div className="skeleton h-3 w-24" />
                   </div>
-                  <p className={`font-semibold ${
-                    tx.amount > 0 ? 'text-green-500' : 'text-gray-900 dark:text-white'
-                  }`}>
-                    {tx.amount > 0 ? '+' : ''}{tx.amount} ₽
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : transactions.length === 0 ? (
+          <div className="text-center py-12">
+            <span className="block text-5xl text-gray-300 dark:text-gray-600 mb-4">📋</span>
+            <p className="text-gray-500 dark:text-gray-400">
+              Пока нет операций
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {transactions.map((tx) => (
+              <div
+                key={tx.id}
+                className="bg-white dark:bg-gray-800 rounded-xl p-4 flex items-center gap-3"
+              >
+                <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                  {getTransactionIcon(tx.type)}
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    {tx.description}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {tx.date}
                   </p>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
+                <p className={`font-semibold ${tx.amount > 0 ? 'text-green-500' : 'text-gray-900 dark:text-white'
+                  }`}>
+                  {tx.amount > 0 ? '+' : ''}{tx.amount} ₽
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <BottomNav />
     </div>

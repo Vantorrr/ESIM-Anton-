@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, QrCode, Copy, CheckCircle, Download, Info } from '@/components/icons'
+import { QrCode, Copy, CheckCircle, Download, Info } from '@/components/icons'
+import BackHeader from '@/components/BackHeader'
 import { ordersApi, Order } from '@/lib/api'
 import { getFlagUrl, getCountryName } from '@/lib/utils'
 
@@ -134,14 +135,7 @@ export default function OrderDetailPage() {
 
   return (
     <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-      <header className="mb-6 mt-6 animate-fade-in">
-        <button
-          onClick={() => router.push('/orders')}
-          className="mb-4 flex items-center gap-2 text-sm font-medium text-secondary transition-opacity hover:opacity-70"
-        >
-          <ArrowLeft size={20} />
-          <span>К моим заказам</span>
-        </button>
+      <BackHeader title="Заказ" fallbackRoute="/my-esim" className="mb-6" />
 
         <div className="card-neutral p-4">
           <div className="flex items-center gap-3">
@@ -171,7 +165,7 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
-      </header>
+
 
       <div className="card-neutral mb-4 p-5 text-center animate-slide-up" style={{ animationDelay: '0.04s' }}>
         <div className="mb-3 text-5xl">{badge.icon}</div>

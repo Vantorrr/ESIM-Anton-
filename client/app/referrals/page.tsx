@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Users, Copy, Share2, Gift, TrendingUp, CheckCircle } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
+import BackHeader from '@/components/BackHeader'
 import { ReferralStats, referralsApi } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 
@@ -72,9 +73,7 @@ export default function ReferralsPage() {
   if (loading || authLoading) {
     return (
       <div className="container">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold text-primary">Реферальная программа</h1>
-        </header>
+        <BackHeader title="Реферальная программа" fallbackRoute="/profile" />
         <div className="glass-card">
           <div className="skeleton h-20 w-full mb-4" />
           <div className="skeleton h-12 w-full" />
@@ -90,12 +89,7 @@ export default function ReferralsPage() {
 
       return (
         <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-          <header className="mb-6">
-            <h1 className="text-2xl font-bold text-primary">Реферальная программа</h1>
-            <p className="text-secondary text-sm mt-1">
-              Для открытия страницы нужен корректный запуск Mini App через Telegram.
-            </p>
-          </header>
+          <BackHeader title="Реферальная программа" fallbackRoute="/profile" />
 
           <div className="card-neutral p-5 mb-6 border border-amber-200 bg-amber-50 text-amber-900">
             <p className="text-sm font-medium mb-2">Не удалось подтвердить Telegram-сессию.</p>
@@ -119,10 +113,8 @@ export default function ReferralsPage() {
 
     return (
       <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold text-primary">Реферальная программа</h1>
+          <BackHeader title="Реферальная программа" fallbackRoute="/profile" />
           <p className="text-secondary text-sm mt-1">Не удалось загрузить данные. Попробуйте открыть страницу ещё раз.</p>
-        </header>
         <BottomNav />
       </div>
     )
@@ -130,11 +122,7 @@ export default function ReferralsPage() {
 
   return (
     <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-      {/* Header */}
-      <header className="mb-6 animate-fade-in">
-        <h1 className="text-2xl font-bold text-primary">Пригласи друзей</h1>
-        <p className="text-secondary text-sm mt-1">Получай бонусы за каждого друга</p>
-      </header>
+      <BackHeader title="Пригласи друзей" fallbackRoute="/profile" className="mb-6" />
 
       {/* Hero Card */}
       <div className="card-accent p-5 mb-6 animate-slide-up overflow-hidden relative">

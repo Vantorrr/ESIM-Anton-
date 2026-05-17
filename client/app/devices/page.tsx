@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, Check, Copy, Info } from '@/components/icons'
+import { Check, Copy, Info } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
-import { useSmartBack } from '@/lib/useSmartBack'
+import BackHeader from '@/components/BackHeader'
 
 type DeviceCategory = 'apple' | 'samsung' | 'google' | 'other'
 
@@ -154,7 +154,7 @@ const deviceData: Record<DeviceCategory, DeviceList> = {
 export default function DevicesPage() {
   const [selectedCategory, setSelectedCategory] = useState<DeviceCategory>('apple')
   const [copied, setCopied] = useState(false)
-  const handleBack = useSmartBack('/help')
+
 
   const copyCode = () => {
     navigator.clipboard.writeText('*#06#')
@@ -166,19 +166,7 @@ export default function DevicesPage() {
 
   return (
     <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-[#f4f5f7]/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800 -mx-5 px-5 pt-3 pb-3 mb-4">
-        <div className="flex items-center justify-between">
-          <button 
-            onClick={handleBack}
-            className="p-2 -ml-2 text-gray-600 dark:text-gray-300"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="font-semibold text-lg text-gray-900 dark:text-white">Поддержка eSIM</h1>
-          <div className="w-10" />
-        </div>
-      </div>
+      <BackHeader title="Поддержка eSIM" fallbackRoute="/help" />
         
       {/* Check eSIM Support Card */}
         <div className="bg-gradient-to-br from-[#f77430] to-[#f2622a] rounded-2xl p-5 mb-6 text-white">

@@ -4,14 +4,14 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Smartphone, Plus, Wifi, WifiOff, RefreshCw, QrCode,
+  Smartphone, Plus, Wifi, WifiOff, RefreshCw, QrCode,
   Apple, Smartphone as AndroidIcon, Copy, Check, ChevronDown, ChevronUp, Clock,
 } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
 import { getCountryEmoji, formatDataAmount } from '@/lib/utils'
 import { ordersApi } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
-import { useSmartBack } from '@/lib/useSmartBack'
+import BackHeader from '@/components/BackHeader'
 import { buildEsimActivationLinks } from '@/lib/esim-links'
 import { detectDevice } from '@/lib/device'
 
@@ -356,7 +356,7 @@ function ActivationBlock({
 
 export default function MyEsimPage() {
   const router = useRouter()
-  const handleBack = useSmartBack('/profile')
+
   const { user: authUser, isLoading: authLoading } = useAuth()
   const [esims, setEsims] = useState<MyEsim[]>([])
   const [loading, setLoading] = useState(true)
@@ -461,18 +461,7 @@ export default function MyEsimPage() {
 
   return (
     <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-      <div className="sticky top-0 z-40 bg-[#f4f5f7]/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800 -mx-5 px-5 pt-3 pb-3 mb-4">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={handleBack}
-            className="p-2 -ml-2 text-gray-600 dark:text-gray-300"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="font-semibold text-lg text-gray-900 dark:text-white">Мои eSIM</h1>
-          <div className="w-10" />
-        </div>
-      </div>
+      <BackHeader title="Мои eSIM" fallbackRoute="/profile" />
 
         {loading ? (
           <div className="flex flex-col gap-4">

@@ -2,7 +2,8 @@
 
 import { Suspense, useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Wifi, Clock, Tag, CreditCard, Mail, Wallet } from '@/components/icons'
+import { Wifi, Clock, Tag, CreditCard, Mail, Wallet } from '@/components/icons'
+import BackHeader from '@/components/BackHeader'
 import { MapPin, Smartphone, Ban } from 'lucide-react'
 import { productsApi, Product, userApi, ordersApi, promoApi, type OrderQuote } from '@/lib/api'
 import { isTelegramWebApp } from '@/lib/auth'
@@ -383,16 +384,10 @@ function ProductPageInner() {
 
   return (
     <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-32">
-      {/* Sticky Back Header */}
-      <div className="sticky top-0 z-40 bg-[#f4f5f7]/95 dark:bg-gray-950/95 backdrop-blur-sm -mx-5 px-5 pt-2 pb-3 mb-4">
-        <button
-          onClick={handleBack}
-          className="flex items-center gap-2 text-accent font-medium"
-        >
-          <ArrowLeft size={20} />
-          <span>Назад</span>
-        </button>
-      </div>
+      <BackHeader
+        title={getCountryName(product.country)}
+        onBack={handleBack}
+      />
 
       {/* Compact Product Header */}
       <div className="card-neutral p-4 mb-4 animate-slide-up">

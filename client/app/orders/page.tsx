@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, ShoppingBag, RefreshCw } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
+import BackHeader from '@/components/BackHeader'
 import { ordersApi } from '@/lib/api'
 import { getFlagUrl } from '@/lib/utils'
 import { useAuth } from '@/components/AuthProvider'
@@ -88,11 +89,7 @@ export default function OrdersPage() {
   if (loading) {
     return (
       <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-        <div className="sticky top-0 z-40 bg-[#f4f5f7]/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800 -mx-5 px-5 pt-3 pb-3 mb-4">
-          <div>
-            <h1 className="font-semibold text-lg text-gray-900 dark:text-white">Мои заказы</h1>
-          </div>
-        </div>
+        <BackHeader title="Мои заказы" fallbackRoute="/profile" />
         <div className="flex flex-col gap-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="glass-card">
@@ -109,12 +106,7 @@ export default function OrdersPage() {
 
   return (
     <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-      <div className="sticky top-0 z-40 bg-[#f4f5f7]/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800 -mx-5 px-5 pt-3 pb-3 mb-4">
-        <div>
-          <h1 className="font-semibold text-lg text-gray-900 dark:text-white">Мои заказы</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">История ваших покупок</p>
-        </div>
-      </div>
+      <BackHeader title="Мои заказы" fallbackRoute="/profile" />
 
       {orders.length === 0 ? (
         <div className="glass-card text-center py-16 animate-slide-up">

@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CheckCircle, Gift, TrendingUp, Wallet } from '@/components/icons'
+import { CheckCircle, Gift, TrendingUp, Wallet } from '@/components/icons'
+import BackHeader from '@/components/BackHeader'
 import BottomNav from '@/components/BottomNav'
 import { LoyaltyProgram, loyaltyApi } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
-import { useSmartBack } from '@/lib/useSmartBack'
 
 function formatMoney(amount: number) {
   return `₽${Math.round(amount).toLocaleString('ru-RU')}`
@@ -14,7 +14,6 @@ function formatMoney(amount: number) {
 
 export default function LoyaltyPage() {
   const router = useRouter()
-  const handleBack = useSmartBack('/profile')
   const { token, isLoading: authLoading, isTelegram, authError } = useAuth()
   const [program, setProgram] = useState<LoyaltyProgram | null>(null)
   const [loading, setLoading] = useState(true)
@@ -103,15 +102,7 @@ export default function LoyaltyPage() {
 
   return (
     <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950">
-      <div className="sticky top-0 z-40 bg-[#f4f5f7]/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800 -mx-5 px-5 pt-3 pb-3 mb-6">
-        <div className="flex items-center justify-between">
-          <button onClick={handleBack} className="p-2 -ml-2 text-gray-600">
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="font-semibold text-lg text-gray-900 dark:text-white">Система лояльности</h1>
-          <div className="w-10" />
-        </div>
-      </div>
+      <BackHeader title="Система лояльности" fallbackRoute="/profile" className="mb-6" />
         <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#f77430] via-[#f29b41] to-[#f9d17f] p-6 text-white shadow-[0_20px_50px_rgba(242,116,48,0.28)] mb-6">
           <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/15 blur-2xl" />
           <div className="absolute -left-8 bottom-0 h-24 w-24 rounded-full bg-black/10 blur-2xl" />

@@ -1,7 +1,6 @@
 'use client'
 
-import { ArrowLeft } from '@/components/icons'
-import { useRouter } from 'next/navigation'
+import BackHeader from '@/components/BackHeader'
 
 function Step({ num, title, items }: { num: string; title: string; items: string[] }) {
   return (
@@ -52,20 +51,11 @@ function Note({ children }: { children: React.ReactNode }) {
 }
 
 export default function AndroidInstallPage() {
-  const router = useRouter()
+
 
   return (
     <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-[#f4f5f7]/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800 -mx-5 px-5 pt-3 pb-3 mb-6">
-        <div className="flex items-center justify-between">
-          <button onClick={() => router.back()} className="p-2 -ml-2 text-gray-600">
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="font-semibold text-lg text-gray-900 dark:text-white">Установка на Android</h1>
-          <div className="w-10" />
-        </div>
-      </div>
+      <BackHeader title="Установка на Android" fallbackRoute="/help" className="mb-6" />
 
         {/* Hero */}
         <div className="card-neutral p-5 mb-6 flex items-center gap-4">

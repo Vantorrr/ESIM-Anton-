@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, RefreshCw, Wifi, AlertCircle, CheckCircle2, Wallet, CreditCard } from '@/components/icons'
+import { RefreshCw, Wifi, AlertCircle, CheckCircle2, Wallet, CreditCard } from '@/components/icons'
 import BottomNav from '@/components/BottomNav'
 import { ordersApi, userApi, type TopupPackage, type Order } from '@/lib/api'
-import { useSmartBack } from '@/lib/useSmartBack'
+import BackHeader from '@/components/BackHeader'
 import { useAuth } from '@/components/AuthProvider'
 import { payCloudPayments } from '@/lib/cloudpayments'
 
@@ -25,7 +25,7 @@ export default function TopupPage() {
   const router = useRouter()
   const params = useParams()
   const orderId = String(params?.orderId || '')
-  const handleBack = useSmartBack('/my-esim')
+
   const { user: authUser, isLoading: authLoading } = useAuth()
 
   const [order, setOrder] = useState<Order | null>(null)
@@ -148,17 +148,7 @@ export default function TopupPage() {
 
   return (
     <div className="container animate-fade-in bg-[#f4f5f7] dark:bg-gray-950 pb-20">
-      <div className="sticky top-0 z-40 bg-[#f4f5f7]/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-200/70 dark:border-gray-800 -mx-5 px-5 pt-3 pb-3 mb-4">
-        <div className="flex items-center justify-between">
-          <button onClick={handleBack} className="p-2 -ml-2 text-gray-600 dark:text-gray-300">
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="font-semibold text-lg text-gray-900 dark:text-white">
-            Пополнение трафика
-          </h1>
-          <div className="w-10" />
-        </div>
-      </div>
+      <BackHeader title="Пополнение трафика" fallbackRoute="/my-esim" />
 
       <div className="flex flex-col gap-4">
         {order && (
