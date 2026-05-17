@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -13,6 +13,7 @@ import { ordersApi } from '@/lib/api'
 import { useAuth } from '@/components/AuthProvider'
 import { useSmartBack } from '@/lib/useSmartBack'
 import { buildEsimActivationLinks } from '@/lib/esim-links'
+import { detectDevice } from '@/lib/device'
 
 /**
  * Нормализованные статусы eSIM, которые приходят с бэка (см.
@@ -153,7 +154,9 @@ function ActivationBlock({
 }) {
   const [copied, setCopied] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
+  const [showAltButton, setShowAltButton] = useState(false)
   const links = buildEsimActivationLinks(smdp, ac)
+  const device = useMemo(() => detectDevice(), [])
 
   if (!links.lpa) {
     return (
@@ -193,9 +196,101 @@ function ActivationBlock({
     }
   }
 
-  return (
-    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-2">
-      <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Установка eSIM</p>
+  /** Кнопка iPhone (полноразмерная, акцентная) */
+  const appleButtonPrimary = links.appleUniversalLink && (
+    <a
+      href={links.appleUniversalLink}
+      className="w-full flex items-center justify-center gap-2 px-3 py-3 bg-black text-white rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors"
+    >
+      <Apple size={18} />
+      Установить на iPhone
+    </a>
+  )
+
+  /** Кнопка Android (полноразмерная, акцентная) */
+  const androidButtonPrimary = links.androidUniversalLink && (
+    <a
+      href={links.androidUniversalLink}
+      onClick={(e) => handleOpenLink(e, links.androidUniversalLink!, true)}
+      className="w-full flex items-center justify-center gap-2 px-3 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors"
+    >
+      <AndroidIcon size={18} />
+      Установить на Android
+    </a>
+  )
+
+  /** Кнопка iPhone (вторичная, компактная в grid) */
+  const appleButtonSecondary = links.appleUniversalLink && (
+    <a
+      href={links.appleUniversalLink}
+      className="flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+    >
+      <Apple size={16} />
+      iPhone
+    </a>
+  )
+
+  /** Кнопка Android (вторичная, компактная в grid) */
+  const androidButtonSecondary = links.androidUniversalLink && (
+    <a
+      href={links.androidUniversalLink}
+      onClick={(e) => handleOpenLink(e, links.androidUniversalLink!, true)}
+      className="flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+    >
+      <AndroidIcon size={16} />
+      Android
+    </a>
+  )
+
+  /**
+   * На мобильном — показываем кнопку под своё устройство + ссылку «Другое устройство?»
+   * На десктопе — показываем обе кнопки в grid (как раньше)
+   */
+  const renderButtons = () => {
+    if (device === 'ios') {
+      return (
+        <>
+          {appleButtonPrimary}
+          {links.androidUniversalLink && (
+            showAltButton ? (
+              androidButtonSecondary
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAltButton(true)}
+                className="w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-[#f77430] transition-colors"
+              >
+                У меня Android →
+              </button>
+            )
+          )}
+        </>
+      )
+    }
+
+    if (device === 'android') {
+      return (
+        <>
+          {androidButtonPrimary}
+          {links.appleUniversalLink && (
+            showAltButton ? (
+              appleButtonSecondary
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAltButton(true)}
+                className="w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-[#f77430] transition-colors"
+              >
+                У меня iPhone →
+              </button>
+            )
+          )}
+        </>
+      )
+    }
+
+    // Desktop — обе кнопки в grid
+    return (
       <div className="grid grid-cols-2 gap-2">
         {links.appleUniversalLink && (
           <a
@@ -217,6 +312,13 @@ function ActivationBlock({
           </a>
         )}
       </div>
+    )
+  }
+
+  return (
+    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-2">
+      <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Установка eSIM</p>
+      {renderButtons()}
       <button
         type="button"
         onClick={copyLpa}
@@ -234,8 +336,17 @@ function ActivationBlock({
       {showInstructions && (
         <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 flex flex-col gap-1.5">
           <p className="font-medium">Если кнопки не открыли установку:</p>
-          <p><b>iPhone:</b> Настройки → Сотовая связь → Добавить eSIM → «Использовать QR-код» → «Ввести данные вручную». Вставьте LPA-код выше.</p>
-          <p><b>Android:</b> Настройки → Сеть и интернет → SIM-карты → Добавить eSIM → «Нет QR-кода?» → «Ввести вручную». Вставьте LPA-код выше.</p>
+          {device === 'android' ? (
+            <>
+              <p><b>Android:</b> Настройки → Сеть и интернет → SIM-карты → Добавить eSIM → «Нет QR-кода?» → «Ввести вручную». Вставьте LPA-код выше.</p>
+              <p><b>iPhone:</b> Настройки → Сотовая связь → Добавить eSIM → «Использовать QR-код» → «Ввести данные вручную». Вставьте LPA-код выше.</p>
+            </>
+          ) : (
+            <>
+              <p><b>iPhone:</b> Настройки → Сотовая связь → Добавить eSIM → «Использовать QR-код» → «Ввести данные вручную». Вставьте LPA-код выше.</p>
+              <p><b>Android:</b> Настройки → Сеть и интернет → SIM-карты → Добавить eSIM → «Нет QR-кода?» → «Ввести вручную». Вставьте LPA-код выше.</p>
+            </>
+          )}
           <p className="text-gray-400 mt-2">ICCID: <code>{iccid}</code></p>
         </div>
       )}
