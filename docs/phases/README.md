@@ -102,3 +102,10 @@
   - Добавить минимальную persistence-модель для `token + mask + owner` и repeat charge через CloudPayments API для purchase flow.
   - Добавить production-grade checkout/orchestration contour для оплаты привязанной картой и безопасный fallback на новую карту без построения полноценной saved-cards platform, сохранив extension seam для будущего top-up / balance-topup.
   - Документ: [phase-14-cloudpayments-tokenized-repeat-payments.md](./phase-14-cloudpayments-tokenized-repeat-payments.md)
+
+- [ ] **Phase 15: Payment & Webhook Security Hardening**
+  - Убрать double-charge и ambiguous-outcome риски в saved-card repeat charge после Phase 14.
+  - Сузить surface хранения и выдачи чувствительных CloudPayments payloads и token-related данных.
+  - Усилить degraded-auth path у eSIM Access webhook без потери live provider compatibility.
+  - Зафиксировать reconciliation/runbook baseline для payment/webhook security follow-up.
+  - Документ: [phase-15-payment-and-webhook-security-hardening.md](./phase-15-payment-and-webhook-security-hardening.md)
