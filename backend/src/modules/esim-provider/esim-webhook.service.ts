@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { TelegramNotificationService } from '../telegram/telegram-notification.service';
 import { OrderStatus } from '@prisma/client';
+import { EsimProviderService } from './esim-provider.service';
 
 /**
  * Payload, приходящий от eSIM Access на наш webhook endpoint.
@@ -42,6 +43,7 @@ export class EsimWebhookService {
   constructor(
     private prisma: PrismaService,
     private telegramNotification: TelegramNotificationService,
+    private esimProviderService: EsimProviderService,
   ) {}
 
   /**
@@ -66,32 +68,127 @@ export class EsimWebhookService {
       time: payload.eventGenerateTime,
     }).catch(() => {});
 
-    if (!content?.iccid) {
-      this.logger.warn('Webhook без ICCID, пропускаем', JSON.stringify(payload));
-      return;
-    }
-
-    this.logger.log(
-      `📨 Webhook: type=${notifyType}, iccid=${content.iccid}` +
-        (payload.notifyId ? `, notifyId=${payload.notifyId}` : ''),
-    );
-
     switch (notifyType) {
+      case 'ORDER_STATUS':
+        await this.handleOrderStatus(content);
+        break;
       case 'DATA_USAGE':
+        if (!content?.iccid) {
+          this.logger.warn('DATA_USAGE webhook без ICCID, пропускаем');
+          return;
+        }
+        this.logger.log(
+          `📨 Webhook: type=${notifyType}, iccid=${content.iccid}` +
+            (payload.notifyId ? `, notifyId=${payload.notifyId}` : ''),
+        );
         await this.handleDataUsage(content);
         break;
       case 'VALIDITY_USAGE':
+        if (!content?.iccid) {
+          this.logger.warn('VALIDITY_USAGE webhook без ICCID, пропускаем');
+          return;
+        }
+        this.logger.log(
+          `📨 Webhook: type=${notifyType}, iccid=${content.iccid}` +
+            (payload.notifyId ? `, notifyId=${payload.notifyId}` : ''),
+        );
         await this.handleValidityUsage(content);
         break;
       case 'ESIM_STATUS':
+        if (!content?.iccid) {
+          this.logger.warn('ESIM_STATUS webhook без ICCID, пропускаем');
+          return;
+        }
+        this.logger.log(
+          `📨 Webhook: type=${notifyType}, iccid=${content.iccid}` +
+            (payload.notifyId ? `, notifyId=${payload.notifyId}` : ''),
+        );
         await this.handleEsimStatus(content);
-        break;
-      case 'ORDER_STATUS':
-        // GOT_RESOURCE и другие статусы заказа — логируем
-        this.logger.log(`📨 ORDER_STATUS: orderNo=${content.orderNo}, status=${content.orderStatus}`);
         break;
       default:
         this.logger.warn(`Неизвестный тип webhook: ${notifyType}`);
+    }
+  }
+
+  /**
+   * ORDER_STATUS: заказ у провайдера дошёл до этапа, где ресурс готов.
+   *
+   * Практический смысл для нас:
+   * - если в synchronous purchase path esimList был пуст или частичный,
+   *   webhook даёт второй шанс дообогатить локальный order по `orderNo`;
+   * - `GOT_RESOURCE` — сигнал сходить в provider query и попытаться получить
+   *   ICCID / QR / activation code / SMDP.
+   */
+  private async handleOrderStatus(content: EsimWebhookPayload['content']) {
+    this.logger.log(`📨 ORDER_STATUS: orderNo=${content.orderNo}, status=${content.orderStatus}`);
+
+    if (!content.orderNo) {
+      this.logger.warn('ORDER_STATUS webhook без orderNo, пропускаем');
+      return;
+    }
+
+    if (content.orderStatus !== 'GOT_RESOURCE') {
+      return;
+    }
+
+    const localOrder = await this.prisma.order.findFirst({
+      where: {
+        providerOrderId: content.orderNo,
+      },
+      select: {
+        id: true,
+        iccid: true,
+        qrCode: true,
+        activationCode: true,
+        smdpAddress: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!localOrder) {
+      this.logger.warn(`ORDER_STATUS: локальный заказ с providerOrderId=${content.orderNo} не найден`);
+      return;
+    }
+
+    if (
+      localOrder.iccid &&
+      localOrder.qrCode &&
+      localOrder.activationCode &&
+      localOrder.smdpAddress
+    ) {
+      this.logger.log(`ORDER_STATUS: локальный заказ ${localOrder.id} уже обогащён, query не нужен`);
+      return;
+    }
+
+    try {
+      const providerOrder = await this.esimProviderService.queryOrder(content.orderNo);
+      const profile = this.extractProfileFromProviderOrder(providerOrder);
+
+      if (!profile) {
+        this.logger.warn(
+          `ORDER_STATUS: provider query по ${content.orderNo} не вернул профиль для локального заказа ${localOrder.id}`,
+        );
+        return;
+      }
+
+      await this.prisma.order.update({
+        where: { id: localOrder.id },
+        data: {
+          ...(profile.iccid ? { iccid: profile.iccid } : {}),
+          ...(profile.qrCode ? { qrCode: profile.qrCode } : {}),
+          ...(profile.activationCode ? { activationCode: profile.activationCode } : {}),
+          ...(profile.smdpAddress ? { smdpAddress: profile.smdpAddress } : {}),
+          providerResponse: providerOrder as any,
+        },
+      });
+
+      this.logger.log(
+        `ORDER_STATUS: локальный заказ ${localOrder.id} дообогащён по provider order ${content.orderNo}`,
+      );
+    } catch (error: any) {
+      this.logger.warn(
+        `ORDER_STATUS: provider query по ${content.orderNo} завершился ошибкой: ${error.message}`,
+      );
     }
   }
 
@@ -238,6 +335,43 @@ export class EsimWebhookService {
     );
   }
 
+  private extractProfileFromProviderOrder(providerOrder: any): {
+    iccid: string | null;
+    qrCode: string | null;
+    activationCode: string | null;
+    smdpAddress: string | null;
+  } | null {
+    const esim =
+      providerOrder?.esimList?.[0] ||
+      providerOrder?.profileList?.[0] ||
+      providerOrder?.esim ||
+      providerOrder;
+
+    const iccid = this.pickString(esim?.iccid);
+    const qrCode = this.pickString(esim?.qrCodeUrl, esim?.qrCode);
+    const activationCode = this.pickString(
+      esim?.lpa,
+      esim?.ac,
+      esim?.lpaCode,
+      esim?.activationCode,
+      esim?.matchingCode,
+      esim?.matchingId,
+      esim?.confirmationCode,
+    );
+    const smdpAddress = this.pickString(esim?.smdpAddress, esim?.smdp, esim?.smDpAddress);
+
+    if (!iccid && !qrCode && !activationCode && !smdpAddress) {
+      return null;
+    }
+
+    return {
+      iccid,
+      qrCode,
+      activationCode,
+      smdpAddress,
+    };
+  }
+
   // ─────────────────────────────────────────────────────────────────────
   // Утилиты
   // ─────────────────────────────────────────────────────────────────────
@@ -265,6 +399,15 @@ export class EsimWebhookService {
   private formatVolume(mb: number): string {
     if (mb >= 1024) return `${(mb / 1024).toFixed(2)} ГБ`;
     return `${Math.round(mb)} МБ`;
+  }
+
+  private pickString(...candidates: unknown[]): string | null {
+    for (const c of candidates) {
+      if (c === null || c === undefined) continue;
+      const s = String(c).trim();
+      if (s) return s;
+    }
+    return null;
   }
 
   /**

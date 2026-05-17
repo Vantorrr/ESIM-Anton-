@@ -39,6 +39,43 @@ export interface CloudPaymentsResult {
 
 const SCRIPT_LOAD_TIMEOUT_MS = 8000
 
+async function dismissMobileKeyboard(): Promise<void> {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return
+  }
+
+  const active = document.activeElement as HTMLElement | null
+  if (active && typeof active.blur === 'function') {
+    active.blur()
+  }
+
+  // iOS Safari/WebView can keep the software keyboard alive even after blur.
+  // Focusing a temporary readonly input is a pragmatic workaround before opening
+  // a third-party payment iframe / 3DS challenge.
+  const isIOS = /iPhone|iPad|iPod/i.test(window.navigator.userAgent)
+  if (isIOS) {
+    const shim = document.createElement('input')
+    shim.setAttribute('readonly', 'readonly')
+    shim.setAttribute('aria-hidden', 'true')
+    shim.tabIndex = -1
+    shim.style.position = 'fixed'
+    shim.style.opacity = '0'
+    shim.style.pointerEvents = 'none'
+    shim.style.height = '0'
+    shim.style.width = '0'
+    shim.style.top = '0'
+    shim.style.left = '0'
+    shim.style.fontSize = '16px'
+    document.body.appendChild(shim)
+    shim.focus()
+    shim.blur()
+    shim.remove()
+  }
+
+  window.scrollTo({ top: 0, behavior: 'auto' })
+  await new Promise((resolve) => window.setTimeout(resolve, 80))
+}
+
 async function waitForCloudPayments(): Promise<void> {
   if (typeof window === 'undefined') {
     throw new Error('CloudPayments доступен только в браузере')
@@ -68,6 +105,7 @@ async function waitForCloudPayments(): Promise<void> {
 export async function payCloudPayments(
   options: CloudPaymentsChargeOptions,
 ): Promise<CloudPaymentsResult> {
+  await dismissMobileKeyboard()
   await waitForCloudPayments()
 
   return new Promise<CloudPaymentsResult>((resolve) => {
@@ -97,10 +135,17 @@ export async function payCloudPayments(
         SaveCard: options.saveCard,
       },
       {
-        onSuccess: (opts: any) => finish({ success: true, options: opts }),
+        onSuccess: (opts: any) => {
+          void dismissMobileKeyboard()
+          finish({ success: true, options: opts })
+        },
         onFail: (reason: string, opts: any) =>
-          finish({ success: false, reason, options: opts }),
+          {
+            void dismissMobileKeyboard()
+            finish({ success: false, reason, options: opts })
+          },
         onComplete: (paymentResult: any) => {
+          void dismissMobileKeyboard()
           // Если onSuccess/onFail не сработали (некоторые скины) — fallback
           if (paymentResult?.success === false) {
             finish({

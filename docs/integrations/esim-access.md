@@ -51,6 +51,14 @@ ESIM_FALLBACK_API_KEY=
 - если `/esim/list` вернул пусто или ошибку, включается fallback на `POST /api/v1/open/esim/query`, чтобы не ломать старые заказы/вариации API;
 - нормализация статусов расширена под реальные коды eSIM Access: `Provisioning`, `New`, `Available`, `Downloaded`, `Onboard`, `In Use`, `Suspended`, `UsedUp`, `Disabled` и legacy-коды вроде `GOT_RESOURCE`, `RELEASED`, `INSTALLATION`.
 
+## Webhook contract
+
+- provider webhook endpoint: `POST /api/esim-provider/webhook`;
+- preferred auth path: `RT-Signature` + `RT-Timestamp` + `RT-RequestID`, HMAC-SHA256 over `timestamp + requestId + accessCode + rawBody`;
+- confirmed live-runtime fallback: часть `ORDER_STATUS` callbacks приходит без signature trio, но с `rt-accesscode`; текущий guard принимает их только если `rt-accesscode === ESIMACCESS_ACCESS_CODE`;
+- `CHECK_HEALTH` provider still sends unsigned by design;
+- `ORDER_STATUS` нужен не только как лог: статус `GOT_RESOURCE` используется для дообогащения локального заказа по `providerOrderId`, если synchronous purchase response не принёс полный профиль.
+
 ## Ограничения
 
 - `syncProducts()` в текущем сервисе не пишет данные в БД, а только получает пакеты и возвращает счётчик;

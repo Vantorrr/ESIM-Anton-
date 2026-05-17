@@ -52,6 +52,7 @@ export class EsimWebhookGuard implements CanActivate {
     const signature = this.getHeader(request, 'rt-signature');
     const timestamp = this.getHeader(request, 'rt-timestamp');
     const requestId = this.getHeader(request, 'rt-requestid');
+    const accessCodeHeader = this.getHeader(request, 'rt-accesscode');
 
     this.logger.log(
       `Webhook headers: signature=${signature ? 'present(' + signature.length + ')' : 'MISSING'}, ` +
@@ -59,13 +60,23 @@ export class EsimWebhookGuard implements CanActivate {
     );
 
     if (!signature || !timestamp || !requestId) {
-      // Без RT-* заголовков пропускаем ТОЛЬКО валидационный CHECK_HEALTH от провайдера.
-      // Все прочие запросы без подписи — отклоняем.
+      // Без RT-* подписи пропускаем:
+      // 1. CHECK_HEALTH ping от провайдера;
+      // 2. live webhook с валидным RT-AccessCode (реально наблюдаемый runtime).
       const body = request.body as Record<string, unknown>;
       if (body?.notifyType === 'CHECK_HEALTH') {
         this.logger.log('Webhook: CHECK_HEALTH ping (без подписи), пропускаем');
         return true;
       }
+
+      if (accessCodeHeader && accessCodeHeader === this.accessCode) {
+        this.logger.warn(
+          `Webhook: подпись отсутствует, но RT-AccessCode совпал. ` +
+          `Принимаем degraded-auth режим для notifyType=${body?.notifyType ?? 'unknown'}`,
+        );
+        return true;
+      }
+
       this.logger.warn(
         `Webhook: отсутствуют RT-* заголовки, запрос отклонён. ` +
         `notifyType=${(request.body as any)?.notifyType ?? 'unknown'}, ` +
